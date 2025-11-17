@@ -1,7 +1,7 @@
 """Gradio web UI for qwen-dev-cli."""
 
 import asyncio
-from typing import List, Tuple
+from typing import List, Tuple, Generator
 import gradio as gr
 
 from .core.llm import llm_client
@@ -43,7 +43,8 @@ def create_ui() -> gr.Blocks:
                     height=500,
                     show_label=True,
                     container=True,
-                    elem_classes=["chat-container"]
+                    elem_classes=["chat-container"],
+                    type="messages"
                 )
                 
                 with gr.Row():
@@ -80,6 +81,12 @@ def create_ui() -> gr.Blocks:
                     step=128,
                     label="Max Tokens",
                     info="Maximum length of response"
+                )
+                
+                stream_enabled = gr.Checkbox(
+                    label="Enable Streaming",
+                    value=True,
+                    info="Show response progressively (better UX)"
                 )
                 
                 # File Upload
@@ -121,29 +128,47 @@ def create_ui() -> gr.Blocks:
         
         # Event Handlers
         
-        def respond(message: str, history: List, temp: float, max_tok: int) -> Tuple[List, str, str]:
-            """Handle chat response (synchronous wrapper for async LLM)."""
+        def respond_stream(message: str, history: List, temp: float, max_tok: int, stream: bool) -> Generator:
+            """Handle chat response with streaming support."""
             if not message.strip():
-                return history, "", last_user_msg.value
+                yield history
+                return
             
             # Add user message to history
-            history.append([message, None])
+            history.append({"role": "user", "content": message})
+            history.append({"role": "assistant", "content": ""})
             
-            # Generate response (run async in sync context)
-            try:
-                response = asyncio.run(llm_client.generate(
-                    message,
-                    temperature=temp,
-                    max_tokens=max_tok
-                ))
+            if stream:
+                # Streaming mode
+                async def stream_response():
+                    full_response = ""
+                    async for chunk in llm_client.stream_chat(message, temperature=temp, max_tokens=max_tok):
+                        full_response += chunk
+                        history[-1]["content"] = full_response
+                        yield history
                 
-                # Update history with response
-                history[-1][1] = response
+                # Run async generator in sync context
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    async_gen = stream_response()
+                    while True:
+                        try:
+                            result = loop.run_until_complete(async_gen.__anext__())
+                            yield result
+                        except StopAsyncIteration:
+                            break
+                finally:
+                    loop.close()
+            else:
+                # Non-streaming mode
+                try:
+                    response = asyncio.run(llm_client.generate(message, temperature=temp, max_tokens=max_tok))
+                    history[-1]["content"] = response
+                except Exception as e:
+                    history[-1]["content"] = f"❌ Error: {str(e)}"
                 
-            except Exception as e:
-                history[-1][1] = f"❌ Error: {str(e)}"
-            
-            return history, "", message
+                yield history
         
         def upload_files(files) -> Tuple[str, dict]:
             """Handle file uploads."""
@@ -174,17 +199,18 @@ def create_ui() -> gr.Blocks:
             """Clear chat history."""
             return [], ""
         
-        def retry_last(history: List, last_msg: str, temp: float, max_tok: int) -> Tuple[List, str, str]:
+        def retry_last(history: List, last_msg: str, temp: float, max_tok: int, stream: bool) -> Generator:
             """Retry last message."""
             if not last_msg:
-                return history, "", ""
+                yield history
+                return
             
-            # Remove last response if exists
-            if history and history[-1][0] == last_msg:
-                history = history[:-1]
+            # Remove last exchange if exists
+            if len(history) >= 2 and history[-2].get("role") == "user" and history[-2].get("content") == last_msg:
+                history = history[:-2]
             
             # Regenerate
-            return respond(last_msg, history, temp, max_tok)
+            yield from respond_stream(last_msg, history, temp, max_tok, stream)
         
         def toggle_mcp(enabled: bool) -> str:
             """Toggle MCP on/off."""
@@ -193,21 +219,29 @@ def create_ui() -> gr.Blocks:
         
         # Wire events
         send_btn.click(
-            respond,
-            inputs=[msg_input, chat_history, temperature, max_tokens],
-            outputs=[chatbot, msg_input, last_user_msg]
+            respond_stream,
+            inputs=[msg_input, chatbot, temperature, max_tokens, stream_enabled],
+            outputs=[chatbot]
         ).then(
-            lambda: context_builder.get_stats(),
-            outputs=[stats_display]
+            lambda: ("", context_builder.get_stats()),
+            outputs=[msg_input, stats_display]
+        ).then(
+            lambda hist: hist[-2]["content"] if len(hist) >= 2 else "",
+            inputs=[chatbot],
+            outputs=[last_user_msg]
         )
         
         msg_input.submit(
-            respond,
-            inputs=[msg_input, chat_history, temperature, max_tokens],
-            outputs=[chatbot, msg_input, last_user_msg]
+            respond_stream,
+            inputs=[msg_input, chatbot, temperature, max_tokens, stream_enabled],
+            outputs=[chatbot]
         ).then(
-            lambda: context_builder.get_stats(),
-            outputs=[stats_display]
+            lambda: ("", context_builder.get_stats()),
+            outputs=[msg_input, stats_display]
+        ).then(
+            lambda hist: hist[-2]["content"] if len(hist) >= 2 else "",
+            inputs=[chatbot],
+            outputs=[last_user_msg]
         )
         
         clear_btn.click(
@@ -217,8 +251,8 @@ def create_ui() -> gr.Blocks:
         
         retry_btn.click(
             retry_last,
-            inputs=[chat_history, last_user_msg, temperature, max_tokens],
-            outputs=[chatbot, msg_input, last_user_msg]
+            inputs=[chatbot, last_user_msg, temperature, max_tokens, stream_enabled],
+            outputs=[chatbot]
         )
         
         file_upload.change(
