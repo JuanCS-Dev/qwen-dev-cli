@@ -31,6 +31,13 @@ class Config:
     hf_token: Optional[str] = None
     hf_model: str = "Qwen/Qwen2.5-Coder-7B-Instruct"
     
+    # SambaNova Cloud (ultra-fast inference)
+    sambanova_api_key: Optional[str] = None
+    sambanova_model: str = "Meta-Llama-3.1-8B-Instruct"
+    
+    # Blaze (Blackbox AI - code specialist)
+    blaze_api_key: Optional[str] = None
+    
     # Ollama (optional local mode)
     ollama_enabled: bool = False
     ollama_model: str = "qwen2.5-coder:7b"
@@ -53,6 +60,12 @@ class Config:
         """Load environment variables."""
         if self.hf_token is None:
             self.hf_token = os.getenv("HF_TOKEN")
+        
+        if self.sambanova_api_key is None:
+            self.sambanova_api_key = os.getenv("SAMBANOVA_API_KEY")
+        
+        if self.blaze_api_key is None:
+            self.blaze_api_key = os.getenv("BLAZE_API_KEY")
         
         if os.getenv("OLLAMA_ENABLED"):
             self.ollama_enabled = os.getenv("OLLAMA_ENABLED").lower() == "true"
