@@ -351,7 +351,7 @@ TOTAL: 91/100 (TOP 3 range!)
 8. ❌ Error handling improvements (1 hour)
 9. ❌ Add caching (optional)
 
-**Time to Demo-Ready:** 5-7 hours (1 focused day)
+**Time to Demo-Ready:** 8-10 days (following MASTER_PLAN schedule to Nov 30)
 
 ---
 
@@ -401,14 +401,22 @@ Deploy Ready:   🟡 90% (needs Dockerfile + HF setup)
 5. 🔄 NEXT: Test mobile (30 min)
 6. 🔄 NEXT: Update MASTER_PLAN (15 min)
 
-**TODAY (Next 4 hours):**
-1. Create demo video (3 hours)
-2. Deploy to HF Spaces (1 hour)
+**NEXT PHASE (Day 2-7: Core Build):**
+1. Complete shell features
+2. Polish streaming UI
+3. Mobile testing
+4. Error handling
+5. Extract CSS
 
-**TOMORROW (Next 3 hours):**
-1. Polish UI (1 hour)
+**POLISH PHASE (Day 8-10: Nov 25-27):**
+1. Create demo video (3 hours)
 2. Update README (1 hour)
-3. Final testing (1 hour)
+3. Documentation complete
+
+**DEPLOY PHASE (Day 11-13: Nov 28-30):**
+1. Deploy to HF Spaces (1 hour)
+2. Final testing
+3. Hackathon submission
 
 ---
 

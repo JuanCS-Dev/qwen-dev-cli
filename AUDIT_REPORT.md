@@ -707,24 +707,34 @@ Projeto está **funcional mas não robusto**. Com 1-2 dias de fixing CRITICAL is
 
 ---
 
-## 📞 NEXT STEPS (Immediate)
+## 📞 NEXT STEPS (Following MASTER_PLAN)
 
-**RIGHT NOW (Next 30 minutes):**
-1. Fix pytest-asyncio
-2. Run all tests
-3. Document REAL pass/fail rate
+**COMPLETED TODAY (Day 1):**
+1. ✅ Fix pytest-asyncio
+2. ✅ Run all tests (10/10 passing)
+3. ✅ Document REAL state (this report)
+4. ✅ Delete llm_backup.py
+5. ✅ Run performance benchmarks (scientific)
 
-**TODAY (Next 4 hours):**
-1. Delete llm_backup.py
-2. Run performance benchmarks (scientific)
-3. Test mobile UI
-4. Update MASTER_PLAN with real state
+**DAY 2-7 (Core Build - Nov 18-24):**
+1. Complete interactive shell features
+2. Polish streaming UI
+3. Mobile testing (30 min)
+4. Error handling improvements
+5. Extract CSS to file
+6. Add caching (optional)
 
-**THIS WEEK (Next 2 days):**
-1. Fix HIGH PRIORITY issues
-2. Polish UI (extract CSS)
-3. Validate all core features work
-4. Prepare demo environment
+**DAY 8-10 (Polish - Nov 25-27):**
+1. Update README comprehensive
+2. Create demo video (3 hours)
+3. Documentation complete
+4. Code cleanup final
+
+**DAY 11-13 (Deploy - Nov 28-30):**
+1. Create Dockerfile
+2. Deploy to HF Spaces
+3. Submit to hackathon
+4. Final testing
 
 ---
 
