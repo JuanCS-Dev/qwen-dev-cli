@@ -1,10 +1,11 @@
+# 🏆 QWEN-DEV-CLI: MASTER HACKATHON PLAN (TOP 3 STRATEGY)
+
 **Project:** QWEN-DEV-CLI - AI-Powered Code Assistant with MCP Integration  
 **Hackathon:** MCP 1st Birthday Hackathon (Anthropic + Gradio)  
 **Deadline:** Nov 30, 2025, 23:59 UTC  
-**Days Remaining:** 11 days  
-**Current Date:** Nov 17, 2025 (Day 2 COMPLETE)  
+**Days Remaining:** 13 days  
 **Target:** 🥇🥈🥉 TOP 3 FINISH  
-**Status:** 🔥 DAY 2 EXCEEDED - 240% Efficiency! MASSIVELY AHEAD!
+**Status:** 📋 PLANNING COMPLETE → 🚀 READY TO BUILD
 
 ---
 
@@ -18,17 +19,13 @@
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  📋 Phase 0: Research & Planning    [████████] 100% │
-│  🏗️  Phase 1: Foundation (Day 1-2)  [████████] 100% │
-│  🔧 Phase 2: Core Build (Day 3-7)   [████    ]  40% │
+│  🏗️  Phase 1: Foundation (Day 1-2)  [        ]   0% │
+│  🔧 Phase 2: Core Build (Day 3-7)   [        ]   0% │
 │  ✨ Phase 3: Polish (Day 8-10)      [        ]   0% │
 │  🚀 Phase 4: Deploy (Day 11-13)     [        ]   0% │
 │                                                     │
-│  Overall Progress: 45% (Day 2 COMPLETE! 🔥)         │
-│  Confidence Level: 98% (Full pipeline working!)     │
-│  Days Ahead: +1.0 days (MASSIVE BUFFER!)            │
-│  Avg Efficiency: 233.5% (2.3x speed!)               │
-│                                                     │
-│  🎯 NEXT: Day 3 - Gradio UI + Streaming             │
+│  Overall Progress: 20% (planning complete)          │
+│  Confidence Level: 87% (with pivots applied)        │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -273,41 +270,40 @@ Decisions Made:
 ┌─────────────────────────────────────────────────────────┐
 │ DAY 1: PROJECT FOUNDATION                               │
 ├─────────────────────────────────────────────────────────┤
-│ Status: [████    ] 50% IN PROGRESS                      │
-│ Progress: Morning DONE, Afternoon IN PROGRESS           │
+│ Status: [ ] TODO                                        │
+│ Progress: [        ] 0%                                 │
 └─────────────────────────────────────────────────────────┘
 
-MORNING (3h): 🌅 ✅ COMPLETE
-[✅] Task 1.1: Setup GitHub repository
-    - Create repo: qwen-dev-cli ✅
-    - Initialize: README, LICENSE, .gitignore ✅
-    - Setup: GitHub Actions (basic linting) ⚠️ DEFERRED
-    - Time: 30min → Actual: 20min
-    - Commit: "Initial repository setup" ✅ (28521cf)
+MORNING (3h): 🌅
+[ ] Task 1.1: Setup GitHub repository
+    - Create repo: qwen-dev-cli
+    - Initialize: README, LICENSE, .gitignore
+    - Setup: GitHub Actions (basic linting)
+    - Time: 30min
+    - Commit: "Initial repository setup"
 
-[✅] Task 1.2: Setup Python environment
-    - Create: Python 3.11+ venv ✅
-    - Install: dev tools (black, mypy, pytest) ✅
-    - Create: pyproject.toml, requirements.txt ✅
-    - Time: 30min → Actual: 15min
-    - Commit: Included in Task 1.1 ✅
+[ ] Task 1.2: Setup Python environment
+    - Create: Python 3.11+ venv
+    - Install: dev tools (black, mypy, pytest)
+    - Create: pyproject.toml, requirements.txt
+    - Time: 30min
+    - Commit: "Python environment setup"
 
-[✅] Task 1.3: Create project structure
-    - Create: Directory structure ✅
-    - Create: All __init__.py files ✅
-    - Create: Basic README with project description ✅
-    - Time: 1h → Actual: 30min
-    - Commit: Included in Task 1.1 ✅
+[ ] Task 1.3: Create project structure
+    - Create: Directory structure (see code structure above)
+    - Create: All __init__.py files
+    - Create: Basic README with project description
+    - Time: 1h
+    - Commit: "Project structure scaffolding"
 
-[✅] Task 1.4: Setup HF Inference API
-    - Get: HuggingFace API token ✅
-    - Test: Basic API call ✅ (Qwen2.5-Coder-7B)
-    - Create: core/config.py with HF_TOKEN ✅
-    - BONUS: Validated latency 2.09s < 2s target! 🎉
-    - Time: 1h → Actual: 45min
-    - Commit: "Setup HF Inference API" ✅ (7b44616)
+[ ] Task 1.4: Setup HF Inference API
+    - Get: HuggingFace API token
+    - Test: Basic API call (starcoder model)
+    - Create: core/config.py with HF_TOKEN
+    - Time: 1h
+    - Commit: "HF Inference API integration"
 
-AFTERNOON (3h): ☀️ 🔄 IN PROGRESS
+AFTERNOON (3h): ☀️
 [ ] Task 1.5: Create LLM client (HF API)
     - Create: core/llm.py - HFInferenceClient class
     - Implement: stream_chat() method (async)
@@ -346,65 +342,57 @@ CHECKPOINT: ✅ LLM client works, streaming validated
 ┌─────────────────────────────────────────────────────────┐
 │ DAY 2: CORE INFRASTRUCTURE                              │
 ├─────────────────────────────────────────────────────────┤
-│ Status: [████████] 100% ✅ COMPLETE                      │
-│ Progress: ALL TASKS DONE IN 2.5h (planned 6h)          │
-│ Efficiency: 240% 🔥                                      │
+│ Status: [ ] TODO                                        │
+│ Progress: [        ] 0%                                 │
 └─────────────────────────────────────────────────────────┘
 
-MORNING (3h): 🌅 ✅ COMPLETE (1h 20min actual)
-[✅] Task 2.1: Context builder
-    - Create: core/context.py - ContextBuilder class ✅
-    - Implement: read_file() method ✅
-    - Implement: inject_to_prompt() method ✅
-    - Test: File reading works ✅
-    - BONUS: Multi-file support, stats tracking ✅
-    - Time: 2h → Actual: 45min
-    - Commit: "Context builder implementation" ✅ (0f6dd05)
+MORNING (3h): 🌅
+[ ] Task 2.1: Context builder
+    - Create: core/context.py - ContextBuilder class
+    - Implement: read_file() method
+    - Implement: inject_to_prompt() method
+    - Test: File reading works
+    - Time: 2h
+    - Commit: "Context builder implementation"
 
-[✅] Task 2.2: MCP filesystem server
-    - Install: mcp SDK ✅
-    - Test: Run example filesystem server ✅
-    - Create: core/mcp.py - MCPManager class ✅
-    - BONUS: Pattern matching, smart filtering ✅
-    - Time: 1h → Actual: 35min
-    - Commit: "MCP filesystem server integration" ✅ (fce0b7c)
+[ ] Task 2.2: MCP filesystem server (optional)
+    - Install: mcp SDK
+    - Test: Run example filesystem server
+    - Create: core/mcp.py - MCPManager class (basic)
+    - Time: 1h
+    - Commit: "MCP filesystem server integration"
 
-AFTERNOON (3h): ☀️ ✅ COMPLETE (1h 10min actual)
-[✅] Task 2.3: CLI interface skeleton
-    - Create: cli.py - Typer app ✅
-    - Implement: explain command (FULL, not stub!) ✅
-    - Implement: generate command (FULL) ✅
-    - Implement: serve command ✅
-    - BONUS: version, config-show commands ✅
-    - Test: CLI loads, shows help ✅
-    - Time: 2h → Actual: 50min
-    - Commit: "CLI interface skeleton" ✅ (d6a6500)
+AFTERNOON (3h): ☀️
+[ ] Task 2.3: CLI interface skeleton
+    - Create: cli.py - Typer app
+    - Implement: explain command (stub)
+    - Implement: generate command (stub)
+    - Implement: serve command (stub)
+    - Test: CLI loads, shows help
+    - Time: 2h
+    - Commit: "CLI interface skeleton"
 
-[✅] Task 2.4: Wire CLI to LLM
-    - Implement: explain command logic ✅
-    - Connect: File → Context → LLM → Output ✅
-    - Test: Multi-file context working ✅
-    - BONUS: All commands fully integrated ✅
-    - Time: 1h → Actual: 20min
-    - Status: ALREADY DONE in Task 2.3! ✅
+[ ] Task 2.4: Wire CLI to LLM
+    - Implement: explain command logic
+    - Connect: File → Context → LLM → Output
+    - Test: `python -m qwen_dev_cli explain main.py`
+    - Time: 1h
+    - Commit: "CLI explain command working"
 
-EVENING (1h): 🌙 ⚡ SKIPPED (Not needed!)
-[✅] Task 2.5: Daily review
-    - Everything working perfectly ✅
-    - No bugs found ✅
-    - Documentation complete ✅
+EVENING (1h): 🌙
+[ ] Task 2.5: Daily review
+    - Test: CLI end-to-end workflow
+    - Fix: Any bugs discovered
+    - Document: Progress in log
+    - Time: 1h
 
-CHECKPOINT: ✅✅✅ CLI working, context injection perfect, full pipeline validated!
+CHECKPOINT: ✅ CLI works, context injection working
 ```
 
 **Day 2 Deliverables:**
-- ✅ Context builder functional (150 LOC)
-- ✅ MCP manager implemented (120 LOC)
-- ✅ CLI commands working (150 LOC, 5 commands!)
-- ✅ File → Context → MCP → LLM → Output pipeline COMPLETE
-- ✅ All tests passing
-- ✅ Performance: 240% efficiency
-- 📦 4 commits, all pushed to GitHub
+- ✅ Context builder functional
+- ✅ CLI commands working
+- ✅ File → LLM → Output pipeline complete
 
 ---
 
@@ -571,70 +559,135 @@ CHECKPOINT: ✅ Mobile responsive, polished UI
 
 ---
 
-#### **Day 6-7: Nov 23-24 (Weekend) - MCP Integration & Error Handling**
+#### **Day 6-7: Nov 23-24 (Weekend) - Multi-Platform Integration (SambaNova, Blaze, Modal)**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ DAY 6: MCP INTEGRATION (SIMPLIFIED)                     │
+│ DAY 6: MULTI-BACKEND INTEGRATION                        │
 ├─────────────────────────────────────────────────────────┤
 │ Status: [ ] TODO                                        │
 │ Progress: [        ] 0%                                 │
+│ 🚀 NEW: SambaNova + Blaze + Modal integration           │
 └─────────────────────────────────────────────────────────┘
 
-MORNING (3h): 🌅
-[ ] Task 6.1: MCP filesystem server (if not done)
-    - Finalize: core/mcp.py implementation
-    - Test: Server starts, tools callable
-    - Time: 2h
-    - Commit: "MCP filesystem server"
-
-[ ] Task 6.2: MCP toggle in UI
-    - Add: Checkbox to enable/disable MCP
-    - Implement: Conditional context injection
-    - Test: Toggle changes behavior
+MORNING (3h): 🌅 - SambaNova Integration
+[ ] Task 6.1: SambaNova Cloud setup
+    - Research: SambaNova API docs
+    - Get: API key (free tier)
+    - Test: Basic API call
+    - Measure: TTFT baseline
     - Time: 1h
-    - Commit: "MCP toggle in UI"
+    - Commit: "SambaNova research & testing"
 
-AFTERNOON (3h): ☀️
-[ ] Task 6.3: MCP context visualization
-    - Add: Display which files are in context
-    - Add: Token count display
-    - Test: User sees what MCP provides
-    - Time: 2h
-    - Commit: "MCP context visualization"
+[ ] Task 6.2: SambaNova client implementation
+    - Create: core/llm.py - SambaNovaClient class
+    - Implement: stream_chat() for SambaNova
+    - Implement: Error handling
+    - Test: Streaming works
+    - Time: 1.5h
+    - Commit: "SambaNova client implementation"
 
-[ ] Task 6.4: Error handling
-    - Implement: Try/catch for all LLM calls
-    - Implement: Graceful degradation (MCP fails)
-    - Test: App doesn't crash on errors
+[ ] Task 6.3: SambaNova benchmark
+    - Benchmark: TTFT vs HF API
+    - Benchmark: Throughput comparison
+    - Document: Performance metrics
+    - Expected: 100-300ms TTFT (vs 1000ms HF)
+    - Time: 30min
+    - Commit: "SambaNova performance validated"
+
+AFTERNOON (3h): ☀️ - Blaze Integration
+[ ] Task 6.4: Blaze (Blackbox AI) setup
+    - Research: Blaze API docs
+    - Get: API key
+    - Test: Code generation endpoint
     - Time: 1h
-    - Commit: "Error handling implementation"
+    - Commit: "Blaze research & testing"
+
+[ ] Task 6.5: Blaze client implementation
+    - Create: BlazeClient class in llm.py
+    - Implement: Code generation optimized
+    - Implement: Task detection (code vs general)
+    - Test: Code generation quality
+    - Time: 1.5h
+    - Commit: "Blaze client implementation"
+
+[ ] Task 6.6: Multi-backend UI selector
+    - Add: Provider dropdown in Gradio UI
+    - Options: [Auto, HF, SambaNova, Blaze, Ollama]
+    - Wire: Provider selection to LLM client
+    - Test: Can switch between providers
+    - Time: 30min
+    - Commit: "Multi-backend provider selector"
 
 EVENING (1h): 🌙
-[ ] Task 6.5: Daily review
-    - Test: MCP integration
-    - Test: Error scenarios
+[ ] Task 6.7: Performance comparison dashboard
+    - Add: Stats panel showing TTFT per provider
+    - Display: Provider used for each response
+    - Test: Metrics accurate
     - Time: 1h
+    - Commit: "Performance dashboard"
 
-CHECKPOINT: ✅ MCP working, errors handled
+CHECKPOINT: ✅ SambaNova + Blaze working, speed boost achieved!
 
 ┌─────────────────────────────────────────────────────────┐
-│ DAY 7: INTEGRATION TESTING                              │
+│ DAY 7: MODAL DEPLOYMENT + INTELLIGENT ROUTING          │
 ├─────────────────────────────────────────────────────────┤
 │ Status: [ ] TODO                                        │
 │ Progress: [        ] 0%                                 │
+│ 🚀 NEW: Modal GPU deployment + Smart routing            │
 └─────────────────────────────────────────────────────────┘
 
-FULL DAY (7h): 🏃
-[ ] Task 7.1: End-to-end testing
-    - Test: All CLI commands
-    - Test: All UI features
-    - Test: Edge cases
-    - Document: Bugs found
-    - Time: 3h
+MORNING (3h): 🌅 - Modal Setup
+[ ] Task 7.1: Modal account & setup
+    - Create: Modal account (free tier)
+    - Install: modal CLI & Python SDK
+    - Test: Basic function deployment
+    - Time: 1h
+    - Commit: "Modal setup complete"
 
-[ ] Task 7.2: Fix critical bugs
-    - Fix: All blocking issues
+[ ] Task 7.2: Deploy Qwen on Modal GPU
+    - Create: modal_deployment/app.py
+    - Implement: GPU-accelerated Ollama endpoint
+    - Deploy: Qwen 2.5 Coder 7B on A10G GPU
+    - Test: Inference working
+    - Time: 1.5h
+    - Commit: "Modal GPU deployment working"
+
+[ ] Task 7.3: Integrate Modal into LLM client
+    - Add: ModalClient to llm.py
+    - Implement: API call to Modal endpoint
+    - Test: Modal backend accessible
+    - Benchmark: GPU vs CPU performance
+    - Time: 30min
+    - Commit: "Modal backend integrated"
+
+AFTERNOON (3h): ☀️ - Intelligent Routing
+[ ] Task 7.4: Provider Router implementation
+    - Create: core/provider_router.py
+    - Implement: Task classification (code vs general)
+    - Implement: Provider selection logic
+    - Rules: Code tasks → Blaze, Speed → SambaNova, Quality → Modal
+    - Time: 2h
+    - Commit: "Intelligent provider routing"
+
+[ ] Task 7.5: Auto-fallback logic
+    - Implement: Fallback chain (primary → backup)
+    - Chain: SambaNova → HF → Modal → Ollama
+    - Handle: Rate limits, timeouts, errors
+    - Test: Fallback triggers correctly
+    - Time: 1h
+    - Commit: "Auto-fallback implementation"
+
+EVENING (1h): 🌙 - Testing & Benchmarking
+[ ] Task 7.6: Multi-provider benchmark
+    - Test: All 5 providers (HF, SambaNova, Blaze, Modal, Ollama)
+    - Measure: TTFT, throughput, quality per provider
+    - Document: Performance matrix
+    - Update: test_integration.py with new tests
+    - Time: 1h
+    - Commit: "Multi-provider benchmarks complete"
+
+CHECKPOINT: ✅ All 5 backends working, intelligent routing operational!
     - Test: Fixes work
     - Time: 2h
     - Commit: "Bug fixes from testing"
