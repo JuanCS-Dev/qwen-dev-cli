@@ -1259,64 +1259,747 @@ SHORTCUTS = {
 
 ---
 
+## 🏗️ CONTEXTO COMPLETO DO SISTEMA (Nov 18, 2025 - 20:00 UTC)
+
+**Sessão de Aquisição de Contexto Completa - MAESTRO ANALYSIS**
+
+### **ARQUITETURA ATUAL - GROUND TRUTH VALIDADO**
+
+#### **🎯 SHELL INTERATIVO (shell.py - 1,191 LOC)**
+
+**Estado do Sistema:**
+```python
+class SessionContext:
+    cwd: str                    # Working directory
+    conversation: List[Turn]    # Multi-turn history
+    modified_files: Set[str]    # Tracked modifications
+    read_files: Set[str]        # Tracked reads
+    tool_calls: List[Dict]      # Tool execution log
+    history: List[str]          # Command history
+
+class InteractiveShell:
+    # Core components
+    llm: LLMClient              # Multi-provider (HF, Nebius, Ollama)
+    registry: ToolRegistry      # 27 tools
+    conversation: ConversationManager  # Multi-turn with 4000 token context
+    recovery_engine: ErrorRecoveryEngine  # Max 2 attempts (Constitutional P6)
+    
+    # Intelligence
+    rich_context: RichContextBuilder
+    file_watcher: FileWatcher   # Auto-detect changes
+    recent_files: RecentFilesTracker
+    async_executor: AsyncExecutor  # Parallel tool execution
+```
+
+**Fluxo de Execução (5 Estados):**
+```
+┌─────────┐  User Input  ┌───────────┐  LLM Process  ┌──────────┐
+│ [IDLE]  │ ──────────> │[THINKING] │ ────────────> │[PARSING] │
+└─────────┘              └───────────┘               └──────────┘
+                              │                           │
+                              │ Step 1/3: Analyzing       │ Tool calls?
+                              │ Step 2/3: Command ready   │
+                              │ Step 3/3: Show suggestion │
+                              ▼                           ▼
+                         ┌──────────┐              ┌────────────┐
+                         │[CONFIRM] │ ────────────>│[EXECUTING] │
+                         └──────────┘   User OK    └────────────┘
+                              │                           │
+                         Danger check               Tool execution
+                         Safety validation          ↓ Success?
+                              │                     ↓ No: [RECOVERING]
+                              └──> Cancel ──> [IDLE]
+                                                     │
+                                           Max 2 attempts
+                                           LLM diagnosis
+                                           Corrected params
+                                                     │
+                                                     ▼
+                                                  [DONE]
+```
+
+**Visual Output Por Tool:**
+
+| Tool | Current Visual | Needs Enhancement |
+|------|----------------|-------------------|
+| `read_file` | Syntax(monokai) + line numbers | ✅ Good, add fade-in |
+| `search_files` | Rich Table (file/line/text) | ✅ Good, add hover |
+| `git_status` | Panel (branch/modified/staged) | ✅ Good, add colors |
+| `git_diff` | Syntax(diff, monokai) | ✅ Good, add side-by-side |
+| `directory_tree` | Panel with tree structure | ⚠️ Add collapsible nodes |
+| `bash_command` | stdout/stderr separated | ⚠️ Add real-time streaming |
+| `list_directory` | Icons + names + sizes | ✅ Good, add sorting |
+| Terminal cmds | Basic output | ⚠️ Add typing effect |
+
+#### **🔧 27 TOOLS - CATEGORIZAÇÃO COMPLETA**
+
+**File Operations (10 tools):**
+```
+read_file            → Syntax highlighted output
+read_multiple_files  → Batch operation, combined output
+list_directory       → Table with icons/sizes
+cat                  → Syntax highlighted (auto-detect language)
+write_file           → Confirmation + backup notification
+edit_file            → Search/replace blocks, show diff
+insert_lines         → Show before/after with line numbers
+delete_file          → Move to .trash/, show path
+ls                   → Icons + formatting (long format optional)
+```
+
+**File Management (5 tools):**
+```
+move_file           → Show old→new path
+copy_file           → Show source→destination
+create_directory    → Confirm creation path
+rm                  → Safe delete with confirmation
+mkdir               → Create with confirmation
+```
+
+**Search (2 tools):**
+```
+search_files        → Rich Table (file, line, text preview)
+get_directory_tree  → Hierarchical panel with LOC counts
+```
+
+**Execution (9 tools):**
+```
+bash_command        → stdout/stderr/exit_code separated
+cd                  → Show new CWD in green
+pwd                 → Bold green current directory
+ls                  → Enhanced with icons/colors
+cp, mv, touch       → Basic confirmation messages
+```
+
+**Git (2 tools):**
+```
+git_status          → Panel: branch, modified, untracked, staged
+git_diff            → Syntax(diff) with monokai theme
+```
+
+**Context (3 tools):**
+```
+get_context         → Show session stats (files, turns, tokens)
+save_session        → Confirm save path
+restore_backup      → Show restored file path
+```
+
+#### **🧠 INTELLIGENCE LAYER - 4 MODULES**
+
+**1. context_enhanced.py (294 LOC):**
+```python
+class RichContextBuilder:
+    def build_rich_context(
+        include_git=True,      # Git branch, status
+        include_env=True,      # OS, Python version, CWD
+        include_recent=True    # Recent files, commands
+    ) -> Dict[str, Any]:
+        # Returns structured context for LLM
+```
+
+**2. risk.py (204 LOC):**
+```python
+class RiskAssessment:
+    level: RiskLevel  # SAFE, MODERATE, HIGH, CRITICAL
+    description: str
+    warnings: List[str]
+    mitigations: List[str]
+
+def assess_risk(command: str) -> RiskAssessment:
+    # Analyzes command for potential dangers
+    # Triggers confirmation flows
+```
+
+**3. patterns.py (204 LOC):**
+```python
+class SuggestionEngine:
+    def suggest(user_input: str, context: dict) -> List[Suggestion]
+    # Pattern recognition for common workflows
+    # "run tests" → pytest discovery
+    # "deploy" → docker/k8s detection
+```
+
+**4. workflows.py (253 LOC):**
+```python
+class WorkflowOrchestrator:
+    def execute_workflow(steps: List[WorkflowStep])
+    # Multi-step task coordination
+    # Rollback on failure
+    # Progress tracking
+```
+
+#### **🎨 STREAMING & TUI (461 LOC total)**
+
+**Current Implementation:**
+
+**executor.py (147 LOC):**
+```python
+class AsyncExecutor:
+    max_parallel: int = 5
+    async def execute_async(task: Callable)
+    async def execute_batch(tasks: List[Callable])
+    # Parallel tool execution with rate limiting
+```
+
+**renderer.py (198 LOC):**
+```python
+class ReactiveRenderer:
+    _event_queue: asyncio.Queue
+    _output_buffer: deque(maxlen=1000)
+    _progress: Progress  # Rich Progress
+    _live: Live          # Rich Live display
+    
+    async def emit(event: RenderEvent)
+    # Non-blocking UI updates via event queue
+    
+class ConcurrentRenderer:
+    _panels: Dict[str, Panel]
+    _layout: Layout
+    
+    async def add_process(id, title)
+    async def update_process(id, content)
+    # Multiple parallel process panels (not used in shell yet)
+```
+
+**streams.py (116 LOC):**
+```python
+class TokenStream:
+    async def stream_tokens(text: str)
+    # Token-by-token with backpressure
+```
+
+**Current Visual Elements:**
+```python
+# Colors (via Rich markup)
+"[cyan]"    # System messages, info
+"[green]"   # Success, done
+"[yellow]"  # Warnings, confirmations  
+"[red]"     # Errors, dangers
+"[bold]"    # Emphasis
+"[dim]"     # Secondary text
+
+# Components (via Rich)
+Panel()     # Bordered sections (help, status, git)
+Table()     # Structured data (search results, tools)
+Syntax()    # Code with highlighting (monokai theme)
+Progress()  # Progress bars (not animated)
+Live()      # Real-time updates
+
+# Icons (emoji)
+📁📄✓❌⚠️💡🤖⚡✍️🔍
+```
+
+---
+
+### **🔍 GAP ANALYSIS - Current vs Target Excellence**
+
+#### **VISUAL QUALITY GAPS**
+
+| Element | Current | Target (Gemini CLI) | Gap Size |
+|---------|---------|---------------------|----------|
+| **Typography** | Basic Rich markup | Perfect hierarchy (sizes, weights, spacing) | 🔴 LARGE |
+| **Colors** | 5 basic ANSI | Surgical palette (12+ shades, semantic) | 🔴 LARGE |
+| **Animations** | None | Typing effect, fade-ins, spinners | 🔴 CRITICAL |
+| **Message Boxes** | Basic Panel | Rounded, shadowed, hover states | 🟡 MEDIUM |
+| **Status Indicators** | Text only | Badges with pulse animation | 🟡 MEDIUM |
+| **Progress Bars** | Static | Animated with easing, time estimates | 🟡 MEDIUM |
+| **Code Blocks** | Monokai syntax | GitHub-quality with copy button | 🟢 SMALL |
+| **Diff Viewer** | Basic syntax | Side-by-side, expandable hunks | 🟡 MEDIUM |
+| **Layout** | Single column | Multi-column (main + sidebars) | 🔴 LARGE |
+| **Spinners** | Text dots | Elegant rotating glyphs | 🟡 MEDIUM |
+
+#### **INTERACTION GAPS**
+
+| Feature | Current | Target | Gap Size |
+|---------|---------|--------|----------|
+| **Keyboard Shortcuts** | Basic (Ctrl+C/D) | Full suite (20+ shortcuts) | 🔴 LARGE |
+| **Command Palette** | None | Fuzzy search (Cmd+K) | 🔴 CRITICAL |
+| **File Tree** | Text only | Collapsible, interactive | 🟡 MEDIUM |
+| **Hover Effects** | None | Transform, shadow, cursor | 🟡 MEDIUM |
+| **Drag & Drop** | None | File attachment | 🟡 MEDIUM |
+| **Focus States** | Default | Custom outlines | 🟢 SMALL |
+
+#### **PERFORMANCE GAPS**
+
+| Metric | Current | Target | Status |
+|--------|---------|--------|--------|
+| Frame Rate | Varies | 60 FPS | 🟡 Needs optimization |
+| Memory | Unknown | < 100 MB | 🟢 Likely OK |
+| CPU (idle) | Unknown | < 5% | 🟢 Likely OK |
+| Response Time | 50-100ms | < 16ms (UI) | 🟡 Needs async |
+
+---
+
+### 🎯 SURGICAL REFINEMENT STRATEGY
+
+**Philosophy:** "Surgical Simplicity with Purposeful Polish"
+
+#### **PHASE 1: FOUNDATION (4h)** ⏰ **NEXT PRIORITY**
+
+**Goal:** Establish visual design system
+
+**Deliverables:**
+```
+qwen_dev_cli/tui/
+├── __init__.py
+├── theme.py          # Surgical color palette (GitHub Dark inspired)
+│   ├── COLORS dict (bg, text, accent, syntax)
+│   ├── Color helpers (darken, lighten, alpha)
+│   └── Theme variants (dark, light, high-contrast)
+│
+├── typography.py     # Font system
+│   ├── FONTS dict (mono, sans)
+│   ├── SIZES dict (xs, sm, base, lg, xl)
+│   ├── WEIGHTS dict (normal, medium, semibold, bold)
+│   └── Line heights, letter spacing
+│
+├── spacing.py        # 8px baseline grid
+│   ├── SPACING dict (xs=8px, sm=12px, md=16px, lg=24px, xl=32px, 2xl=48px)
+│   └── Margin/padding helpers
+│
+└── styles.py         # Rich Style presets
+    ├── create_style(color, bold, italic, underline)
+    ├── Preset styles (success, error, warning, info, muted, emphasis)
+    └── Syntax theme (GitHub Dark compatible)
+```
+
+**Success Criteria:**
+- [ ] Color palette defined (12+ colors, semantic naming)
+- [ ] Typography hierarchy clear (5 sizes, 4 weights)
+- [ ] Spacing system consistent (8px grid)
+- [ ] All colors WCAG AA compliant (4.5:1 contrast)
+- [ ] Style presets usable throughout codebase
+
+**Estimated:** 4 hours
+
+---
+
+#### **PHASE 2: ENHANCED COMPONENTS (6h)**
+
+**Goal:** Upgrade existing components with surgical precision
+
+**Deliverables:**
+```
+qwen_dev_cli/tui/components/
+├── __init__.py
+│
+├── message.py        # Enhanced message boxes
+│   ├── MessageBox(content, role, timestamp)
+│   ├── Typing animation (character-by-character)
+│   ├── Fade-in on render (200ms)
+│   ├── Syntax highlighting with copy button
+│   └── Responsive width (wrap long lines)
+│
+├── status.py         # Status indicators & badges
+│   ├── StatusBadge(text, level, animated)
+│   ├── Spinner(style='dots'|'pulse'|'bounce')
+│   ├── Pulse animation (1.5s infinite)
+│   └── Color-coded by level (info, success, warning, error)
+│
+├── progress.py       # Animated progress bars
+│   ├── ProgressBar(current, total, description)
+│   ├── Smooth animation (cubic ease-out)
+│   ├── Time estimates (elapsed + remaining)
+│   ├── Percentage + fraction display
+│   └── Color gradient (0%=blue, 100%=green)
+│
+├── code.py           # Enhanced code blocks
+│   ├── CodeBlock(code, language, show_lines)
+│   ├── Syntax highlighting (Pygments)
+│   ├── Line numbers with padding
+│   ├── Copy button (click to copy)
+│   └── Language badge in corner
+│
+└── diff.py           # Diff viewer (GitHub style)
+    ├── DiffViewer(old_content, new_content)
+    ├── Side-by-side option (terminal width > 120)
+    ├── Unified diff (default)
+    ├── + green, - red, context white
+    ├── Line numbers on both sides
+    └── Expand/collapse unchanged hunks
+```
+
+**Success Criteria:**
+- [ ] MessageBox with typing animation works
+- [ ] StatusBadge pulses smoothly
+- [ ] ProgressBar animates with easing
+- [ ] CodeBlock has working copy button
+- [ ] DiffViewer renders side-by-side correctly
+- [ ] All components use theme.py colors
+- [ ] All components are async-safe
+
+**Estimated:** 6 hours
+
+---
+
+#### **PHASE 3: ADVANCED COMPONENTS (6h)**
+
+**Goal:** Add missing high-value components
+
+**Deliverables:**
+```
+qwen_dev_cli/tui/components/
+├── tree.py           # File tree (collapsible)
+│   ├── FileTree(root_path, max_depth)
+│   ├── Expandable/collapsible nodes (click or arrow keys)
+│   ├── Icons by file type (📄.py, 📦.json, 🎨.css, etc.)
+│   ├── LOC counts per file
+│   ├── Multi-select with checkboxes
+│   └── Quick actions on hover (attach, open)
+│
+├── palette.py        # Command palette (Cmd+K)
+│   ├── CommandPalette(commands, history)
+│   ├── Fuzzy search (fuzzywuzzy)
+│   ├── Keyboard navigation (↑↓ + Enter)
+│   ├── Command history (recent first)
+│   ├── Context-aware suggestions
+│   ├── Category icons (⚡, 🧪, 📝, 🐛)
+│   └── Esc to dismiss
+│
+├── toast.py          # Notification toasts
+│   ├── Toast(message, type, duration)
+│   ├── Slide in from top-right (300ms)
+│   ├── Auto-dismiss after duration (default 3s)
+│   ├── Stack multiple toasts (max 5)
+│   ├── Click to dismiss early
+│   └── Types: success, error, warning, info
+│
+└── context_pills.py  # Context file pills
+    ├── ContextPill(filename, file_type)
+    ├── Closeable (× button)
+    ├── Color-coded by type (py=blue, js=yellow, etc.)
+    ├── Hover shows full path tooltip
+    ├── Drag to reorder (if supported)
+    └── Click to view file
+```
+
+**Success Criteria:**
+- [ ] FileTree collapsible with keyboard
+- [ ] CommandPalette fuzzy search works
+- [ ] Toasts slide in and auto-dismiss
+- [ ] ContextPills closeable and hover works
+- [ ] All components keyboard-accessible
+- [ ] Performance: < 16ms render time
+
+**Estimated:** 6 hours
+
+---
+
+#### **PHASE 4: ANIMATIONS & MICRO-INTERACTIONS (4h)**
+
+**Goal:** Add purposeful animations that delight
+
+**Deliverables:**
+```
+qwen_dev_cli/tui/animations.py
+
+# Typing effect (for AI responses)
+async def typing_effect(text: str, wpm: int = 400) -> AsyncIterator[str]:
+    # Character-by-character with punctuation pauses
+    
+# Fade transitions
+async def fade_in(widget, duration: float = 0.2):
+    # Smooth opacity 0→1
+    
+async def fade_out(widget, duration: float = 0.2):
+    # Smooth opacity 1→0
+
+# Spinner animations
+class Spinner:
+    styles = {
+        'dots': ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'],
+        'pulse': ['⣾', '⣽', '⣻', '⢿', '⡿', '⣟', '⣯', '⣷'],
+        'bounce': ['▖', '▘', '▝', '▗'],
+    }
+    async def animate(self, style: str = 'dots'):
+        # Rotate frames every 80ms
+
+# Progress bar animation
+async def animate_progress(start: float, end: float, duration: float = 0.5):
+    # Ease-out cubic easing
+    # 30 steps for smooth 60 FPS
+    
+# Slide animations
+async def slide_in(widget, direction: str = 'right', duration: float = 0.3):
+    # Slide from direction
+    
+async def slide_out(widget, direction: str = 'right', duration: float = 0.3):
+    # Slide to direction
+
+# Hover effects (if terminal supports mouse)
+def apply_hover_effect(widget):
+    # Brightness +5%, slight scale, cursor pointer
+```
+
+**Success Criteria:**
+- [ ] Typing effect feels natural (400 WPM)
+- [ ] Fade transitions smooth (60 FPS)
+- [ ] Spinners rotate without flicker
+- [ ] Progress animates with easing
+- [ ] Slides don't block UI
+- [ ] All animations cancellable (Ctrl+C)
+
+**Estimated:** 4 hours
+
+---
+
+#### **PHASE 5: LAYOUTS & INTEGRATION (6h)**
+
+**Goal:** Assemble components into cohesive layouts
+
+**Deliverables:**
+```
+qwen_dev_cli/tui/layouts.py
+
+class ShellLayout:
+    """Main shell layout with sidebars"""
+    
+    # Three-column layout
+    ├─ Left Sidebar (280px)
+    │  ├─ FileTree (collapsible)
+    │  └─ Quick Tools (common commands)
+    │
+    ├─ Main Area (flex grow)
+    │  ├─ Message Stream (MessageBox components)
+    │  ├─ Status Bar (StatusBadge)
+    │  └─ Input Area (with suggestions)
+    │
+    └─ Right Sidebar (320px)
+       ├─ Context Pills (attached files)
+       ├─ Metrics Panel (LEI, HRI, CPI)
+       └─ Tool Status (active tools)
+    
+    def toggle_sidebar(side: str):
+        # Hide/show sidebar (Ctrl+\ for left, Ctrl+` for right)
+    
+    def set_focus(area: str):
+        # Move keyboard focus between areas
+
+class CommandPaletteOverlay:
+    """Full-screen command palette (Cmd+K)"""
+    # Dims background
+    # Centers palette
+    # Esc to dismiss
+
+class ToastContainer:
+    """Toast notification container"""
+    # Top-right corner
+    # Stacks toasts vertically
+    # Max 5 visible
+```
+
+**Shell Integration:**
+```python
+# qwen_dev_cli/shell.py modifications
+
+from .tui.layouts import ShellLayout
+from .tui.components import MessageBox, StatusBadge, ProgressBar
+from .tui.theme import COLORS, STYLES
+from .tui.animations import typing_effect, fade_in, Spinner
+
+class InteractiveShell:
+    def __init__(self, ...):
+        # Replace basic console with ShellLayout
+        self.layout = ShellLayout()
+        self.console = self.layout.main_console
+        
+    async def _process_request_with_llm(self, user_input: str, ...):
+        # Replace text status with StatusBadge
+        badge = StatusBadge("Thinking...", level="info", animated=True)
+        self.layout.set_status(badge)
+        
+        # ... LLM processing ...
+        
+        # Replace instant response with typing effect
+        response_box = MessageBox(content="", role="assistant")
+        async for char in typing_effect(response):
+            response_box.content += char
+            self.layout.update_message(response_box)
+        
+    async def _execute_tool_calls(self, tool_calls, turn):
+        # Replace basic progress with ProgressBar
+        progress = ProgressBar(0, len(tool_calls), "Executing tools...")
+        
+        for i, call in enumerate(tool_calls):
+            await progress.animate_to(i + 1)
+            # ... execute tool ...
+```
+
+**Success Criteria:**
+- [ ] Three-column layout renders correctly
+- [ ] Sidebars toggle with shortcuts
+- [ ] Command palette overlay works
+- [ ] Toasts stack properly
+- [ ] Shell integration seamless
+- [ ] No performance degradation
+- [ ] All 27 tools work with new layout
+
+**Estimated:** 6 hours
+
+---
+
+#### **PHASE 6: POLISH & TESTING (4h)**
+
+**Goal:** Perfect every detail
+
+**Tasks:**
+- [ ] Keyboard shortcuts documentation
+- [ ] Accessibility audit (WCAG 2.1 AA)
+- [ ] Performance profiling (60 FPS validation)
+- [ ] Memory leak testing (long sessions)
+- [ ] Cross-terminal testing (iTerm, kitty, Windows Terminal, Alacritty)
+- [ ] Color contrast validation
+- [ ] Animation timing perfection
+- [ ] Edge case testing (small terminals, large outputs)
+- [ ] Screenshot/GIF creation
+- [ ] Video demo recording
+
+**Success Criteria:**
+- [ ] All keyboard shortcuts documented
+- [ ] WCAG AA compliant (4.5:1 contrast)
+- [ ] 60 FPS in all animations
+- [ ] No memory leaks in 1h session
+- [ ] Works in 5+ terminals
+- [ ] Demo video recorded (3-5 min)
+
+**Estimated:** 4 hours
+
+---
+
+### 📊 IMPLEMENTATION SUMMARY
+
+**Total Estimated Time:** 30 hours (broken down)
+- Phase 1 (Foundation): 4h
+- Phase 2 (Enhanced Components): 6h
+- Phase 3 (Advanced Components): 6h
+- Phase 4 (Animations): 4h
+- Phase 5 (Layouts & Integration): 6h
+- Phase 6 (Polish & Testing): 4h
+
+**Timeline:**
+- Day 1 (8h): Phase 1 + Phase 2 start
+- Day 2 (8h): Phase 2 complete + Phase 3 start
+- Day 3 (8h): Phase 3 complete + Phase 4
+- Day 4 (6h): Phase 5 complete + Phase 6
+
+**Risk Mitigation:**
+- Each phase delivers standalone value (incremental improvement)
+- Can stop after any phase with working state
+- Minimum viable: Phase 1-2 (10h, big visual improvement)
+- Recommended: Phase 1-4 (20h, professional quality)
+- Full excellence: All phases (30h, hackathon winner)
+
+**Dependencies:**
+- Phase 2+ depends on Phase 1 (theme system)
+- Phase 5 depends on Phase 2-3 (components)
+- Phase 6 can run parallel with Phase 5
+
+**Success Tracking:**
+- Update MASTER_PLAN.md after each phase
+- Commit after each deliverable
+- Screenshot/GIF after visual changes
+- Performance benchmark after Phase 4
+
+---
+
+### 🎯 NEXT IMMEDIATE ACTION
+
+**START: PHASE 1 - FOUNDATION (4h)**
+
+**First Commit:** `feat: Add surgical theme system (colors, typography, spacing)`
+
+**Files to Create:**
+1. `qwen_dev_cli/tui/__init__.py`
+2. `qwen_dev_cli/tui/theme.py` (color palette)
+3. `qwen_dev_cli/tui/typography.py` (font system)
+4. `qwen_dev_cli/tui/spacing.py` (8px grid)
+5. `qwen_dev_cli/tui/styles.py` (Rich presets)
+
+**Awaiting Confirmation from Arquiteto-Chefe to Proceed...**
+
+---
+
 ### 🎨 IMPLEMENTATION ROADMAP
 
-#### **Phase 1: Foundation (4h)**
-- [ ] Setup color system (constants.py)
-- [ ] Typography styles (CSS/ANSI)
-- [ ] Spacing system (grid utilities)
-- [ ] Base component classes
+#### **Phase 1: Foundation (4h)** ⏰ **READY TO START**
+- [ ] Setup color system (theme.py)
+- [ ] Typography styles (typography.py)
+- [ ] Spacing system (spacing.py)
+- [ ] Rich Style presets (styles.py)
 
-#### **Phase 2: Core Components (6h)**
-- [ ] Message box (with fade-in)
+#### **Phase 2: Enhanced Components (6h)**
+- [ ] Message box (with typing animation)
 - [ ] Status indicators (with pulse)
-- [ ] Progress bars (animated)
-- [ ] Loading spinners (rotating)
-- [ ] Code blocks (syntax highlighting)
+- [ ] Progress bars (animated with easing)
+- [ ] Enhanced code blocks
+- [ ] Diff viewer (GitHub style)
 
 #### **Phase 3: Advanced Components (6h)**
-- [ ] Code diff viewer (GitHub-style)
-- [ ] File tree (collapsible)
-- [ ] Command palette (Cmd+K)
-- [ ] Context pills (draggable)
+- [ ] File tree (collapsible, interactive)
+- [ ] Command palette (Cmd+K, fuzzy search)
 - [ ] Notification toasts (stackable)
+- [ ] Context pills (closeable, color-coded)
 
-#### **Phase 4: Interactions (4h)**
-- [ ] Keyboard shortcuts (all)
-- [ ] Hover effects (all interactive)
-- [ ] Focus states (accessibility)
-- [ ] Drag-and-drop (files)
-- [ ] Smooth scrolling
+#### **Phase 4: Animations (4h)**
+- [ ] Typing effect (400 WPM)
+- [ ] Fade transitions (200ms)
+- [ ] Spinners (rotate 80ms)
+- [ ] Progress easing (cubic)
+- [ ] Slide animations (300ms)
 
-#### **Phase 5: Polish (4h)**
-- [ ] Animations (timing perfection)
-- [ ] Micro-interactions (delight)
-- [ ] Performance optimization (60 FPS)
-- [ ] Accessibility audit (WCAG 2.1)
-- [ ] Cross-platform testing
+#### **Phase 5: Layouts & Integration (6h)**
+- [ ] Three-column layout (sidebars + main)
+- [ ] Command palette overlay
+- [ ] Toast container
+- [ ] Shell.py integration
+- [ ] All 27 tools wired
 
-**Total Estimate:** 24 hours (3 full workdays)
+#### **Phase 6: Polish & Testing (4h)**
+- [ ] Keyboard shortcuts complete
+- [ ] Accessibility audit (WCAG AA)
+- [ ] Performance validation (60 FPS)
+- [ ] Cross-terminal testing
+- [ ] Demo video recording
+
+**Total Estimate:** 30 hours (4 days full focus)
 
 ---
 
 ### 🧪 TESTING CHECKLIST
 
-- [ ] Renders correctly on all terminal sizes
+#### **Visual Quality:**
+- [ ] Renders correctly on all terminal sizes (80x24 to 300x100)
 - [ ] Colors visible in light/dark themes
-- [ ] Animations smooth (60 FPS)
-- [ ] Keyboard shortcuts work
+- [ ] Animations smooth (60 FPS, no jank)
+- [ ] Typography hierarchy clear
+- [ ] Spacing consistent (8px grid)
+
+#### **Accessibility:**
+- [ ] Keyboard shortcuts work (all 20+)
 - [ ] Screen reader compatible
-- [ ] High contrast mode
-- [ ] Performance (< 16ms per frame)
-- [ ] Memory efficient (< 100 MB)
-- [ ] CPU usage (< 5% idle)
+- [ ] High contrast mode support
+- [ ] Focus states visible
+- [ ] Color contrast WCAG AA (4.5:1)
+
+#### **Performance:**
+- [ ] Frame rate: 60 FPS (< 16ms per frame)
+- [ ] Memory: < 100 MB (long sessions)
+- [ ] CPU (idle): < 5%
+- [ ] Response time: < 100ms (UI actions)
+- [ ] No memory leaks (1h stress test)
+
+#### **Compatibility:**
+- [ ] iTerm2 (macOS)
+- [ ] kitty (Linux)
+- [ ] Windows Terminal (Windows)
+- [ ] Alacritty (cross-platform)
+- [ ] GNOME Terminal (Linux)
 
 ---
 
 ### 🎯 SUCCESS METRICS
 
 **Visual Quality:**
-- [ ] Reviewers say "wow" within 5 seconds
+- [ ] Reviewers say "wow" within 5 seconds ⭐
 - [ ] Zero visual bugs in demo
 - [ ] Smooth animations (no janky frames)
 - [ ] Professional polish (Linear.app quality)
@@ -1328,10 +2011,16 @@ SHORTCUTS = {
 - [ ] Delightful to use (micro-interactions)
 
 **Performance:**
-- [ ] 60 FPS animations
-- [ ] < 100ms response time
-- [ ] No memory leaks
-- [ ] Handles 1000+ messages smoothly
+- [ ] 60 FPS animations ✅
+- [ ] < 100ms response time ✅
+- [ ] No memory leaks ✅
+- [ ] Handles 1000+ messages smoothly ✅
+
+**Impact:**
+- [ ] Differentiated from competitors
+- [ ] Judges impressed (WOW factor)
+- [ ] Users want to use it daily
+- [ ] Reddit/HN worthy
 
 ---
 
@@ -1361,13 +2050,15 @@ SHORTCUTS = {
 
 ---
 
-**Implementation Priority:** P0 (After tests fixed)  
-**Estimated Time:** 24 hours (3 full workdays)  
-**Impact:** MASSIVE (WOW factor for hackathon judges)
+**Implementation Priority:** 🔴 P0 (CRITICAL - Hackathon Differentiator)  
+**Estimated Time:** 30 hours (4 days full focus)  
+**Impact:** ⭐⭐⭐⭐⭐ MASSIVE (WOW factor for hackathon judges)  
+**Owner:** Maestro AI (me) + Arquiteto-Chefe Juan  
+**Status:** ⏰ READY TO START - Awaiting GO signal
 
 ---
 
-**END OF TUI RESEARCH & IMPLEMENTATION PLAN**
+**END OF TUI COMPREHENSIVE REFINEMENT PLAN**
 
 ---
 

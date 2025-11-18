@@ -59,6 +59,15 @@ from .tools.terminal import (
 from .intelligence.context_enhanced import build_rich_context
 from .intelligence.risk import assess_risk
 
+# TUI Components (Phase 5: Integration)
+from .tui.components.message import MessageBox, Message, create_assistant_message
+from .tui.components.status import StatusBadge, StatusLevel, Spinner, SpinnerStyle, create_processing_indicator
+from .tui.components.progress import ProgressBar
+from .tui.components.code import CodeBlock, CodeSnippet
+from .tui.components.diff import DiffViewer, DiffMode
+from .tui.theme import COLORS
+from .tui.styles import PRESET_STYLES, get_rich_theme
+
 
 class SessionContext:
     """Persistent context across shell session."""
@@ -91,7 +100,8 @@ class InteractiveShell:
     """Tool-based interactive shell (Claude Code-level) with multi-turn conversation."""
     
     def __init__(self, llm_client=None, session_id: Optional[str] = None):
-        self.console = Console()
+        # TUI-enhanced console with custom theme
+        self.console = Console(theme=get_rich_theme())
         self.llm = llm_client or default_llm_client
         self.context = SessionContext()
         self.context_builder = ContextBuilder()
@@ -198,14 +208,27 @@ class InteractiveShell:
         self.console.print(f"[dim]Loaded {len(tools)} tools[/dim]")
     
     def _show_welcome(self):
-        """Show welcome message."""
+        """Show welcome message with TUI styling."""
+        from rich.text import Text
+        
+        # Build styled welcome content
+        content = Text()
+        content.append("QWEN-DEV-CLI Interactive Shell ", style=PRESET_STYLES.EMPHASIS)
+        content.append("v1.0", style=PRESET_STYLES.SUCCESS)
+        content.append("\n\n")
+        content.append(f"🔧 Tools available: ", style=PRESET_STYLES.SECONDARY)
+        content.append(f"{len(self.registry.get_all())}\n", style=PRESET_STYLES.INFO)
+        content.append(f"📁 Working directory: ", style=PRESET_STYLES.SECONDARY)
+        content.append(f"{self.context.cwd}\n\n", style=PRESET_STYLES.PATH)
+        content.append("Type natural language commands or ", style=PRESET_STYLES.TERTIARY)
+        content.append("/help", style=PRESET_STYLES.COMMAND)
+        content.append(" for system commands", style=PRESET_STYLES.TERTIARY)
+        
         welcome = Panel(
-            "[bold cyan]QWEN-DEV-CLI Interactive Shell v1.0[/bold cyan]\n\n"
-            f"Tools available: {len(self.registry.get_all())}\n"
-            f"Working directory: {self.context.cwd}\n\n"
-            "Type natural language commands or /help for system commands",
-            title="🚀 AI-Powered Code Shell",
-            border_style="cyan"
+            content,
+            title="[bold]🚀 AI-Powered Code Shell[/bold]",
+            border_style=COLORS['accent_blue'],
+            padding=(1, 2)
         )
         self.console.print(welcome)
     
@@ -491,9 +514,10 @@ Response: I don't have a tool to check the current time, but I can help you with
                 )
                 continue
             
-            # Show what we're doing
-            args_str = ', '.join(f'{k}={v}' for k, v in args.items())
-            self.console.print(f"[dim]→ {tool_name}({args_str})[/dim]")
+            # TUI: Show status badge for operation
+            args_str = ', '.join(f'{k}={v}' for k, v in args.items() if len(str(v)) < 50)
+            status = StatusBadge(f"{tool_name}({args_str})", StatusLevel.PROCESSING, show_icon=True)
+            self.console.print(status.render())
             
             # Add session context for tools that need it
             if tool_name in ['getcontext', 'savesession']:
@@ -512,10 +536,16 @@ Response: I don't have a tool to check the current time, but I can help you with
             # Format result
             if result.success:
                 if tool_name == "read_file":
-                    # Show file content with syntax highlighting
+                    # TUI: Enhanced code block with language badge
                     lang = result.metadata.get("language", "text")
-                    syntax = Syntax(str(result.data), lang, theme="monokai", line_numbers=True)
-                    self.console.print(syntax)
+                    code_block = CodeBlock(
+                        str(result.data),
+                        language=lang,
+                        show_line_numbers=True,
+                        show_language=True,
+                        copyable=True
+                    )
+                    self.console.print(code_block.render())
                     results.append(f"✓ Read {result.metadata['path']} ({result.metadata['lines']} lines)")
                 
                 elif tool_name in ["write_file", "edit_file"]:
@@ -567,7 +597,14 @@ Response: I don't have a tool to check the current time, but I can help you with
                 
                 elif tool_name == "git_diff":
                     if result.data:
-                        self.console.print(Syntax(result.data, "diff", theme="monokai"))
+                        # TUI: GitHub-style diff viewer
+                        # Parse diff to extract old/new content (simplified for now)
+                        diff_viewer = DiffViewer("", result.data, "Working Copy", "Uncommitted")
+                        self.console.print(Panel(
+                            Syntax(result.data, "diff", theme="monokai"),
+                            title="[bold]Git Diff[/bold]",
+                            border_style=COLORS['accent_blue']
+                        ))
                         results.append("✓ Diff shown")
                     else:
                         results.append("No changes")
