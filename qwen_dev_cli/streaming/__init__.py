@@ -10,7 +10,8 @@ from .renderer import (
 from .streams import (
     StreamProcessor,
     StreamType,
-    LineBufferedStreamReader
+    LineBufferedStreamReader,
+    OutputChunk
 )
 
 __all__ = [
@@ -23,4 +24,5 @@ __all__ = [
     'StreamProcessor',
     'StreamType',
     'LineBufferedStreamReader',
+    'OutputChunk',
 ]

@@ -74,8 +74,6 @@ class TestOllamaIntegration:
     
     async def test_ollama_failover_to_hf(self, ollama_client):
         """Test failover from Ollama to HF."""
-    async def test_ollama_failover_to_hf(self, ollama_client):
-        """Test failover from Ollama to HF."""
         original_model = config.ollama_model
         config.ollama_model = "nonexistent-model"
         
@@ -83,12 +81,6 @@ class TestOllamaIntegration:
         result = await ollama_client.generate(
             "Say test",
             provider="auto",
-            max_tokens=20
-        )
-        
-        assert len(result) > 0
-        config.ollama_model = original_model
-            
             max_tokens=20
         )
         

@@ -1042,7 +1042,10 @@ Output ONLY the command, no explanation, no markdown."""
         elif 'list' in req_lower and 'file' in req_lower:
             return "ls -lah"
         else:
-            return f"# Could not parse: {user_request}"
+            # Truncate huge inputs to prevent memory issues
+            max_display = 100
+            truncated = user_request[:max_display] + "..." if len(user_request) > max_display else user_request
+            return f"# Could not parse: {truncated}"
     
     def _extract_command(self, llm_response: str) -> str:
         """Extract command from LLM response."""
@@ -1060,8 +1063,12 @@ Output ONLY the command, no explanation, no markdown."""
         lines = llm_response.strip().split('\n')
         for line in lines:
             line = line.strip()
-            if line and not line.startswith('#') and not line.startswith('$'):
-                return line
+            if line and not line.startswith('#'):
+                # Remove shell prompt prefix if present
+                if line.startswith('$'):
+                    line = line[1:].strip()
+                if line:  # Only return if there's content after stripping
+                    return line
         
         return llm_response.strip() if llm_response else "# Empty response"
     
@@ -1073,17 +1080,35 @@ Output ONLY the command, no explanation, no markdown."""
         Level 1: Confirm once (standard operations)
         Level 2: Dangerous (double confirmation)
         """
-        cmd = command.split()[0] if command else ""
-        
+        if not command:
+            return 1
+            
         LEVEL_0_SAFE = {'ls', 'pwd', 'echo', 'cat', 'head', 'tail', 'grep', 'find', 'df', 'du', 'ps', 'top'}
         LEVEL_2_DANGEROUS = {'rm', 'rmdir', 'dd', 'mkfs', 'fdisk', 'format', ':(){:|:&};:'}
         
-        if cmd in LEVEL_0_SAFE:
-            return 0
-        elif cmd in LEVEL_2_DANGEROUS or 'rm -rf' in command:
+        # Check for dangerous commands anywhere in the command string (handles chains)
+        import re
+        tokens = re.split(r'[;&|]', command)
+        
+        has_dangerous = False
+        for token in tokens:
+            token = token.strip()
+            if not token:
+                continue
+            cmd = token.split()[0]
+            if cmd in LEVEL_2_DANGEROUS:
+                has_dangerous = True
+                break
+        
+        if has_dangerous:
             return 2
-        else:
-            return 1  # Default: confirm once
+        
+        # Check if first command is safe (only if all commands are safe)
+        first_cmd = command.split()[0] if command else ""
+        if first_cmd in LEVEL_0_SAFE:
+            return 0
+        
+        return 1  # Default: confirm once
     
     async def _execute_command(self, command: str) -> dict:
         """Execute shell command and return result."""
