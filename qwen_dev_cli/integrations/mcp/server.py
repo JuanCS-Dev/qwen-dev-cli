@@ -27,7 +27,7 @@ class QwenMCPServer:
         self.tools_adapter = MCPToolsAdapter(registry, self.shell_manager)
         self.tools_adapter.register_all(self.mcp)
         
-        logger.info(f"MCP Server initialized with {len(registry.get_all_tools())} tools")
+        logger.info(f"MCP Server initialized with {len(registry.get_all())} CLI tools (shell tools registered)")
     
     async def start(self):
         """Start MCP server."""
