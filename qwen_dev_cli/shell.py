@@ -112,6 +112,17 @@ class InteractiveShell:
         # Initialize tool registry
         self.registry = ToolRegistry()
         self._register_tools()
+        
+        # Phase 4.3: Async executor for parallel tool execution
+        self.async_executor = AsyncExecutor(max_parallel=5)
+        
+        # Phase 4.4: File watcher for context tracking
+        self.file_watcher = FileWatcher(root_path=".", watch_extensions={'.py', '.js', '.ts', '.go', '.rs'})
+        self.recent_files = RecentFilesTracker(maxsize=50)
+        
+        # Setup file watcher callback
+        self.file_watcher.add_callback(self._on_file_changed)
+        self.file_watcher.start()
     
     def _register_tools(self):
         """Register all available tools."""
@@ -671,6 +682,26 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print(f"Hit Rate: {stats.hit_rate:.1%}")
         self.console.print(f"Memory Hits: {stats.memory_hits}")
         self.console.print(f"Disk Hits: {stats.disk_hits}")
+        
+        # File watcher stats
+        self.console.print(f"\n[bold cyan]📁 File Watcher[/bold cyan]\n")
+        self.console.print(f"Tracked Files: {self.file_watcher.tracked_files}")
+        self.console.print(f"Recent Events: {len(self.file_watcher.recent_events)}")
+        recent = self.recent_files.get_recent(5)
+        if recent:
+            self.console.print("\nRecent Files:")
+            for f in recent:
+                self.console.print(f"  • {f}")
+    
+    def _on_file_changed(self, event) -> None:
+        """Handle file change events."""
+        # Add to recent files tracker
+        self.recent_files.add(event.path)
+        
+        # Invalidate cache if needed (files used in context)
+        if event.event_type in ['modified', 'deleted']:
+            # Could invalidate related cache entries here
+            pass
     
     async def _handle_explain(self, command: str) -> None:
         """Explain a command."""
