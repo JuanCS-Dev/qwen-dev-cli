@@ -918,12 +918,22 @@ OS: {context.get('os', 'Linux')}
 Suggest ONE shell command to accomplish this task.
 Output ONLY the command, no explanation, no markdown."""
         
-        # Call LLM
-        response = await self.llm.generate(prompt)
+        # Call LLM with error handling
+        try:
+            response = await self.llm.generate(prompt)
+            
+            # Handle None or empty response
+            if not response:
+                return self._fallback_suggest(user_request)
+            
+            # Parse command from response
+            command = self._extract_command(response)
+            return command
         
-        # Parse command from response
-        command = self._extract_command(response)
-        return command
+        except Exception as e:
+            # Any LLM error: fallback gracefully
+            self.console.print(f"[yellow]⚠️  LLM unavailable, using fallback[/yellow]")
+            return self._fallback_suggest(user_request)
     
     def _fallback_suggest(self, user_request: str) -> str:
         """Fallback suggestion using regex (when LLM unavailable)."""
@@ -943,6 +953,10 @@ Output ONLY the command, no explanation, no markdown."""
     
     def _extract_command(self, llm_response: str) -> str:
         """Extract command from LLM response."""
+        # Handle None or non-string
+        if not llm_response or not isinstance(llm_response, str):
+            return "# Could not extract command"
+        
         # Remove markdown code blocks
         import re
         code_block = re.search(r'```(?:bash|sh)?\s*\n?(.*?)\n?```', llm_response, re.DOTALL)
@@ -956,7 +970,7 @@ Output ONLY the command, no explanation, no markdown."""
             if line and not line.startswith('#') and not line.startswith('$'):
                 return line
         
-        return llm_response.strip()
+        return llm_response.strip() if llm_response else "# Empty response"
     
     def _get_safety_level(self, command: str) -> int:
         """
