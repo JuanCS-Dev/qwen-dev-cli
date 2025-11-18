@@ -730,7 +730,16 @@ Tool calls: {len(self.context.tool_calls)}
         from .intelligence.patterns import register_builtin_patterns
         register_builtin_patterns(suggestion_engine)
         
-        while True:
+        # Start background file watcher task
+        async def file_watcher_loop():
+            while True:
+                self.file_watcher.check_updates()
+                await asyncio.sleep(1.0)  # Check every second
+        
+        watcher_task = asyncio.create_task(file_watcher_loop())
+        
+        try:
+            while True:
             try:
                 # Get user input
                 user_input = await self.session.prompt_async("┃ > ")
@@ -785,12 +794,21 @@ Tool calls: {len(self.context.tool_calls)}
                             self.console.print(f"  {i}. {sugg}")
                         self.console.print()
                 
-            except KeyboardInterrupt:
-                continue
-            except EOFError:
-                break
-            except Exception as e:
-                self.console.print(f"[red]Error: {str(e)}[/red]")
+                except KeyboardInterrupt:
+                    continue
+                except EOFError:
+                    break
+                except Exception as e:
+                    self.console.print(f"[red]Error: {str(e)}[/red]")
+        
+        finally:
+            # Cleanup
+            self.file_watcher.stop()
+            watcher_task.cancel()
+            try:
+                await watcher_task
+            except asyncio.CancelledError:
+                pass
 
 
 async def main():
