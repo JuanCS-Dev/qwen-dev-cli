@@ -24,6 +24,10 @@ from .core.recovery import (
     create_recovery_context
 )
 
+# P1: Import error parser and danger detector
+from .core.error_parser import error_parser, ErrorAnalysis
+from .core.danger_detector import danger_detector, DangerWarning, DangerLevel
+
 # Import LLM client (using existing implementation)
 from .core.async_executor import AsyncExecutor
 from .core.file_watcher import FileWatcher
@@ -853,33 +857,53 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print(f"   [cyan]{suggestion}[/cyan]")
         self.console.print()
         
-        # Assess risk (Claude: tiered safety)
-        risk = assess_risk(suggestion)
-        safety_level = self._get_safety_level(suggestion)
+        # P1: Danger detection with visual warnings
+        danger_warning = danger_detector.analyze(suggestion)
         
-        if safety_level == 2:  # Dangerous (rm, dd, etc)
-            self.console.print("[red]⚠️  DANGEROUS COMMAND[/red]")
-            self.console.print(f"[yellow]This will: {risk.description}[/yellow]")
-            confirm = input("Type command name to confirm: ").strip()
-            if confirm != suggestion.split()[0]:
-                self.console.print("[yellow]Cancelled[/yellow]")
+        if danger_warning:
+            # Show rich visual warning
+            warning_panel = danger_detector.get_visual_warning(danger_warning)
+            self.console.print(warning_panel)
+            self.console.print()
+            
+            # Get appropriate confirmation prompt
+            prompt_text = danger_detector.format_confirmation_prompt(danger_warning, suggestion)
+            self.console.print(prompt_text, end="")
+            
+            user_confirmation = input()
+            
+            # Validate confirmation
+            if not danger_detector.validate_confirmation(danger_warning, user_confirmation, suggestion):
+                self.console.print("[yellow]❌ Cancelled - confirmation failed[/yellow]")
                 return
-        elif safety_level == 1:  # Needs confirmation (cp, mv, git)
-            self.console.print("[yellow]⚠️  Requires confirmation[/yellow]")
-        else:  # Safe (ls, pwd, echo)
-            self.console.print("[green]✓ Safe command[/green]")
-        
-        # [CONFIRMING] Ask user
-        if safety_level >= 1:
-            confirm = input("Execute? [y/N] ").strip().lower()
+            
+            self.console.print("[green]✓ Confirmation accepted[/green]")
         else:
-            confirm = input("Execute? [Y/n] ").strip().lower()
-            if not confirm:  # Default yes for safe commands
-                confirm = 'y'
-        
-        if confirm not in ['y', 'yes']:
-            self.console.print("[dim]Cancelled[/dim]")
-            return
+            # Old safety system as fallback
+            risk = assess_risk(suggestion)
+            safety_level = self._get_safety_level(suggestion)
+            
+            if safety_level == 2:  # Dangerous (fallback for old system)
+                self.console.print("[red]⚠️  DANGEROUS COMMAND[/red]")
+                self.console.print(f"[yellow]This will: {risk.description}[/yellow]")
+                confirm = input("Type command name to confirm: ").strip()
+                if confirm != suggestion.split()[0]:
+                    self.console.print("[yellow]Cancelled[/yellow]")
+                    return
+            elif safety_level == 1:  # Needs confirmation
+                self.console.print("[yellow]⚠️  Requires confirmation[/yellow]")
+                confirm = input("Execute? [y/N] ").strip().lower()
+                if confirm not in ['y', 'yes']:
+                    self.console.print("[dim]Cancelled[/dim]")
+                    return
+            else:  # Safe
+                self.console.print("[green]✓ Safe command[/green]")
+                confirm = input("Execute? [Y/n] ").strip().lower()
+                if not confirm:  # Default yes for safe commands
+                    confirm = 'y'
+                if confirm not in ['y', 'yes']:
+                    self.console.print("[dim]Cancelled[/dim]")
+                    return
         
         # [EXECUTING] Run command
         self.console.print("[cyan][EXECUTING][/cyan] Running command...")
@@ -895,8 +919,37 @@ Tool calls: {len(self.context.tool_calls)}
                     self.console.print(result['output'])
             else:
                 self.console.print("[red]❌ Failed[/red]")
+                
+                # P1: Intelligent error parsing
                 if result.get('error'):
-                    self.console.print(f"[red]{result['error']}[/red]")
+                    error_text = result['error']
+                    self.console.print(f"[red]{error_text}[/red]")
+                    self.console.print()
+                    
+                    # Parse error and show suggestions
+                    analysis = error_parser.parse(error_text, suggestion)
+                    
+                    # Show user-friendly message
+                    self.console.print(f"[yellow]💡 {analysis.user_friendly}[/yellow]")
+                    self.console.print()
+                    
+                    # Show suggestions
+                    if analysis.suggestions:
+                        self.console.print("[bold]Suggestions:[/bold]")
+                        for i, sug in enumerate(analysis.suggestions[:3], 1):
+                            self.console.print(f"  {i}. [cyan]{sug}[/cyan]")
+                        self.console.print()
+                    
+                    # Show auto-fix if available
+                    if analysis.can_auto_fix and analysis.auto_fix_command:
+                        self.console.print(f"[green]Auto-fix: {analysis.auto_fix_command}[/green]")
+                        fix = input("Run auto-fix? [y/N] ").strip().lower()
+                        if fix == 'y':
+                            fix_result = await self._execute_command(analysis.auto_fix_command)
+                            if fix_result['success']:
+                                self.console.print("[green]✓ Auto-fix completed[/green]")
+                                if fix_result['output']:
+                                    self.console.print(fix_result['output'])
         
         except Exception as e:
             self.console.print(f"[red]❌ Execution failed: {e}[/red]")
