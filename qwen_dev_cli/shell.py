@@ -27,6 +27,7 @@ from .core.recovery import (
 # Import LLM client (using existing implementation)
 try:
     from .core.llm import llm_client as default_llm_client
+from .intelligence.workflows import WorkflowOrchestrator
 except ImportError:
     default_llm_client = None
 from .tools.base import ToolRegistry
@@ -653,6 +654,23 @@ Tool calls: {len(self.context.tool_calls)}
         
         elif cmd == "/clear":
             self.console.clear()
+        elif cmd == "/metrics":
+            report = generate_constitutional_report(self.context.history)
+            self.console.print(report)
+            return False, None
+        elif cmd == "/cache":
+            cache = get_cache()
+            stats = cache.get_stats()
+            self.console.print(f"\n📊 Cache Stats:\n  Hits: {stats['hits']}\n  Misses: {stats['misses']}\n  Size: {stats['size']}")
+            if self.file_watcher:
+                wstats = self.file_watcher.get_stats()
+                self.console.print(f"\n📁 File Watcher:\n  Tracked: {wstats['tracked_count']}\n  Events: {wstats['event_count']}")
+            return False, None
+        elif cmd.startswith("/explain "):
+            command = cmd[9:].strip()
+            explanation = explain_command(command)
+            self.console.print(f"\n💡 {explanation}")
+            return False, None
             return False, None
         
         else:
@@ -722,7 +740,6 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print(f"\n{explanation.format()}\n")
     
     async def run(self):
-        """Main REPL loop."""
         self._show_welcome()
         
         # Initialize suggestion engine

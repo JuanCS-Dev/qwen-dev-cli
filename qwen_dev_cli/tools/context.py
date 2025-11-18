@@ -32,7 +32,7 @@ class GetContextTool(Tool):
                     timeout=2
                 )
                 git_branch = result.stdout.strip() if result.returncode == 0 else None
-            except:
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
                 git_branch = None
             
             context = {
