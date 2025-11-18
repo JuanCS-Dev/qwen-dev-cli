@@ -1792,3 +1792,696 @@ Current:    82% [████████████████░░░░]
 ---
 
 **Soli Deo Gloria!** 🙏✨
+
+---
+
+## 🎯 PHASE 5: HACKATHON KILLER FEATURES (MCP + GRADIO) [3-4 dias]
+
+**Strategy:** Feature flags architecture - Core CLI intacto, integrações como addons opcionais
+
+**Deadline:** Nov 30 (Hackathon submission)
+
+### 5.1 MCP Server Integration (2 dias)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0 (Hackathon killer feature)
+
+**Architecture:**
+```
+qwen_dev_cli/
+├── integrations/
+│   ├── __init__.py
+│   ├── mcp/
+│   │   ├── __init__.py
+│   │   ├── server.py           # FastMCP server
+│   │   ├── tools.py            # Auto-expose CLI tools
+│   │   ├── shell_handler.py    # Reverse shell magic
+│   │   └── config.py           # MCP-specific config
+│   └── gradio/                 # (Phase 5.2)
+```
+
+**Killer Feature: Reverse Shell via MCP**
+- Claude Desktop executa `create_shell()` tool
+- Ganha terminal 100% funcional no Artifact
+- Comandos `ls`, `git commit`, `python script.py` rodam na máquina real
+- Loop fechado: Claude → MCP → CLI → output → Claude
+
+**Implementation:**
+1. **Auto-tool exposure** (6h)
+   ```python
+   # Cada tool do CLI vira tool MCP automaticamente
+   @mcp.tool()
+   def run_command(command: str) -> dict:
+       return cli.execute(command)
+   
+   @mcp.tool()
+   def edit_file(path: str, content: str) -> dict:
+       return cli.tools.edit_file(path, content)
+   
+   @mcp.tool()
+   def git_status() -> dict:
+       return cli.tools.git_status()
+   ```
+
+2. **Reverse shell implementation** (8h)
+   - WebSocket bidirectional com Claude Desktop
+   - PTY allocation para comandos interativos
+   - Stream stdout/stderr real-time
+   - Session persistence entre tool calls
+
+3. **Security layer** (4h)
+   - Whitelist de comandos permitidos
+   - Sandbox opcional (chroot/docker)
+   - Rate limiting
+   - Audit logging de TODOS comandos
+
+**Testing:**
+- [ ] MCP server starts corretamente
+- [ ] Tools aparecem no Claude Desktop
+- [ ] Shell executa comandos básicos
+- [ ] Shell executa comandos interativos (vim, python REPL)
+- [ ] Output streaming funciona
+- [ ] Múltiplas sessões simultâneas
+- [ ] Security boundaries respeitados
+
+**Dependencies:**
+```toml
+[project.optional-dependencies]
+mcp = [
+    "mcp>=0.9.0",
+    "fastmcp>=0.2.0",
+    "websockets>=12.0",
+    "pydantic>=2.5.0"
+]
+```
+
+**Activation:**
+```bash
+# Install
+pip install qwen-dev-cli[mcp]
+
+# Run
+qwen --mcp                    # Start MCP server
+qwen --mcp --port 8080        # Custom port
+QWEN_MCP_MODE=true qwen       # Via env var
+```
+
+---
+
+### 5.2 Gradio Web UI (1-2 dias)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0 (Hackathon demo)
+
+**Vision:** Terminal lindo com syntax highlight, autocomplete, drag-and-drop
+
+**Architecture:**
+```
+qwen_dev_cli/integrations/gradio/
+├── __init__.py
+├── app.py              # Gradio interface
+├── components/
+│   ├── terminal.py     # Terminal component
+│   ├── file_tree.py    # Project explorer
+│   └── diff_viewer.py  # Git diff viewer
+└── themes/
+    └── qwen_dark.py    # Custom theme
+```
+
+**Features:**
+1. **Terminal component** (6h)
+   - Xterm.js integration
+   - Syntax highlighting (Pygments)
+   - Autocomplete (bash, git, python)
+   - Command history (↑/↓)
+   - Multi-tab support
+
+2. **File operations** (4h)
+   - Drag-and-drop upload
+   - File tree viewer (Monaco-like)
+   - Inline editing com preview
+   - Diff viewer side-by-side
+
+3. **MCP bridge** (3h)
+   - Gradio UI → MCP server → CLI
+   - Same backend, different frontend
+   - Share sessions entre web e Claude Desktop
+
+**Implementation:**
+```python
+import gradio as gr
+from qwen_dev_cli.integrations.mcp import MCPClient
+
+def create_ui():
+    with gr.Blocks(theme="qwen_dark") as demo:
+        terminal = gr.Terminal(
+            command_handler=handle_command,
+            syntax_highlight=True,
+            autocomplete=True
+        )
+        file_tree = gr.FileExplorer(root=".")
+        diff_viewer = gr.Code(language="diff")
+    
+    return demo
+
+def handle_command(cmd: str) -> str:
+    # Route to MCP server
+    result = mcp_client.run_command(cmd)
+    return result["output"]
+```
+
+**Testing:**
+- [ ] UI renders corretamente
+- [ ] Terminal executa comandos
+- [ ] Syntax highlighting funciona
+- [ ] File upload/download funciona
+- [ ] MCP integration works
+- [ ] Multi-user support (optional)
+
+**Dependencies:**
+```toml
+[project.optional-dependencies]
+gradio = [
+    "gradio>=4.0.0",
+    "pygments>=2.17.0",
+    "monaco-editor>=0.34.0"  # JS via CDN
+]
+```
+
+**Activation:**
+```bash
+# Install
+pip install qwen-dev-cli[gradio]
+
+# Run
+qwen --gradio                  # Launch web UI
+qwen --gradio --share          # Public URL (Gradio share)
+qwen --gradio --mcp            # Both integrations
+```
+
+---
+
+### 5.3 Hackathon Demo Script (4h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0
+
+**Goal:** Vídeo/demo de 3-5 min mostrando o loop fechado
+
+**Script:**
+1. **Setup (30s)**
+   - `qwen --mcp --gradio`
+   - Abre Claude Desktop + Gradio web
+
+2. **Act 1: Claude usa MCP (60s)**
+   - Claude: "Create a Python FastAPI server"
+   - MCP tool `create_file()` executado
+   - Código aparece na máquina real
+   - Claude: "Run the server"
+   - MCP tool `run_command("uvicorn main:app")`
+   - Server sobe, Claude vê output
+
+3. **Act 2: Web UI (60s)**
+   - Developer abre Gradio
+   - Vê file tree com o código criado
+   - Edita inline, adiciona endpoint
+   - Terminal: `git diff` (colorido)
+   - Commit via UI
+
+4. **Act 3: Loop fechado (60s)**
+   - Claude vê o commit via MCP
+   - Claude: "Write tests for the new endpoint"
+   - Testes criados
+   - Claude: "Run tests"
+   - `pytest` executado via MCP
+   - Output streaming em real-time
+   - ✅ Tests pass
+
+5. **Finale (30s)**
+   - Mostra architecture diagram
+   - "Claude + MCP + Qwen CLI = Workflow completo"
+
+**Deliverables:**
+- [ ] Script markdown
+- [ ] Video recording (OBS)
+- [ ] GIFs para README
+- [ ] Slides (opcional)
+
+---
+
+### 5.4 Documentation & Polish (4h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P1
+
+**Tasks:**
+- [ ] README: Add MCP/Gradio sections
+- [ ] HACKATHON.md: Submission doc
+- [ ] MCP_GUIDE.md: Setup instructions
+- [ ] GRADIO_GUIDE.md: UI docs
+- [ ] Architecture diagrams (mermaid)
+- [ ] Demo screenshots/GIFs
+
+---
+
+## 📊 PHASE 5 ESTIMATES
+
+**Total time:** 3-4 dias (focused)
+
+| Task | Time | Priority |
+|------|------|----------|
+| 5.1 MCP Server | 18h | P0 |
+| 5.2 Gradio UI | 13h | P0 |
+| 5.3 Demo Script | 4h | P0 |
+| 5.4 Documentation | 4h | P1 |
+| **TOTAL** | **39h** | |
+
+**Parallelization:**
+- MCP (Dia 1-2)
+- Gradio (Dia 2-3)
+- Demo + Docs (Dia 4)
+
+**Critical Path:**
+MCP Server → Gradio Integration → Demo Recording
+
+---
+
+## 🎯 SUCCESS CRITERIA (Hackathon)
+
+### Must Have (P0):
+- ✅ MCP server expõe CLI tools
+- ✅ Reverse shell funciona no Claude Desktop
+- ✅ Gradio UI funcional (terminal + file ops)
+- ✅ Demo video gravado
+- ✅ README atualizado
+
+### Nice to Have (P1):
+- 🔲 Multi-user support (Gradio)
+- 🔲 Sandbox security (chroot)
+- 🔲 Performance benchmarks
+- 🔲 Docker deployment ready
+
+### Stretch Goals (P2):
+- 🔲 VS Code extension (MCP client)
+- 🔲 Mobile-responsive Gradio UI
+- 🔲 Collaborative editing
+
+---
+
+## 🚀 ACTIVATION PLAN
+
+**Post-Hackathon:**
+- Core CLI continua sendo ferramenta pessoal
+- MCP/Gradio ficam como features opcionais
+- `pip install qwen-dev-cli` → Core only
+- `pip install qwen-dev-cli[mcp,gradio]` → Full package
+
+**Deployment:**
+```bash
+# Personal use (você)
+qwen                          # Core CLI
+
+# Hackathon demo
+qwen --mcp --gradio --share   # Full stack
+
+# Production (futuro)
+docker run qwen-dev-cli --mcp  # MCP server only
+```
+
+---
+
+## 📝 NEXT STEPS (2025-11-18)
+
+**IMMEDIATE (hoje):**
+1. [ ] Create `qwen_dev_cli/integrations/` structure
+2. [ ] Setup FastMCP boilerplate
+3. [ ] Implement first MCP tool (`run_command`)
+4. [ ] Test with Claude Desktop
+
+**THIS WEEK:**
+- [ ] Complete Phase 5.1 (MCP)
+- [ ] Start Phase 5.2 (Gradio)
+- [ ] First demo run
+
+**DEADLINE:** Nov 30 23:59 UTC ⏰
+
+
+---
+
+## 🎨 PHASE 6: REACTIVE TUI & ASYNC LOG STREAMING (PRIORITY: P0)
+
+**Objective:** Zero-UI-Blocking. Cursor IDE-like terminal experience.
+
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0 (CRITICAL - User Experience Differentiator)  
+**Estimated Time:** 2-3 dias
+
+> **WHY THIS MATTERS:** This is the difference between "just another CLI" and "holy shit this feels professional". Cursor/Claude Code users EXPECT this. Without it, we look amateurish.
+
+---
+
+### 6.1 Architecture: Producer-Consumer Pattern (8h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0
+
+**Requirements (Non-Negotiable):**
+
+1. **Thread Separation:**
+   ```
+   Worker Threads          UI Thread (NEVER blocks)
+   ├── I/O operations      └── Rendering only
+   ├── Network calls           ├── Spinners
+   ├── Shell commands          ├── Progress bars
+   └── Heavy compute           └── Text updates
+   ```
+
+2. **Communication:**
+   - Queue-based (asyncio.Queue / threading.Queue)
+   - Thread-safe message passing
+   - No shared state (use channels/locks)
+
+**Implementation:**
+```python
+# qwen_dev_cli/ui/async_executor.py
+class AsyncExecutor:
+    def __init__(self):
+        self.queue = asyncio.Queue()
+        self.ui_thread = Thread(target=self._render_loop)
+        self.workers = []
+    
+    async def execute_command(self, cmd):
+        """Non-blocking command execution"""
+        worker = asyncio.create_task(self._run_command(cmd))
+        self.workers.append(worker)
+        return worker
+    
+    async def _run_command(self, cmd):
+        """Producer: Executes and streams output"""
+        process = await asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        async for line in process.stdout:
+            await self.queue.put(('stdout', line.decode()))
+        
+        async for line in process.stderr:
+            await self.queue.put(('stderr', line.decode()))
+    
+    def _render_loop(self):
+        """Consumer: Renders UI updates"""
+        while True:
+            msg_type, content = self.queue.get()
+            self._render(msg_type, content)
+```
+
+**Tasks:**
+- [ ] Implement AsyncExecutor class
+- [ ] Queue-based communication
+- [ ] Thread lifecycle management
+- [ ] Error propagation
+- [ ] Tests: 10+ scenarios
+
+**Deliverables:**
+- `qwen_dev_cli/ui/async_executor.py` (~300 LOC)
+- `tests/ui/test_async_executor.py` (~150 LOC)
+
+---
+
+### 6.2 Real-Time Streaming (6h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0
+
+**Anti-Pattern (FORBIDDEN):**
+```python
+# ❌ NEVER DO THIS
+output = subprocess.run(cmd).stdout  # Buffers everything
+print(output)  # Dumps at end
+```
+
+**Correct Pattern:**
+```python
+# ✅ Stream line-by-line
+async for line in process.stdout:
+    print(line, end='', flush=True)  # Immediate output
+```
+
+**Requirements:**
+1. **Pipe-based I/O:**
+   - Read stdout/stderr via pipes
+   - Line-buffered mode
+   - Non-blocking reads
+
+2. **Immediate Feedback:**
+   - User sees line 1 when emitted
+   - No waiting for process completion
+   - Interleaved stdout/stderr (timestamped)
+
+3. **Progress Indicators:**
+   - Spinners for long ops
+   - Progress bars for % complete
+   - ETA calculations
+
+**Implementation:**
+```python
+# qwen_dev_cli/ui/stream_renderer.py
+class StreamRenderer:
+    def __init__(self):
+        self.console = Console()
+        self.live = Live(console=self.console)
+    
+    async def render_stream(self, stream):
+        """Render output as it arrives"""
+        with self.live:
+            async for line in stream:
+                self.live.update(Panel(line, title="Output"))
+    
+    def render_progress(self, total):
+        """Show progress bar"""
+        with Progress() as progress:
+            task = progress.add_task("Processing", total=total)
+            yield task, progress
+```
+
+**Tasks:**
+- [ ] Implement StreamRenderer
+- [ ] Pipe-based I/O handling
+- [ ] Progress indicators (rich library)
+- [ ] Timestamp interleaving
+- [ ] Tests: streaming scenarios
+
+**Deliverables:**
+- `qwen_dev_cli/ui/stream_renderer.py` (~250 LOC)
+- `tests/ui/test_stream_renderer.py` (~100 LOC)
+
+---
+
+### 6.3 Concurrency Visuals (4h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0
+
+**Challenge:** Multiple parallel operations without UI glitches.
+
+**Example:**
+```
+┌─ Task 1: npm install ────────────────┐
+│ ⠋ Installing dependencies...         │
+│ ✓ lodash@4.17.21                     │
+│ ✓ react@18.2.0                       │
+└───────────────────────────────────────┘
+
+┌─ Task 2: pytest ─────────────────────┐
+│ ⠹ Running tests...                   │
+│ ✓ test_parser.py::test_json          │
+│ ✗ test_parser.py::test_malformed     │
+└───────────────────────────────────────┘
+
+┌─ Task 3: git status ─────────────────┐
+│ ✓ On branch main                     │
+│ ✓ Your branch is up to date          │
+└───────────────────────────────────────┘
+```
+
+**Requirements:**
+1. **Race Condition Prevention:**
+   - Mutex/Lock for UI updates
+   - Centralized rendering queue
+   - Atomic updates only
+
+2. **Visual Separation:**
+   - Panels per task
+   - Color coding (green=success, red=error)
+   - Collapsible sections
+
+3. **Optimistic UI:**
+   - Instant feedback on input
+   - Background processing
+   - Update when complete
+
+**Implementation:**
+```python
+# qwen_dev_cli/ui/concurrent_renderer.py
+class ConcurrentRenderer:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.panels = {}
+    
+    def add_task(self, task_id, title):
+        """Create panel for task"""
+        with self.lock:
+            self.panels[task_id] = Panel(title=title)
+            self._render()
+    
+    def update_task(self, task_id, line):
+        """Update task output"""
+        with self.lock:
+            self.panels[task_id].add_line(line)
+            self._render()
+    
+    def _render(self):
+        """Thread-safe render"""
+        layout = Layout()
+        for panel in self.panels.values():
+            layout.add(panel)
+        console.print(layout)
+```
+
+**Tasks:**
+- [ ] Implement ConcurrentRenderer
+- [ ] Mutex-based synchronization
+- [ ] Panel management
+- [ ] Layout engine (rich)
+- [ ] Tests: race conditions
+
+**Deliverables:**
+- `qwen_dev_cli/ui/concurrent_renderer.py` (~200 LOC)
+- `tests/ui/test_concurrent_renderer.py` (~120 LOC)
+
+---
+
+### 6.4 Integration with Core (2h)
+**Status:** 🔴 NOT STARTED  
+**Priority:** P0
+
+**Tasks:**
+- [ ] Refactor `CommandExecutor` to use AsyncExecutor
+- [ ] Replace `subprocess.run()` calls
+- [ ] Add `--stream` flag (default: on)
+- [ ] Fallback to synchronous mode (CI/tests)
+- [ ] Update all tools to support streaming
+
+**Changes:**
+```python
+# qwen_dev_cli/tools/shell.py (BEFORE)
+def execute_shell(command):
+    result = subprocess.run(command, capture_output=True)
+    return result.stdout
+
+# qwen_dev_cli/tools/shell.py (AFTER)
+async def execute_shell(command, stream=True):
+    if stream:
+        async for line in async_executor.execute(command):
+            yield line
+    else:
+        # Fallback for tests/CI
+        result = subprocess.run(command, capture_output=True)
+        return result.stdout
+```
+
+**Deliverables:**
+- Refactored tools (~500 LOC changes)
+- Integration tests (~80 LOC)
+
+---
+
+## 📊 PHASE 6 ESTIMATES
+
+**Total time:** 20h (2-3 dias focused)
+
+| Task | Time | Priority | LOC |
+|------|------|----------|-----|
+| 6.1 Producer-Consumer | 8h | P0 | 450 |
+| 6.2 Real-Time Streaming | 6h | P0 | 350 |
+| 6.3 Concurrency Visuals | 4h | P0 | 320 |
+| 6.4 Integration | 2h | P0 | 580 |
+| **TOTAL** | **20h** | | **1,700** |
+
+---
+
+## 🎯 SUCCESS CRITERIA (Phase 6)
+
+### Must Have (P0):
+- ✅ Zero UI blocking (all I/O async)
+- ✅ Line-by-line streaming (no buffering)
+- ✅ Multi-task rendering (no glitches)
+- ✅ Spinner/progress indicators
+- ✅ Cursor/Claude Code-like feel
+
+### Nice to Have (P1):
+- 🔲 Collapsible output sections
+- 🔲 Search/filter in output
+- 🔲 Export logs to file
+- 🔲 Syntax highlighting in streams
+
+### Validation:
+```bash
+# Test 1: Long-running command
+qwen "Run npm install and show progress"
+# → Should see packages installing in real-time
+
+# Test 2: Parallel tasks
+qwen "Run tests and lint in parallel"
+# → Should see both outputs simultaneously
+
+# Test 3: Error handling
+qwen "Run command that fails midway"
+# → Should see partial output + error
+```
+
+---
+
+## 🔗 DEPENDENCIES
+
+**Phase 6 blocks:**
+- Phase 5 (MCP/Gradio) - needs streaming for terminal UI
+- Demo video - needs professional UX
+- User adoption - critical for first impressions
+
+**Phase 6 depends on:**
+- Phase 4 (Tool System) - tools must support async
+- Python 3.11+ (asyncio improvements)
+
+**Libraries needed:**
+```bash
+pip install rich asyncio aiofiles
+```
+
+---
+
+## 🚨 RISK MITIGATION
+
+**Risk 1:** Threading bugs (race conditions)
+- **Mitigation:** Extensive testing with `pytest-asyncio`
+- **Fallback:** Synchronous mode flag
+
+**Risk 2:** Windows compatibility (asyncio limitations)
+- **Mitigation:** Use `asyncio.ProactorEventLoop` on Windows
+- **Fallback:** Synchronous mode on unsupported platforms
+
+**Risk 3:** Performance overhead (multiple threads)
+- **Mitigation:** Lazy thread spawning (only when needed)
+- **Benchmark:** Max 10% overhead vs synchronous
+
+---
+
+## 📝 IMPLEMENTATION ORDER
+
+1. **Day 1 (8h):** Phase 6.1 (Foundation)
+2. **Day 2 (6h):** Phase 6.2 (Streaming)
+3. **Day 3 (6h):** Phase 6.3 (Concurrency) + 6.4 (Integration)
+
+**Critical Path:**
+Producer-Consumer → Streaming → Concurrency → Integration
+
+**Start Date:** 2025-11-18 (TODAY)  
+**Target Completion:** 2025-11-20
+
+---
+
