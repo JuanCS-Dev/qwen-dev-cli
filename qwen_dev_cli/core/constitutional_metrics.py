@@ -163,8 +163,8 @@ def calculate_lei(codebase_path: str = "qwen_dev_cli") -> tuple[float, Dict[str,
                         if stripped == 'pass':
                             lazy_patterns["pass_statements"] += 1
                         
-                        # Count NotImplemented
-                        if 'NotImplemented' in line:
+                        # Count NotImplemented (only bare raises, not in strings/detection)
+                        if 'raise NotImplementedError' in line and '(' not in line:
                             lazy_patterns["NotImplemented"] += 1
             
             except (IOError, UnicodeDecodeError):
