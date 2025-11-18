@@ -129,8 +129,9 @@ def calculate_lei(codebase_path: str = "qwen_dev_cli") -> tuple[float, Dict[str,
     
     for root, dirs, files in os.walk(codebase_path):
         # Skip specific subdirectories (tests, prompts with examples, cache)
-        skip_dirs = {'/tests/', '/test/', '/__pycache__/', '/prompts/', '/examples/'}
-        if any(skip in root for skip in skip_dirs):
+        path_parts = root.split(os.sep)
+        skip_dirs = {'tests', 'test', '__pycache__', 'prompts', 'examples'}
+        if any(part in skip_dirs for part in path_parts):
             continue
         
         for file in files:
@@ -145,15 +146,17 @@ def calculate_lei(codebase_path: str = "qwen_dev_cli") -> tuple[float, Dict[str,
                     total_loc += len(lines)
                     
                     for line in lines:
-                        # Count TODOs (including in comments - those count as lazy!)
-                        if 'TODO' in line:
-                            lazy_patterns["TODO"] += 1
-                        if 'FIXME' in line:
-                            lazy_patterns["FIXME"] += 1
-                        if 'XXX' in line:
-                            lazy_patterns["XXX"] += 1
-                        if 'HACK' in line:
-                            lazy_patterns["HACK"] += 1
+                        # Only count patterns in comments (not in strings/code)
+                        stripped = line.strip()
+                        if stripped.startswith('#'):
+                            if 'TODO' in line:
+                                lazy_patterns["TODO"] += 1
+                            if 'FIXME' in line:
+                                lazy_patterns["FIXME"] += 1
+                            if 'XXX' in line:
+                                lazy_patterns["XXX"] += 1
+                            if 'HACK' in line:
+                                lazy_patterns["HACK"] += 1
                         
                         # Count pass statements (excluding docstrings)
                         stripped = line.strip()
