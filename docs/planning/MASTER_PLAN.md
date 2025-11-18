@@ -1892,19 +1892,45 @@ QWEN_MCP_MODE=true qwen       # Via env var
 **Priority:** P0 (Hackathon demo)
 
 **Vision:** FRONTEND KILLER - Terminal que faz nerds chorarem de beleza
-- CLEAN: Zero clutter visual, hierarquia clara, whitespace estratégico
-- SOBRIO: Paleta restrita (2-3 cores + neutros), tipografia impecável
-- DETALHISTA: Micro-interações, transições suaves (120ms), estados hover/focus precisos
-- PARADOXO: Aos leigos parece simples. Aos devs revela cuidado meticuloso.
 
-**Design Philosophy:**
+**Design DNA:**
+- CLEAN: Zero clutter, hierarquia óbvia, whitespace cirúrgico (8px grid system)
+- SOBRIO: Paleta restrita (accent + 2 neutros), tipografia impecável (Inter UI + JetBrains Mono)
+- DETALHISTA: Micro-interações (hover 80ms, click 120ms), estados precisos, loading skeletons
+- ANTI-FLASHY: Sem gradientes chamativos, sem sombras exageradas, sem animações desnecessárias
+- PARADOXO BRUTAL: Leigos veem "simples". Devs veem 200h de polish obsessivo.
+
+**Benchmark Quality Targets:**
 ```
-"The best interface is invisible until you need it"
-- Spotify-like minimalism
-- Linear.app-level polish
-- Vercel dashboard sobriety
-- Warp terminal innovation
+UI Inspiration:         Polish Level:
+├─ Linear.app          → Animations (timing functions perfeitas)
+├─ Vercel Dashboard    → Hierarchy (spacing matemático)
+├─ Warp Terminal       → Innovation (command palette, AI suggestions)
+├─ GitHub Codespaces   → Reliability (error states claros)
+└─ Stripe Dashboard    → Accessibility (keyboard shortcuts, focus visible)
 ```
+
+**Non-Negotiable Details:**
+- Font rendering: subpixel antialiasing, line-height 1.5, letter-spacing -0.01em
+- Colors: WCAG AAA contrast, semantic naming (not gray-100/200/300)
+- Transitions: cubic-bezier(0.4, 0.0, 0.2, 1) ou ease-out padrão
+- Loading states: Skeleton screens (não spinners genéricos)
+- Error states: Inline, actionable, não agressivos
+- Empty states: Ilustrações minimalistas + CTA claro
+- Responsivo: Mobile-first, breakpoints lógicos (não arbitrários)
+
+**O que NÃO fazer (anti-patterns fatais):**
+❌ "Feature creep" visual (ícones desnecessários, badges piscando)
+❌ Inconsistência (botão azul aqui, verde ali)
+❌ Layout shift (CLS > 0.1 = inaceitável)
+❌ Tooltip spam (só onde realmente ajuda)
+❌ Modal hell (preferir inline actions)
+❌ "Inspiração" de templates baratos
+
+**Expected Reaction:**
+- Jurado técnico: "Isso é produção-ready, não hackathon"
+- Designer: "Alguém leu o Material Design 3 de verdade"
+- Dev Sênior: "Cada pixel tem propósito"
 
 **Architecture:**
 ```
