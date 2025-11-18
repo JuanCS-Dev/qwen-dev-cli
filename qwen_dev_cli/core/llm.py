@@ -254,7 +254,7 @@ class LLMClient:
             pass  # Placeholder for future
         
         # Provider priority for failover (Cursor AI strategy)
-        self.provider_priority = ["sambanova", "hf", "ollama"]
+        self.provider_priority = ["hf", "sambanova", "ollama"]
         self.default_provider = "auto"
     
     def _calculate_backoff(self, attempt: int) -> float:
