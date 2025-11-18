@@ -4,19 +4,17 @@ import os
 import subprocess
 import glob
 import time
-from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Dict
 
 
 class RichContextBuilder:
     """Build rich context from environment for LLM prompts."""
     
     def __init__(self):
-        """Initialize context builder."""
         self._git_cache = None
         self._env_cache = None
     
-    def get_git_context(self) -> Dict[str, any]:
+    def get_git_context(self) -> Dict:
         """Get git repository context."""
         if self._git_cache:
             return self._git_cache
@@ -76,7 +74,7 @@ class RichContextBuilder:
         self._git_cache = context
         return context
     
-    def get_environment_context(self) -> Dict[str, any]:
+    def get_environment_context(self) -> Dict:
         """Get relevant environment variables."""
         if self._env_cache:
             return self._env_cache
@@ -100,8 +98,8 @@ class RichContextBuilder:
         self._env_cache = context
         return context
     
-    def get_recent_files(self, directory: str = '.', limit: int = 5) -> List[Dict[str, any]]:
-        """Get recently modified files in directory."""
+    def get_recent_files(self, directory: str = '.', limit: int = 5) -> List[Dict]:
+        """Get recently modified files."""
         try:
             files = []
             
@@ -147,7 +145,7 @@ class RichContextBuilder:
             return []
     
     def build_rich_context(self, include_git: bool = True,
-                          include_env: bool = True, include_recent: bool = True) -> Dict[str, any]:
+                          include_env: bool = True, include_recent: bool = True) -> Dict:
         """Build comprehensive context for LLM."""
         context = {
             'cwd': os.getcwd(),

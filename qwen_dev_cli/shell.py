@@ -100,6 +100,10 @@ class InteractiveShell:
         from .core.context_rich import RichContextBuilder
         self.rich_context = RichContextBuilder()
         
+        # P2: Rich context builder
+        from .core.context_rich import RichContextBuilder
+        self.rich_context = RichContextBuilder()
+        
         # Phase 2.3: Multi-turn conversation manager
         if session_id is None:
             import uuid
