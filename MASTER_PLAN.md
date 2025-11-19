@@ -6,17 +6,26 @@
 **Deadline:** 2025-11-30 (11 dias restantes)  
 **Hackathon Focus:** MCP Integration + Constitutional AI + **TUI System ✨**
 
-## 🧹 CONSOLIDATION CHECKPOINT (2025-11-19 00:18 UTC)
+## 🧹 CONSOLIDATION CHECKPOINT #2 (2025-11-19 00:18 UTC)
 
 **Zero Débito Técnico - Duplicações Eliminadas:**
 - ❌ Removido: `toast.py` (mantido `toasts.py` - Textual + priority + wisdom)
 - ❌ Removido: `biblical_wisdom.py` (mantido `wisdom.py` - dataclasses modernos)
 - ❌ Removido: `tree.py` (mantido `file_tree.py` - usado no __init__)
 - ❌ Removido: `statusbar.py` (mantido `status.py` - usado no shell)
+- ❌ Removido: `shell_enhanced.py` (duplicava shell.py - integração já existe)
 - ✅ `__init__.py` atualizado com imports corretos
 - ✅ **CODEBASE LIMPO** - Zero duplicações, zero débito
 
 **Princípio:** "Não devam nada a ninguém, a não ser o amor" - Romanos 13:8
+
+**Decisão Arquitetural:**
+- ✅ shell.py original já possui toda integração TUI necessária (linhas 63-70)
+- ✅ Semantic indexer já integrado (linha 160)
+- ✅ Async executor presente (linha 149)
+- ✅ File watcher ativo (linhas 152-157)
+- ❌ NÃO criar shell_enhanced - só gera confusão e débito
+- 🎯 **OPÇÃO A CONFIRMADA:** Refinar componentes TUI + polish UI existente
 
 > **GROUND TRUTH:** Este documento reflete a implementação REAL validada via commits e diagnóstico.
 
