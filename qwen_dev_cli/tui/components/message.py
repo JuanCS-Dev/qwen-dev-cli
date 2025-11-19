@@ -36,6 +36,7 @@ from ..theme import COLORS
 from ..styles import PRESET_STYLES, StyleCombinations
 from ..spacing import SPACING
 from ._enums import MessageRole
+from ._enums import MessageRole
 
 
 @dataclass

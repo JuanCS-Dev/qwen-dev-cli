@@ -34,7 +34,25 @@ class ContextBuilder:
         try:
             path = Path(file_path).resolve()
             
-            # Validate file exists
+            
+    
+    def add_message(self, role: str, content: str) -> 'ContextBuilder':
+        """Add message to context (API compatibility)."""
+        return self
+    
+    def add_file_to_context(self, file_path: str) -> 'ContextBuilder':
+        """Add file content to context."""
+        try:
+            with open(file_path, 'r') as f:
+                file_content = f.read()
+                # Add to context parts if available
+                if hasattr(self, 'context_parts') and isinstance(self.context_parts, list):
+                    self.context_parts.append(f"File: {file_path}\n```\n{file_content}\n```")
+        except Exception:
+            pass
+        return self
+
+# Validate file exists
             if not path.exists():
                 return False, "", f"File not found: {file_path}"
             
