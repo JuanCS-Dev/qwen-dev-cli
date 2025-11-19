@@ -119,7 +119,6 @@ class InteractiveShell:
         # Phase 2.3: Multi-turn conversation manager
         if session_id is None:
             session_id = f"shell_{int(time.time() * 1000)}"
-            session_id = f"shell_{int(asyncio.get_event_loop().time() * 1000)}"
         
         self.conversation = ConversationManager(
             session_id=session_id,
