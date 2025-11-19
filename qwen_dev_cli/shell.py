@@ -245,151 +245,115 @@ class InteractiveShell:
         args: Dict[str, Any],
         turn
     ):
-        """
-        Execute tool with error recovery loop (Phase 3.1).
-        
-        Implements Constitutional Layer 4: Verify-Fix-Execute loop
-        
-        Args:
-            tool: Tool instance
-            tool_name: Tool name
-            args: Tool arguments
-            turn: Current conversation turn
-        
-        Returns:
-            Tool result or None if recovery failed
-        """
+        """Execute tool with error recovery (refactored for SRP)."""
         max_attempts = self.recovery_engine.max_attempts
         
         for attempt in range(1, max_attempts + 1):
-            try:
-                # Execute tool
-                result = await tool.execute(**args)
-                
-                # Track tool call (legacy)
-                self.context.track_tool_call(tool_name, args, result)
-                
-                # Phase 2.3: Track in conversation
-                self.conversation.add_tool_result(
-                    turn, tool_name, args, result,
-                    success=result.success,
-                    error=None if result.success else str(result.data)
+            result, success = await self._attempt_tool_execution(
+                tool, tool_name, args, turn, attempt
+            )
+            
+            if success:
+                if attempt > 1:
+                    self.console.print(f"[green]✓ Recovered on attempt {attempt}[/green]")
+                return result
+            
+            # Try recovery if not last attempt
+            if attempt < max_attempts:
+                corrected_args = await self._handle_execution_failure(
+                    tool_name, args, result, turn, attempt, max_attempts
                 )
-                
-                # Check if successful
-                if result.success:
-                    # Success! Record if this was a recovery
-                    if attempt > 1:
-                        self.console.print(f"[green]✓ Recovered on attempt {attempt}[/green]")
-                        # Record successful recovery
-                        # (recovery_context would be from previous attempt)
-                    
-                    return result
-                
-                # Tool executed but returned failure
-                error_msg = str(result.data)
-                
-                # If last attempt, fail
-                if attempt >= max_attempts:
-                    self.console.print(
-                        f"[red]✗ {tool_name} failed after {max_attempts} attempts[/red]"
-                    )
-                    return None
-                
-                # Attempt recovery (Constitutional P6: mandatory diagnosis)
-                self.console.print(
-                    f"[yellow]⚠ Attempt {attempt} failed, attempting recovery...[/yellow]"
-                )
-                
-                # Create recovery context
-                recovery_ctx = await create_recovery_context(
-                    self.conversation,
-                    turn,
-                    tool_name,
-                    args,
-                    error_msg,
-                    max_attempts=max_attempts
-                )
-                recovery_ctx.attempt_number = attempt
-                
-                # Attempt recovery
-                recovery_result = await self.recovery_engine.attempt_recovery(recovery_ctx)
-                
-                if not recovery_result.success or not recovery_result.corrected_args:
-                    # Recovery failed
-                    self.console.print(
-                        f"[red]✗ Recovery failed: {recovery_result.escalation_reason}[/red]"
-                    )
-                    return None
-                
-                # Show diagnosis
-                if recovery_ctx.diagnosis:
-                    self.console.print(f"[dim]Diagnosis: {recovery_ctx.diagnosis[:100]}...[/dim]")
-                
-                # Update args for next attempt
-                if recovery_result.corrected_tool:
-                    tool_name = recovery_result.corrected_tool
-                    tool = self.registry.get(tool_name)
-                    if not tool:
-                        self.console.print(f"[red]✗ Corrected tool not found: {tool_name}[/red]")
-                        return None
-                
-                args = recovery_result.corrected_args
-                self.console.print(f"[cyan]↻ Retrying with corrected parameters...[/cyan]")
-                
-            except Exception as e:
-                # Exception during execution
-                error_msg = str(e)
-                
-                # Phase 2.3: Track exception
-                self.conversation.add_tool_result(
-                    turn, tool_name, args, None,
-                    success=False, error=error_msg
-                )
-                
-                # If last attempt, fail
-                if attempt >= max_attempts:
-                    self.console.print(
-                        f"[red]✗ {tool_name} exception after {max_attempts} attempts: {error_msg}[/red]"
-                    )
-                    return None
-                
-                # Attempt recovery for exception
-                self.console.print(
-                    f"[yellow]⚠ Exception on attempt {attempt}, attempting recovery...[/yellow]"
-                )
-                
-                # Create recovery context
-                recovery_ctx = await create_recovery_context(
-                    self.conversation,
-                    turn,
-                    tool_name,
-                    args,
-                    error_msg,
-                    max_attempts=max_attempts
-                )
-                recovery_ctx.attempt_number = attempt
-                
-                # Attempt recovery
-                recovery_result = await self.recovery_engine.attempt_recovery(recovery_ctx)
-                
-                if not recovery_result.success or not recovery_result.corrected_args:
-                    self.console.print(
-                        f"[red]✗ Recovery failed: {recovery_result.escalation_reason}[/red]"
-                    )
-                    return None
-                
-                # Update for retry
-                if recovery_result.corrected_tool:
-                    tool_name = recovery_result.corrected_tool
-                    tool = self.registry.get(tool_name)
-                
-                args = recovery_result.corrected_args
-                self.console.print(f"[cyan]↻ Retrying after exception...[/cyan]")
+                if corrected_args:
+                    args = corrected_args
+            else:
+                self.console.print(f"[red]✗ {tool_name} failed after {max_attempts} attempts[/red]")
+                return None
         
-        # Should not reach here, but just in case
         return None
-    
+
+    async def _attempt_tool_execution(
+        self, tool, tool_name: str, args: Dict[str, Any], turn, attempt: int
+    ):
+        """Execute single tool attempt and track result."""
+        try:
+            result = await tool.execute(**args)
+            
+            # Track tool call
+            self.context.track_tool_call(tool_name, args, result)
+            
+            # Track in conversation
+            self.conversation.add_tool_result(
+                turn, tool_name, args, result,
+                success=result.success,
+                error=None if result.success else str(result.data)
+            )
+            
+            return result, result.success
+            
+        except Exception as e:
+            logger.error(f"Tool {tool_name} raised exception: {e}")
+            
+            # Track exception
+            self.conversation.add_tool_result(
+                turn, tool_name, args, None,
+                success=False,
+                error=str(e)
+            )
+            
+            # Create error result
+            from dataclasses import dataclass
+            @dataclass
+            class ErrorResult:
+                success: bool = False
+                data: str = str(e)
+            
+            return ErrorResult(), False
+
+    async def _handle_execution_failure(
+        self, tool_name: str, args: Dict[str, Any], result, turn, 
+        attempt: int, max_attempts: int
+    ):
+        """Handle tool execution failure and attempt recovery."""
+        error_msg = str(result.data) if result else "Unknown error"
+        
+        self.console.print(
+            f"[yellow]Attempting recovery for {tool_name} (attempt {attempt}/{max_attempts})[/yellow]"
+        )
+        
+        try:
+            # Build recovery context
+            recovery_ctx = create_recovery_context(
+                error=error_msg,
+                tool_name=tool_name,
+                args=args,
+                category=ErrorCategory.PARAMETER_ERROR
+            )
+            
+            # Get diagnosis from LLM
+            diagnosis = await self.recovery_engine.diagnose_error(
+                recovery_ctx, self.conversation.get_recent_context(max_turns=3)
+            )
+            
+            if diagnosis:
+                self.console.print(f"[dim]Diagnosis: {diagnosis}[/dim]")
+            
+            # Attempt parameter correction
+            corrected = await self.recovery_engine.attempt_recovery(
+                recovery_ctx, self.registry
+            )
+            
+            if corrected and 'args' in corrected:
+                self.console.print("[green]✓ Generated corrected parameters[/green]")
+                return corrected['args']
+            else:
+                self.console.print("[yellow]No correction found[/yellow]")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Recovery failed: {e}")
+            self.console.print(f"[red]Recovery error: {e}[/red]")
+            return None
+
     async def _process_tool_calls(self, user_input: str) -> str:
         """Process user input and execute tools via LLM with conversation context (Phase 2.3)."""
         # Phase 2.3: Start new conversation turn
