@@ -1,6 +1,4 @@
 """
-import logging
-logger = logging.getLogger(__name__)
 Command Palette - Cmd+K style command launcher with fuzzy search.
 
 Inspiration:
@@ -80,7 +78,8 @@ class Command:
         action: Function to execute
         enabled: Is command enabled
     """
-    id: str
+    name: str
+    id: str = ""
     title: str
     description: str
     category: CommandCategory
@@ -140,8 +139,7 @@ class FuzzyMatcher:
     
     def __init__(self):
         """Initialize matcher."""
-        # No initialization needed - stateless matcher
-        self.initialized = True
+        pass
     
     def score(self, text: str, query: str) -> float:
         """
