@@ -1,4 +1,5 @@
 """
+from ._enums import ProgressStyle
 Progress Bar Component - Animated progress indicators.
 
 Features:
