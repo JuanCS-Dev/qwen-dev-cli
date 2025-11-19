@@ -118,7 +118,7 @@ async def test_with_mock_llm():
     from qwen_dev_cli.tools.exec import BashCommandTool
     
     bash_tool = BashCommandTool()
-    result = bash_tool.execute(command="echo 'test'")
+    result = await bash_tool.execute(command="echo 'test'")
     
     if result.success:
         print(f"✓ Bash tool works: {result.output.strip()}")
@@ -146,7 +146,7 @@ async def test_real_command():
     
     # Test 1: Simple echo
     print("\n1. Test: echo")
-    result = bash_tool.execute(command="echo 'Shell is alive!'")
+    result = await bash_tool.execute(command="echo 'Shell is alive!'")
     if result.success:
         print(f"✓ Output: {result.output.strip()}")
     else:
@@ -155,7 +155,7 @@ async def test_real_command():
     
     # Test 2: Find large files (real command from spec)
     print("\n2. Test: find large files")
-    result = bash_tool.execute(command="find . -type f -size +10M 2>/dev/null | head -5")
+    result = await bash_tool.execute(command="find . -type f -size +10M 2>/dev/null | head -5")
     if result.success:
         if result.output.strip():
             print(f"✓ Found files:\n{result.output.strip()}")
@@ -167,7 +167,7 @@ async def test_real_command():
     
     # Test 3: Current directory
     print("\n3. Test: pwd")
-    result = bash_tool.execute(command="pwd")
+    result = await bash_tool.execute(command="pwd")
     if result.success:
         print(f"✓ CWD: {result.output.strip()}")
     else:

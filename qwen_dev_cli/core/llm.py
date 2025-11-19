@@ -508,6 +508,7 @@ class LLMClient:
     async def generate(
         self,
         prompt: str,
+        system_prompt: Optional[str] = None,
         context: Optional[str] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
@@ -576,6 +577,12 @@ class LLMClient:
         if self.metrics:
             self.metrics = RequestMetrics()
             logger.info("Metrics reset")
+
+
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncGenerator[str, None]:
+        """Alias for stream_chat for API compatibility."""
+        async for chunk in self.stream_chat(messages, **kwargs):
+            yield chunk
 
 
 # Global LLM client instance
