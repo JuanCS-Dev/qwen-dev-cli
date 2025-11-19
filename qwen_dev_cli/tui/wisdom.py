@@ -403,3 +403,7 @@ if __name__ == "__main__":
     def get_all_categories(self) -> list[str]:
         """Get all available wisdom categories."""
         return list(self.verses.keys())
+
+    def get_all_categories(self) -> list[str]:
+        """Get all wisdom categories."""
+        return list(self.verses.keys())
