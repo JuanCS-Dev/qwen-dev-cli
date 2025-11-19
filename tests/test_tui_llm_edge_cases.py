@@ -137,7 +137,7 @@ class TestLLMEdgeCases:
     @pytest.mark.asyncio
     async def test_llm_timeout_handling(self):
         """Test: LLM respects timeout and doesn't hang UI."""
-        llm = LLMClient()  # Will use default timeout from config
+        llm = LLMClient()  # Use default config
         
         start_time = time.time()
         
@@ -195,10 +195,7 @@ class TestLLMEdgeCases:
         llm = LLMClient()
         
         # Create progress bar
-        progress = ProgressBar(
-            total=100,
-            description="Streaming LLM"
-        )
+        progress = ProgressBar(total=100, description="Streaming LLM")
         
         start_time = time.time()
         chunk_count = 0
