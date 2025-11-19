@@ -15076,13 +15076,13 @@
     },
     "qwen_dev_cli/tui/components/message.py": {
       "path": "qwen_dev_cli/tui/components/message.py",
-      "hash": "f8a9eb843202c5a3",
+      "hash": "4975f29cbb925e21",
       "symbols": [
         {
           "name": "Message",
           "type": "class",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 38,
+          "line_number": 41,
           "docstring": "Message data structure.\n\nAttributes:\n    content: Message text content\n    role: Message role ('user', 'assistant', 'system')\n    timestamp: Message timestamp\n    metadata: Additional metadata (file attachments, etc.)",
           "signature": null,
           "parent": null
@@ -15091,7 +15091,7 @@
           "name": "MessageBox",
           "type": "class",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 58,
+          "line_number": 61,
           "docstring": "Enhanced message box with animations and styling.\n\nExamples:\n    # Simple message\n    msg = MessageBox(Message(\"Hello!\", role=\"user\"))\n    console.print(msg.render())\n    \n    # With typing animation\n    async for frame in msg.render_animated():\n        console.clear()\n        console.print(frame)\n        await asyncio.sleep(0.03)",
           "signature": null,
           "parent": null
@@ -15100,7 +15100,7 @@
           "name": "MessageStream",
           "type": "class",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 238,
+          "line_number": 265,
           "docstring": "Manages a stream of messages with automatic scrolling.\n\nExamples:\n    stream = MessageStream(console)\n    stream.add_message(Message(\"Hello!\", role=\"user\"))\n    stream.add_message(Message(\"Hi there!\", role=\"assistant\"))\n    stream.render()",
           "signature": null,
           "parent": null
@@ -15109,7 +15109,7 @@
           "name": "create_system_message",
           "type": "function",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 354,
+          "line_number": 381,
           "docstring": "Create a system message.",
           "signature": "create_system_message(content)",
           "parent": null
@@ -15118,7 +15118,7 @@
           "name": "create_user_message",
           "type": "function",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 359,
+          "line_number": 386,
           "docstring": "Create a user message.",
           "signature": "create_user_message(content)",
           "parent": null
@@ -15127,7 +15127,7 @@
           "name": "create_assistant_message",
           "type": "function",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 364,
+          "line_number": 391,
           "docstring": "Create an assistant message.",
           "signature": "create_assistant_message(content)",
           "parent": null
@@ -15136,7 +15136,7 @@
           "name": "__post_init__",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 53,
+          "line_number": 56,
           "docstring": null,
           "signature": "__post_init__(self)",
           "parent": "Message"
@@ -15145,7 +15145,7 @@
           "name": "__init__",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 74,
+          "line_number": 77,
           "docstring": "Initialize message box.\n\nArgs:\n    message: Message data\n    console: Rich console instance\n    max_width: Maximum width in characters (None = auto)\n    show_timestamp: Show timestamp in header\n    show_role: Show role in header",
           "signature": "__init__(self, message, console, max_width, show_timestamp, show_role)",
           "parent": "MessageBox"
@@ -15154,7 +15154,7 @@
           "name": "_format_timestamp",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 116,
+          "line_number": 119,
           "docstring": "Format timestamp for display.",
           "signature": "_format_timestamp(self)",
           "parent": "MessageBox"
@@ -15163,7 +15163,7 @@
           "name": "_create_title",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 122,
+          "line_number": 125,
           "docstring": "Create panel title with role and timestamp.",
           "signature": "_create_title(self)",
           "parent": "MessageBox"
@@ -15172,7 +15172,7 @@
           "name": "_process_content",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 134,
+          "line_number": 137,
           "docstring": "Process message content (markdown, code, plain text).\n\nArgs:\n    content: Raw message content\n    \nReturns:\n    Rich renderable object",
           "signature": "_process_content(self, content)",
           "parent": "MessageBox"
@@ -15181,7 +15181,7 @@
           "name": "render",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 154,
+          "line_number": 157,
           "docstring": "Render complete message box.\n\nReturns:\n    Rich Panel object",
           "signature": "render(self)",
           "parent": "MessageBox"
@@ -15190,7 +15190,7 @@
           "name": "__init__",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 249,
+          "line_number": 276,
           "docstring": "Initialize message stream.\n\nArgs:\n    console: Rich console instance\n    max_messages: Maximum messages to keep in history\n    max_width: Maximum width for messages",
           "signature": "__init__(self, console, max_messages, max_width)",
           "parent": "MessageStream"
@@ -15199,7 +15199,7 @@
           "name": "add_message",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 268,
+          "line_number": 295,
           "docstring": "Add message to stream.",
           "signature": "add_message(self, message)",
           "parent": "MessageStream"
@@ -15208,7 +15208,7 @@
           "name": "clear",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 276,
+          "line_number": 303,
           "docstring": "Clear all messages.",
           "signature": "clear(self)",
           "parent": "MessageStream"
@@ -15217,7 +15217,7 @@
           "name": "render",
           "type": "method",
           "file_path": "qwen_dev_cli/tui/components/message.py",
-          "line_number": 280,
+          "line_number": 307,
           "docstring": "Render all messages in stream.\n\nArgs:\n    last_n: Only render last N messages (None = all)",
           "signature": "render(self, last_n)",
           "parent": "MessageStream"
@@ -15237,7 +15237,7 @@
         "styles",
         "spacing"
       ],
-      "last_modified": 1763496880.1488025
+      "last_modified": 1763506753.9526582
     },
     "qwen_dev_cli/tui/components/palette.py": {
       "path": "qwen_dev_cli/tui/components/palette.py",
@@ -15480,6 +15480,779 @@
         "nebius"
       ],
       "last_modified": 1763478051.000801
+    },
+    "examples/polish_demo.py": {
+      "path": "examples/polish_demo.py",
+      "hash": "627be23aed445d2d",
+      "symbols": [
+        {
+          "name": "demo_micro_interactions",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 49,
+          "docstring": "Demo micro-interaction effects",
+          "signature": "demo_micro_interactions(console)",
+          "parent": null
+        },
+        {
+          "name": "demo_animations",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 90,
+          "docstring": "Demo smooth animations",
+          "signature": "demo_animations(console)",
+          "parent": null
+        },
+        {
+          "name": "demo_feedback_states",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 128,
+          "docstring": "Demo visual feedback states",
+          "signature": "demo_feedback_states(console)",
+          "parent": null
+        },
+        {
+          "name": "demo_loading_wisdom",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 155,
+          "docstring": "Demo loading states with Biblical wisdom",
+          "signature": "demo_loading_wisdom(console)",
+          "parent": null
+        },
+        {
+          "name": "demo_transitions",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 193,
+          "docstring": "Demo state transitions",
+          "signature": "demo_transitions(console)",
+          "parent": null
+        },
+        {
+          "name": "demo_accessibility",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 220,
+          "docstring": "Demo accessibility features",
+          "signature": "demo_accessibility(console)",
+          "parent": null
+        },
+        {
+          "name": "main",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 266,
+          "docstring": "Run complete polish demo",
+          "signature": "main()",
+          "parent": null
+        },
+        {
+          "name": "draw_progress",
+          "type": "function",
+          "file_path": "examples/polish_demo.py",
+          "line_number": 99,
+          "docstring": null,
+          "signature": "draw_progress(value)",
+          "parent": null
+        }
+      ],
+      "imports": [
+        "sys",
+        "time",
+        "asyncio",
+        "pathlib",
+        "rich.console",
+        "rich.panel",
+        "rich.text",
+        "rich.table",
+        "qwen_dev_cli.tui.feedback",
+        "qwen_dev_cli.tui.animations",
+        "qwen_dev_cli.tui.accessibility",
+        "qwen_dev_cli.tui.theme",
+        "qwen_dev_cli.tui.wisdom"
+      ],
+      "last_modified": 1763506878.0567548
+    },
+    "qwen_dev_cli/tui/accessibility.py": {
+      "path": "qwen_dev_cli/tui/accessibility.py",
+      "hash": "868b28ac3d9dd8bd",
+      "symbols": [
+        {
+          "name": "ContrastRatio",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 12,
+          "docstring": "WCAG contrast ratio result",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "hex_to_rgb",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 34,
+          "docstring": "Convert hex color to RGB tuple",
+          "signature": "hex_to_rgb(hex_color)",
+          "parent": null
+        },
+        {
+          "name": "relative_luminance",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 40,
+          "docstring": "Calculate relative luminance (WCAG 2.1)\nhttps://www.w3.org/TR/WCAG21/#dfn-relative-luminance",
+          "signature": "relative_luminance(rgb)",
+          "parent": null
+        },
+        {
+          "name": "calculate_contrast_ratio",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 56,
+          "docstring": "Calculate WCAG contrast ratio between two colors\n\nArgs:\n    fg: Foreground color (hex)\n    bg: Background color (hex)\n\nReturns:\n    ContrastRatio with compliance levels",
+          "signature": "calculate_contrast_ratio(fg, bg)",
+          "parent": null
+        },
+        {
+          "name": "AccessibilityValidator",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 87,
+          "docstring": "Validates color combinations for accessibility",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "ScreenReaderText",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 143,
+          "docstring": "Generate screen reader friendly text",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "KeyboardNavigation",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 175,
+          "docstring": "Keyboard navigation helpers",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "generate_accessibility_report",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 239,
+          "docstring": "Generate full accessibility compliance report",
+          "signature": "generate_accessibility_report()",
+          "parent": null
+        },
+        {
+          "name": "level",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 21,
+          "docstring": "Get highest compliance level",
+          "signature": "level(self)",
+          "parent": "ContrastRatio"
+        },
+        {
+          "name": "adjust",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 47,
+          "docstring": null,
+          "signature": "adjust(c)",
+          "parent": null
+        },
+        {
+          "name": "validate_theme",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 91,
+          "docstring": "Validate all theme color combinations",
+          "signature": "validate_theme()",
+          "parent": "AccessibilityValidator"
+        },
+        {
+          "name": "get_accessible_color",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 107,
+          "docstring": "Get accessible color version that meets target contrast\n\nArgs:\n    preferred: Preferred color\n    background: Background color\n    target_ratio: Minimum contrast ratio (default: AA normal)\n\nReturns:\n    Accessible color (may be adjusted from preferred)",
+          "signature": "get_accessible_color(preferred, background, target_ratio)",
+          "parent": "AccessibilityValidator"
+        },
+        {
+          "name": "describe_status",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 147,
+          "docstring": "Convert status badge to screen reader text",
+          "signature": "describe_status(status)",
+          "parent": "ScreenReaderText"
+        },
+        {
+          "name": "describe_progress",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 160,
+          "docstring": "Generate progress description",
+          "signature": "describe_progress(current, total, percentage)",
+          "parent": "ScreenReaderText"
+        },
+        {
+          "name": "describe_code_block",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 165,
+          "docstring": "Describe code block",
+          "signature": "describe_code_block(language, lines)",
+          "parent": "ScreenReaderText"
+        },
+        {
+          "name": "describe_diff",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 170,
+          "docstring": "Describe diff statistics",
+          "signature": "describe_diff(additions, deletions)",
+          "parent": "ScreenReaderText"
+        },
+        {
+          "name": "get_shortcuts",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 209,
+          "docstring": "Get all shortcuts for an action",
+          "signature": "get_shortcuts(action)",
+          "parent": "KeyboardNavigation"
+        },
+        {
+          "name": "format_shortcut",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 214,
+          "docstring": "Format keyboard shortcut for display",
+          "signature": "format_shortcut(keys)",
+          "parent": "KeyboardNavigation"
+        },
+        {
+          "name": "describe_action",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/accessibility.py",
+          "line_number": 224,
+          "docstring": "Get description of action",
+          "signature": "describe_action(action)",
+          "parent": "KeyboardNavigation"
+        }
+      ],
+      "imports": [
+        "typing",
+        "dataclasses",
+        "theme",
+        "rich.console",
+        "rich.table"
+      ],
+      "last_modified": 1763506654.968351
+    },
+    "qwen_dev_cli/tui/feedback.py": {
+      "path": "qwen_dev_cli/tui/feedback.py",
+      "hash": "d0751f7fe7df201d",
+      "symbols": [
+        {
+          "name": "FeedbackConfig",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 31,
+          "docstring": "Configuration for visual feedback",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "MicroInteraction",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 38,
+          "docstring": "Micro-interactions for common UI actions",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "LoadingState",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 158,
+          "docstring": "Loading states with Biblical wisdom",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "StateTransition",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 241,
+          "docstring": "Smooth state transitions",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "HapticFeedback",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 313,
+          "docstring": "Haptic-like feedback through visual cues\n\nSince terminal can't provide true haptic feedback,\nwe use rapid visual changes to create similar effect",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "button_press",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 42,
+          "docstring": "Button press effect\n\nArgs:\n    text: Button label\n    pressed: Whether button is pressed\n\nReturns:\n    Styled button text",
+          "signature": "button_press(text, pressed)",
+          "parent": "MicroInteraction"
+        },
+        {
+          "name": "selection_highlight",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 63,
+          "docstring": "Selection/focus highlight effect\n\nArgs:\n    text: Item text\n    selected: Whether item is selected\n    focused: Whether item has focus\n\nReturns:\n    Styled text with highlight",
+          "signature": "selection_highlight(text, selected, focused)",
+          "parent": "MicroInteraction"
+        },
+        {
+          "name": "error_shake",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 93,
+          "docstring": "Shake animation for errors (like macOS login shake)\n\nArgs:\n    console: Rich console\n    message: Error message\n    shakes: Number of shakes (default 3)",
+          "signature": "error_shake(console, message, shakes)",
+          "parent": "MicroInteraction"
+        },
+        {
+          "name": "success_pulse",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 124,
+          "docstring": "Pulse animation for success (like iOS success checkmark)\n\nArgs:\n    console: Rich console\n    message: Success message\n    pulses: Number of pulses",
+          "signature": "success_pulse(console, message, pulses)",
+          "parent": "MicroInteraction"
+        },
+        {
+          "name": "__init__",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 161,
+          "docstring": null,
+          "signature": "__init__(self, console)",
+          "parent": "LoadingState"
+        },
+        {
+          "name": "show_thinking",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 165,
+          "docstring": "Show thinking/loading state\n\nArgs:\n    operation: Operation being performed\n    show_wisdom: Show Biblical verse",
+          "signature": "show_thinking(self, operation, show_wisdom)",
+          "parent": "LoadingState"
+        },
+        {
+          "name": "show_progress",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 204,
+          "docstring": "Show progress with percentage\n\nArgs:\n    current: Current progress\n    total: Total items\n    operation: Operation description",
+          "signature": "show_progress(self, current, total, operation)",
+          "parent": "LoadingState"
+        },
+        {
+          "name": "fade_in",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 245,
+          "docstring": "Fade in content\n\nArgs:\n    console: Rich console\n    content: Content to fade in\n    steps: Number of fade steps",
+          "signature": "fade_in(console, content, steps)",
+          "parent": "StateTransition"
+        },
+        {
+          "name": "slide_in",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 275,
+          "docstring": "Slide in content from direction\n\nArgs:\n    console: Rich console\n    content: Content to slide in\n    direction: 'left', 'right', 'top', 'bottom'\n    steps: Number of animation steps",
+          "signature": "slide_in(console, content, direction, steps)",
+          "parent": "StateTransition"
+        },
+        {
+          "name": "tap",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 322,
+          "docstring": "Light tap feedback",
+          "signature": "tap(console)",
+          "parent": "HapticFeedback"
+        },
+        {
+          "name": "error_buzz",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 329,
+          "docstring": "Error buzz feedback (like wrong password)",
+          "signature": "error_buzz(console)",
+          "parent": "HapticFeedback"
+        },
+        {
+          "name": "success_pop",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/feedback.py",
+          "line_number": 339,
+          "docstring": "Success pop feedback",
+          "signature": "success_pop(console)",
+          "parent": "HapticFeedback"
+        }
+      ],
+      "imports": [
+        "time",
+        "typing",
+        "dataclasses",
+        "rich.console",
+        "rich.text",
+        "rich.panel",
+        "theme",
+        "wisdom",
+        "animations",
+        "components.status",
+        "components.progress"
+      ],
+      "last_modified": 1763506814.6782205
+    },
+    "qwen_dev_cli/tui/biblical_wisdom.py": {
+      "path": "qwen_dev_cli/tui/biblical_wisdom.py",
+      "hash": "914750bcbd426fbe",
+      "symbols": [
+        {
+          "name": "BiblicalWisdom",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 19,
+          "docstring": "Biblical quotes for loading/thinking states.",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "format_verse_for_terminal",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 178,
+          "docstring": "Format verse with proper line wrapping and centering.\n\nArgs:\n    verse: Biblical quote\n    width: Terminal width\n    \nReturns:\n    Formatted verse ready for display",
+          "signature": "format_verse_for_terminal(verse, width)",
+          "parent": null
+        },
+        {
+          "name": "get_wisdom",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 238,
+          "docstring": "Get global wisdom instance (singleton).",
+          "signature": "get_wisdom()",
+          "parent": null
+        },
+        {
+          "name": "__init__",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 81,
+          "docstring": "Initialize wisdom collection.",
+          "signature": "__init__(self)",
+          "parent": "BiblicalWisdom"
+        },
+        {
+          "name": "get_random",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 89,
+          "docstring": "Get a random verse (avoiding repetition).\n\nReturns:\n    Random biblical quote",
+          "signature": "get_random(self)",
+          "parent": "BiblicalWisdom"
+        },
+        {
+          "name": "get_by_category",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 101,
+          "docstring": "Get a random verse from specific category.\n\nArgs:\n    category: Category name ('building', 'purpose', etc.)\n    \nReturns:\n    Random quote from category",
+          "signature": "get_by_category(self, category)",
+          "parent": "BiblicalWisdom"
+        },
+        {
+          "name": "get_for_context",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 123,
+          "docstring": "Get contextually appropriate verse based on operation.\n\nArgs:\n    operation: Operation type ('indexing', 'searching', 'analyzing', etc.)\n    \nReturns:\n    Contextually appropriate quote",
+          "signature": "get_for_context(self, operation)",
+          "parent": "BiblicalWisdom"
+        },
+        {
+          "name": "categories",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 159,
+          "docstring": "Get all available categories.",
+          "signature": "categories(self)",
+          "parent": "BiblicalWisdom"
+        },
+        {
+          "name": "get_stats",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/biblical_wisdom.py",
+          "line_number": 163,
+          "docstring": "Get statistics about verse collection.",
+          "signature": "get_stats(self)",
+          "parent": "BiblicalWisdom"
+        }
+      ],
+      "imports": [
+        "random",
+        "typing"
+      ],
+      "last_modified": 1763508484.9240427
+    },
+    "qwen_dev_cli/tui/animations.py": {
+      "path": "qwen_dev_cli/tui/animations.py",
+      "hash": "cb88152c212469a5",
+      "symbols": [
+        {
+          "name": "AnimationConfig",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 13,
+          "docstring": "Configuration for animations",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "Easing",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 20,
+          "docstring": "Easing functions for smooth animations",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "get_easing_function",
+          "type": "function",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 59,
+          "docstring": "Get easing function by name",
+          "signature": "get_easing_function(name)",
+          "parent": null
+        },
+        {
+          "name": "Animator",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 72,
+          "docstring": "Handles smooth animations",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "StateTransition",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 120,
+          "docstring": "Manages state transitions with animations",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "LoadingAnimation",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 157,
+          "docstring": "Smooth loading animations",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "SlideTransition",
+          "type": "class",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 195,
+          "docstring": "Slide-in/slide-out transitions",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "linear",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 24,
+          "docstring": "Linear easing",
+          "signature": "linear(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "ease_in",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 29,
+          "docstring": "Ease-in (cubic)",
+          "signature": "ease_in(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "ease_out",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 34,
+          "docstring": "Ease-out (cubic) - Apple's favorite",
+          "signature": "ease_out(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "ease_in_out",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 39,
+          "docstring": "Ease-in-out (cubic)",
+          "signature": "ease_in_out(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "spring",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 46,
+          "docstring": "Spring easing (bouncy)",
+          "signature": "spring(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "elastic",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 51,
+          "docstring": "Elastic easing",
+          "signature": "elastic(t)",
+          "parent": "Easing"
+        },
+        {
+          "name": "__init__",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 75,
+          "docstring": null,
+          "signature": "__init__(self, config)",
+          "parent": "Animator"
+        },
+        {
+          "name": "animate",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 79,
+          "docstring": "Animate from start to end value\n\nArgs:\n    start: Starting value\n    end: Ending value\n    callback: Function to call with interpolated value\n    duration: Override default duration",
+          "signature": "animate(self, start, end, callback, duration)",
+          "parent": "Animator"
+        },
+        {
+          "name": "fade_in",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 111,
+          "docstring": "Fade in from 0 to 1",
+          "signature": "fade_in(self, callback)",
+          "parent": "Animator"
+        },
+        {
+          "name": "fade_out",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 115,
+          "docstring": "Fade out from 1 to 0",
+          "signature": "fade_out(self, callback)",
+          "parent": "Animator"
+        },
+        {
+          "name": "__init__",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 123,
+          "docstring": null,
+          "signature": "__init__(self, initial_state)",
+          "parent": "StateTransition"
+        },
+        {
+          "name": "transition_to",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 127,
+          "docstring": "Transition from current state to new state\n\nArgs:\n    new_state: Target state\n    on_exit: Callback when leaving current state\n    on_enter: Callback when entering new state",
+          "signature": "transition_to(self, new_state, on_exit, on_enter)",
+          "parent": "StateTransition"
+        },
+        {
+          "name": "__init__",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 168,
+          "docstring": null,
+          "signature": "__init__(self, style, speed)",
+          "parent": "LoadingAnimation"
+        },
+        {
+          "name": "next_frame",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 173,
+          "docstring": "Get next frame in animation",
+          "signature": "next_frame(self)",
+          "parent": "LoadingAnimation"
+        },
+        {
+          "name": "animate_pulse",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 179,
+          "docstring": "Animate a pulsing progress bar",
+          "signature": "animate_pulse(self, text, width)",
+          "parent": "LoadingAnimation"
+        },
+        {
+          "name": "slide_in",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 199,
+          "docstring": "Slide text in from right",
+          "signature": "slide_in(text, width, progress)",
+          "parent": "SlideTransition"
+        },
+        {
+          "name": "slide_out",
+          "type": "method",
+          "file_path": "qwen_dev_cli/tui/animations.py",
+          "line_number": 205,
+          "docstring": "Slide text out to left",
+          "signature": "slide_out(text, width, progress)",
+          "parent": "SlideTransition"
+        }
+      ],
+      "imports": [
+        "time",
+        "math",
+        "typing",
+        "dataclasses"
+      ],
+      "last_modified": 1763506600.3047204
     }
   }
 }

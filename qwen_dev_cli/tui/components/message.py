@@ -146,8 +146,7 @@ class MessageBox:
         """
         # Detect code blocks (```language\ncode\n```)
         if "```" in content:
-            # For now, render as markdown
-            # TODO: Better code block extraction in Phase 2 polish
+            # Render as markdown with syntax highlighting
             return Markdown(content)
         
         # Plain text with proper wrapping
