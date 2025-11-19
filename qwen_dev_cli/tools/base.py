@@ -24,6 +24,12 @@ class ToolResult:
     data: Any = None
     error: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    @property
+    def output(self) -> Any:
+        """Alias for data (API compatibility)."""
+        return self.data
+
 
 
 class Tool(ABC):
