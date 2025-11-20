@@ -23,7 +23,7 @@ Polished: 2025-11-18 22:54 UTC
 
 import asyncio
 from datetime import datetime
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, Dict, Any
 from dataclasses import dataclass, field
 
 from rich.console import Console, RenderableType
@@ -53,9 +53,9 @@ class Message:
     content: str
     role: str = "user"
     timestamp: Optional[datetime] = None
-    metadata: dict = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.timestamp is None:
             self.timestamp = datetime.now()
 
@@ -293,7 +293,7 @@ class MessageStream:
         self.max_messages = max_messages
         self.max_width = max_width
     
-    def add_message(self, message: Message):
+    def add_message(self, message: Message) -> None:
         """Add message to stream."""
         self.messages.append(message)
         
@@ -301,11 +301,11 @@ class MessageStream:
         if len(self.messages) > self.max_messages:
             self.messages = self.messages[-self.max_messages:]
     
-    def clear(self):
+    def clear(self) -> None:
         """Clear all messages."""
         self.messages.clear()
     
-    def render(self, last_n: Optional[int] = None):
+    def render(self, last_n: Optional[int] = None) -> None:
         """
         Render all messages in stream.
         
@@ -386,9 +386,9 @@ def create_system_message(content: str) -> Message:
 
 def create_user_message(content: str) -> Message:
     """Create a user message."""
-    return Message(content=content, role=MessageRole.USER)
+    return Message(content=content, role=MessageRole.USER.value)
 
 
 def create_assistant_message(content: str) -> Message:
     """Create an assistant message."""
-    return Message(content=content, role=MessageRole.ASSISTANT)
+    return Message(content=content, role=MessageRole.ASSISTANT.value)

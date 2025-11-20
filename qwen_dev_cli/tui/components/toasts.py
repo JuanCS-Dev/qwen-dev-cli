@@ -45,7 +45,7 @@ class Toast:
     message: str
     duration: float  # seconds (0 = persistent)
     created_at: datetime
-    on_dismiss: Optional[Callable] = None
+    on_dismiss: Optional[Callable[[], None]] = None
     
     @property
     def is_expired(self) -> bool:
@@ -113,7 +113,7 @@ class ToastManager:
         title: str,
         message: str,
         duration: float = 5.0,
-        on_dismiss: Optional[Callable] = None
+        on_dismiss: Optional[Callable[[], None]] = None
     ) -> str:
         """
         Add a new toast notification
@@ -192,8 +192,14 @@ class ToastManager:
         Returns:
             List of dismissed toast IDs
         """
-        dismissed = []
-        self.toasts = [t for t in self.toasts if not t.is_expired or dismissed.append(t.id)]
+        dismissed: List[str] = []
+        kept_toasts: List[Toast] = []
+        for t in self.toasts:
+            if t.is_expired:
+                dismissed.append(t.id)
+            else:
+                kept_toasts.append(t)
+        self.toasts = kept_toasts
         return dismissed
     
     def get_active_toasts(self) -> List[Toast]:
@@ -201,7 +207,7 @@ class ToastManager:
         self.clear_expired()
         return self.toasts.copy()
     
-    def clear_all(self):
+    def clear_all(self) -> None:
         """Clear all toasts"""
         for toast in self.toasts:
             if toast.on_dismiss:
@@ -220,7 +226,7 @@ class ToastWidget(Static):
     - Close button (×)
     """
     
-    def __init__(self, toast: Toast, on_close: Optional[Callable] = None):
+    def __init__(self, toast: Toast, on_close: Optional[Callable[[str], None]] = None):
         super().__init__()
         self.toast = toast
         self.on_close = on_close
@@ -253,7 +259,7 @@ class ToastWidget(Static):
         
         return panel
     
-    def on_click(self):
+    def on_click(self) -> None:
         """Handle click to dismiss"""
         if self.on_close:
             self.on_close(self.toast.id)
@@ -275,7 +281,7 @@ class ToastContainer(VerticalScroll):
         self.styles.max_height = "50%"
         self.styles.align = ("right", "top")
     
-    def refresh_toasts(self):
+    def refresh_toasts(self) -> None:
         """Refresh displayed toasts"""
         # Clear current widgets
         self.remove_children()
@@ -285,7 +291,7 @@ class ToastContainer(VerticalScroll):
             widget = ToastWidget(toast, on_close=self._on_toast_close)
             self.mount(widget)
     
-    def _on_toast_close(self, toast_id: str):
+    def _on_toast_close(self, toast_id: str) -> None:
         """Handle toast close"""
         self.manager.dismiss_toast(toast_id)
         self.refresh_toasts()
@@ -353,18 +359,18 @@ def show_wisdom(
     Returns:
         Toast ID
     """
-    verse = wisdom_system.get_verse(category)
+    verse = wisdom_system.get_random()
     
     return manager.add_toast(
         ToastType.WISDOM,
         title="Biblical Wisdom",
-        message=f"{verse['text']} — {verse['reference']}",
+        message=f"{verse.text} — {verse.reference}",
         duration=duration
     )
 
 
 # Example usage patterns
-def example_usage():
+def example_usage() -> None:
     """Example of how to use the toast system"""
     manager = create_toast_manager()
     

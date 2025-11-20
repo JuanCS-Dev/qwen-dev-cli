@@ -444,6 +444,7 @@ class Dashboard:
     
     def _render_history(self) -> Panel:
         """Render recent operation history."""
+        content: Text | Table
         if not self.history:
             content = Text("No recent operations", style="dim italic")
         else:

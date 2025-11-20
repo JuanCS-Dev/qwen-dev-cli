@@ -1,6 +1,4 @@
 """
-import logging
-logger = logging.getLogger(__name__)
 Collapsible File Tree - VSCode/Cursor-style sidebar.
 
 Inspiration:
@@ -28,11 +26,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 from rich.console import Console
 from rich.text import Text
 from rich.tree import Tree
 from rich.panel import Panel
+from rich import box
 
 from ..theme import COLORS
 from ..styles import PRESET_STYLES
@@ -78,7 +80,7 @@ class FileNode:
     size: Optional[int] = None
     depth: int = 0
     
-    def __post_init__(self, is_directory=None):
+    def __post_init__(self, is_directory: Optional[bool] = None) -> None:
         # Allow is_directory as alias for is_dir
         if is_directory is not None:
             self.is_dir = is_directory
@@ -87,12 +89,12 @@ class FileNode:
             # Lazy loading - children will be loaded when expanded
             self.children = []
     
-    def toggle_expand(self):
+    def toggle_expand(self) -> None:
         """Toggle expand/collapse state."""
         if self.is_dir:
             self.expanded = not self.expanded
     
-    def add_child(self, node: 'FileNode'):
+    def add_child(self, node: 'FileNode') -> None:
         """Add child node."""
         if self.is_dir:
             self.children.append(node)
@@ -249,13 +251,13 @@ class FileTree:
         
         return node
     
-    def _load_git_status(self):
+    def _load_git_status(self) -> None:
         """Load git status for files."""
         # Git status detection deferred - requires gitpython dependency
         # For now, just placeholder
         pass
     
-    def toggle_node(self, node: FileNode):
+    def toggle_node(self, node: FileNode) -> None:
         """Toggle expand/collapse for node."""
         node.toggle_expand()
         
@@ -276,7 +278,7 @@ class FileTree:
             title=f"📁 {self.root_path.name}",
             title_align="left",
             border_style=COLORS['primary'],
-            box=PRESET_STYLES['rounded'],
+            box=box.ROUNDED,
             padding=(1, 1)
         )
         
@@ -337,8 +339,9 @@ class FileTree:
         }
         return colors.get(status, COLORS['muted'])
     
-    def _format_size(self, size: int) -> str:
+    def _format_size(self, size_bytes: int) -> str:
         """Format file size."""
+        size: float = float(size_bytes)
         for unit in ['B', 'KB', 'MB', 'GB']:
             if size < 1024.0:
                 return f"{size:.1f}{unit}"
@@ -364,7 +367,7 @@ class FileTree:
         
         return None
     
-    def refresh(self):
+    def refresh(self) -> None:
         """Refresh file tree."""
         self.root_node = None
         self.build_tree()
