@@ -94,7 +94,7 @@ class ReadFileTool(ValidatedTool):
             return ToolResult(success=False, error=str(e))
 
 
-class WriteFileTool(Tool):
+class WriteFileTool(ValidatedTool):
     """Create new file with content."""
     
     def __init__(self, hook_executor=None, config_loader=None):
@@ -121,7 +121,10 @@ class WriteFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, content: str, create_dirs: bool = True, 
+    def get_validators(self):
+        return {'path': Required('path'), 'content': Required('content')}
+    
+    async def _execute_validated(self, path: str, content: str, create_dirs: bool = True, 
                      preview: bool = True, console=None) -> ToolResult:
         """Create file with content."""
         try:
@@ -374,7 +377,7 @@ class EditFileTool(ValidatedTool):
             logger.error(f"Error executing hooks: {e}")
 
 
-class ListDirectoryTool(Tool):
+class ListDirectoryTool(ValidatedTool):
     """List files and directories."""
     
     def __init__(self):
@@ -399,7 +402,10 @@ class ListDirectoryTool(Tool):
             }
         }
     
-    async def execute(self, path: str = ".", recursive: bool = False, pattern: Optional[str] = None) -> ToolResult:
+    def get_validators(self):
+        return {}
+    
+    async def _execute_validated(self, path: str = ".", recursive: bool = False, pattern: Optional[str] = None, **kwargs) -> ToolResult:
         """List directory contents."""
         try:
             dir_path = Path(path)
@@ -464,7 +470,7 @@ class ListDirectoryTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class DeleteFileTool(Tool):
+class DeleteFileTool(ValidatedTool):
     """Delete file (moves to .trash for safety)."""
     
     def __init__(self):
@@ -484,7 +490,10 @@ class DeleteFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, permanent: bool = False) -> ToolResult:
+    def get_validators(self):
+        return {'path': Required('path')}
+    
+    async def _execute_validated(self, path: str, permanent: bool = False, **kwargs) -> ToolResult:
         """Delete file."""
         try:
             file_path = Path(path)
