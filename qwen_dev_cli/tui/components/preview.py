@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Callable, Dict
 from difflib import unified_diff, SequenceMatcher
+from datetime import datetime
 
 from rich.console import RenderableType
 from rich.syntax import Syntax
@@ -119,6 +120,116 @@ class FileDiff:
             "modifications": modifications,
             "total_changes": additions + deletions + modifications
         }
+
+
+@dataclass
+class UndoRedoState:
+    """State snapshot for undo/redo"""
+    content: str
+    timestamp: datetime
+    description: str
+    hunks_applied: List[int] = None
+    
+    def __post_init__(self):
+        if self.hunks_applied is None:
+            self.hunks_applied = []
+
+
+class UndoRedoStack:
+    """
+    Undo/Redo stack for preview changes (+5pts to match Cursor)
+    
+    Features:
+    - Ctrl+Z / Ctrl+Y keyboard shortcuts
+    - Visual history timeline
+    - State snapshots with timestamps
+    """
+    
+    def __init__(self, max_history: int = 50):
+        self.undo_stack: List[UndoRedoState] = []
+        self.redo_stack: List[UndoRedoState] = []
+        self.max_history = max_history
+        self.current_state: Optional[UndoRedoState] = None
+        
+    def push(self, content: str, description: str, hunks_applied: List[int] = None) -> None:
+        """Push new state to undo stack"""
+        state = UndoRedoState(
+            content=content,
+            timestamp=datetime.now(),
+            description=description,
+            hunks_applied=hunks_applied or []
+        )
+        
+        self.undo_stack.append(state)
+        self.redo_stack.clear()  # Clear redo stack on new action
+        
+        # Limit history size
+        if len(self.undo_stack) > self.max_history:
+            self.undo_stack.pop(0)
+            
+        self.current_state = state
+        
+    def undo(self) -> Optional[UndoRedoState]:
+        """Undo last change"""
+        if not self.can_undo():
+            return None
+            
+        state = self.undo_stack.pop()
+        self.redo_stack.append(state)
+        
+        if self.undo_stack:
+            self.current_state = self.undo_stack[-1]
+            return self.current_state
+        else:
+            self.current_state = None
+            return None
+            
+    def redo(self) -> Optional[UndoRedoState]:
+        """Redo last undone change"""
+        if not self.can_redo():
+            return None
+            
+        state = self.redo_stack.pop()
+        self.undo_stack.append(state)
+        self.current_state = state
+        return state
+        
+    def can_undo(self) -> bool:
+        """Check if undo is available"""
+        return len(self.undo_stack) > 0
+        
+    def can_redo(self) -> bool:
+        """Check if redo is available"""
+        return len(self.redo_stack) > 0
+        
+    def get_history(self) -> List[UndoRedoState]:
+        """Get full history"""
+        return self.undo_stack.copy()
+        
+    def render_history_timeline(self) -> Table:
+        """Render visual timeline of changes"""
+        table = Table(title="📜 Undo History", show_header=True, border_style="cyan")
+        table.add_column("#", width=4, justify="right")
+        table.add_column("Time", width=12)
+        table.add_column("Action", width=40)
+        table.add_column("Hunks", width=10, justify="center")
+        
+        for idx, state in enumerate(reversed(self.undo_stack[-10:]), 1):
+            time_str = state.timestamp.strftime("%H:%M:%S")
+            hunk_count = len(state.hunks_applied) if state.hunks_applied else 0
+            
+            style = "bold green" if state == self.current_state else "dim"
+            marker = "→" if state == self.current_state else " "
+            
+            table.add_row(
+                f"{marker}{idx}",
+                time_str,
+                state.description,
+                str(hunk_count) if hunk_count > 0 else "-",
+                style=style
+            )
+            
+        return table
 
 
 class DiffGenerator:
@@ -433,6 +544,7 @@ class EditPreview:
     
     def __init__(self):
         self.diff_generator = DiffGenerator()
+        self.undo_stack = UndoRedoStack()  # Undo/Redo support
     
     async def show_diff_interactive(
         self,
@@ -494,19 +606,27 @@ class EditPreview:
             console.print("  [green]a[/green] - Accept all")
             console.print("  [red]r[/red] - Reject all")
             console.print("  [yellow]p[/yellow] - Partial (select hunks)")
+            console.print("  [cyan]u[/cyan] - Undo last change")
+            console.print("  [cyan]h[/cyan] - Show history")
             console.print("  [dim]q[/dim] - Quit/Cancel\n")
         
         # Ask user
         try:
             from prompt_toolkit import prompt
-            response = await prompt("Choice (a/r/p/q): ", async_=True)
+            response = await prompt("Choice (a/r/p/u/h/q): ", async_=True)
         except:
             # Fallback to input()
-            response = input("Choice (a/r/p/q): ")
+            response = input("Choice (a/r/p/u/h/q): ")
         
         response = response.lower().strip()
         
         if response in ['a', 'accept', 'y', 'yes']:
+            # Push to undo stack before accepting
+            self.undo_stack.push(
+                content=proposed_content,
+                description=f"Accept all changes in {file_path}",
+                hunks_applied=list(range(len(file_diff.hunks)))
+            )
             return True, proposed_content
         elif response in ['r', 'reject', 'n', 'no', 'q', 'quit']:
             return False, None
@@ -516,6 +636,25 @@ class EditPreview:
                 file_diff, original_content, console
             )
             return True, partial_content
+        elif response in ['u', 'undo']:
+            # Undo last change
+            prev_state = self.undo_stack.undo()
+            if prev_state:
+                console.print(f"[green]✓ Undone: {prev_state.description}[/green]")
+                return await self.show_diff_interactive(
+                    original_content, prev_state.content, file_path, console, allow_partial
+                )
+            else:
+                console.print("[yellow]⚠ Nothing to undo[/yellow]")
+                return await self.show_diff_interactive(
+                    original_content, proposed_content, file_path, console, allow_partial
+                )
+        elif response in ['h', 'history']:
+            # Show history timeline
+            console.print(self.undo_stack.render_history_timeline())
+            return await self.show_diff_interactive(
+                original_content, proposed_content, file_path, console, allow_partial
+            )
         else:
             # Default: reject
             return False, None
