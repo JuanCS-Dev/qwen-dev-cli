@@ -101,7 +101,7 @@ class SessionContext:
 class InteractiveShell:
     """Tool-based interactive shell (Claude Code-level) with multi-turn conversation."""
     
-    def __init__(self, llm_client=None, session_id: Optional[str] = None):
+    def __init__(self, llm_client=None, session_id: Optional[str] = None, session_state=None):
         # TUI-enhanced console with custom theme
         self.console = Console(theme=get_rich_theme())
         self.llm = llm_client or default_llm_client
@@ -116,10 +116,22 @@ class InteractiveShell:
         from .core.context_rich import RichContextBuilder
         self.rich_context = RichContextBuilder()
         
-        # Phase 2.3: Multi-turn conversation manager
-        if session_id is None:
-            session_id = f"shell_{int(time.time() * 1000)}"
+        # Session state management (AIR GAP #2)
+        from .session import SessionManager, SessionState
+        self.session_manager = SessionManager()
         
+        if session_state:
+            # Resume existing session
+            self.session_state = session_state
+            session_id = session_state.session_id
+        else:
+            # Create new session
+            if session_id is None:
+                session_id = f"shell_{int(time.time() * 1000)}"
+            self.session_state = self.session_manager.create_session(cwd=Path.cwd())
+            self.session_state.session_id = session_id
+        
+        # Phase 2.3: Multi-turn conversation manager
         self.conversation = ConversationManager(
             session_id=session_id,
             max_context_tokens=4000,
@@ -897,6 +909,13 @@ Tool calls: {len(self.context.tool_calls)}
                     await self._handle_error(e, user_input)
         
         finally:
+            # Auto-save session on exit (AIR GAP #2)
+            try:
+                self.session_manager.save_session(self.session_state)
+                self.console.print(f"[dim]💾 Session auto-saved: {self.session_state.session_id}[/dim]")
+            except Exception as e:
+                logger.warning(f"Failed to auto-save session: {e}")
+            
             # Cleanup
             self.file_watcher.stop()
             watcher_task.cancel()
@@ -914,6 +933,9 @@ Tool calls: {len(self.context.tool_calls)}
         Gemini: Visual hierarchy + typography
         """
         import time
+        
+        # Track user message in session (AIR GAP #2)
+        self.session_state.add_message("user", user_input)
         
         # P2: Build rich context (enhanced)
         context_dict = self.rich_context.build_rich_context(
@@ -1013,6 +1035,11 @@ Tool calls: {len(self.context.tool_calls)}
                 self.console.print("[green]✓ Success[/green]")
                 if result.get('output'):
                     self.console.print(result['output'])
+                
+                # Track assistant response in session (AIR GAP #2)
+                response = f"Executed: {suggestion}\nOutput: {result.get('output', '')[:200]}"
+                self.session_state.add_message("assistant", response)
+                self.session_state.increment_tool_calls()
             else:
                 self.console.print("[red]❌ Failed[/red]")
                 
