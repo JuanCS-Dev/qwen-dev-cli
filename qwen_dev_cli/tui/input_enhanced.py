@@ -197,6 +197,12 @@ class EnhancedInputSession:
             self.in_multiline = True
             event.app.current_buffer.insert_text('\n')
         
+        @kb.add(Keys.ControlK)
+        def _command_palette(event: Any) -> None:
+            """Open command palette (Ctrl+K) - Cursor-style."""
+            # Exit prompt with special signal to trigger palette
+            event.app.exit(result="__PALETTE__")
+        
         return kb
     
     def _get_prompt_message(self) -> str | HTML:

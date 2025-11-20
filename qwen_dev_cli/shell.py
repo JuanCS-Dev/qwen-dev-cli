@@ -79,6 +79,12 @@ from .tui.history import CommandHistory, HistoryEntry, SessionReplay
 from .tui.components.workflow_visualizer import WorkflowVisualizer, StepStatus
 from .tui.components.execution_timeline import ExecutionTimeline
 
+# Phase 4: Command Palette (Integration Sprint Week 1)
+from .tui.components.palette import (
+    create_default_palette, CommandPalette, Command, CommandCategory,
+    CATEGORY_CONFIG
+)
+
 
 class SessionContext:
     """Persistent context across shell session."""
@@ -176,6 +182,10 @@ class InteractiveShell:
         self.workflow_viz = WorkflowVisualizer(console=self.console)
         self.execution_timeline = ExecutionTimeline(console=self.console)
         
+        # Command Palette (Integration Sprint Week 1: Day 1)
+        self.palette = create_default_palette()
+        self._register_palette_commands()
+        
         # Legacy session (fallback)
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
@@ -253,6 +263,96 @@ class InteractiveShell:
             self.registry.register(tool)
         
         self.console.print(f"[dim]Loaded {len(tools)} tools[/dim]")
+    
+    def _register_palette_commands(self):
+        """Register commands in command palette (Ctrl+K)."""
+        # File operations
+        self.palette.add_command(Command(
+            id="file.read",
+            title="Read File",
+            description="Read and display file contents",
+            category=CommandCategory.FILE,
+            keywords=["open", "cat", "view", "show"],
+            keybinding=None,
+            action=lambda: self._palette_read_file()
+        ))
+        
+        self.palette.add_command(Command(
+            id="file.write",
+            title="Write File",
+            description="Create or overwrite a file",
+            category=CommandCategory.FILE,
+            keywords=["create", "save", "new"],
+            action=lambda: self._palette_write_file()
+        ))
+        
+        self.palette.add_command(Command(
+            id="file.edit",
+            title="Edit File",
+            description="Edit file with AI assistance",
+            category=CommandCategory.EDIT,
+            keywords=["modify", "change", "update", "fix"],
+            action=lambda: self._palette_edit_file()
+        ))
+        
+        # Git operations
+        self.palette.add_command(Command(
+            id="git.status",
+            title="Git Status",
+            description="Show git repository status",
+            category=CommandCategory.GIT,
+            keywords=["git", "status", "changes", "diff"],
+            action=lambda: self._palette_git_status()
+        ))
+        
+        self.palette.add_command(Command(
+            id="git.diff",
+            title="Git Diff",
+            description="Show git diff",
+            category=CommandCategory.GIT,
+            keywords=["git", "diff", "changes"],
+            action=lambda: self._palette_git_diff()
+        ))
+        
+        # Search operations
+        self.palette.add_command(Command(
+            id="search.files",
+            title="Search Files",
+            description="Search for text in files",
+            category=CommandCategory.SEARCH,
+            keywords=["find", "grep", "search", "locate"],
+            action=lambda: self._palette_search_files()
+        ))
+        
+        # Help & System
+        self.palette.add_command(Command(
+            id="help.main",
+            title="Help",
+            description="Show main help",
+            category=CommandCategory.HELP,
+            keywords=["help", "docs", "guide"],
+            keybinding="?",
+            action=lambda: help_system.show_main_help()
+        ))
+        
+        self.palette.add_command(Command(
+            id="system.clear",
+            title="Clear Screen",
+            description="Clear the terminal screen",
+            category=CommandCategory.SYSTEM,
+            keywords=["clear", "cls", "clean"],
+            action=lambda: os.system('clear')
+        ))
+        
+        # Tools commands
+        self.palette.add_command(Command(
+            id="tools.list",
+            title="List Available Tools",
+            description="Show all registered tools",
+            category=CommandCategory.TOOLS,
+            keywords=["tools", "list", "available"],
+            action=lambda: self._palette_list_tools()
+        ))
     
     def _show_welcome(self):
         """Show welcome message with TUI styling."""
@@ -944,6 +1044,94 @@ Tool calls: {len(self.context.tool_calls)}
         
         self.console.print(f"\n{explanation.format()}\n")
     
+    # Command Palette Helper Methods (Integration Sprint Week 1)
+    
+    async def _palette_read_file(self):
+        """Read file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            await self._process_request_with_llm(f"read {file_path}", None)
+    
+    async def _palette_write_file(self):
+        """Write file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            content = await self.enhanced_input.prompt_async("Content: ")
+            if content:
+                await self._process_request_with_llm(f"write {file_path} with: {content}", None)
+    
+    async def _palette_edit_file(self):
+        """Edit file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            instruction = await self.enhanced_input.prompt_async("Edit instruction: ")
+            if instruction:
+                await self._process_request_with_llm(f"edit {file_path}: {instruction}", None)
+    
+    async def _palette_git_status(self):
+        """Git status action from palette."""
+        tool = self.registry.get("git_status")
+        result = await tool.execute()
+        self.console.print(result.data.get("output", ""))
+    
+    async def _palette_git_diff(self):
+        """Git diff action from palette."""
+        tool = self.registry.get("git_diff")
+        result = await tool.execute()
+        self.console.print(result.data.get("output", ""))
+    
+    async def _palette_search_files(self):
+        """Search files action from palette."""
+        pattern = await self.enhanced_input.prompt_async("Search pattern: ")
+        if pattern:
+            await self._process_request_with_llm(f"search for {pattern}", None)
+    
+    def _palette_list_tools(self):
+        """List tools action from palette."""
+        tools = self.registry.list_tools()
+        table = Table(title="Available Tools")
+        table.add_column("Tool", style="cyan")
+        table.add_column("Description", style="white")
+        
+        for tool_name in tools:
+            tool = self.registry.get(tool_name)
+            table.add_row(tool_name, tool.description if hasattr(tool, 'description') else "")
+        
+        self.console.print(table)
+    
+    async def _show_palette_interactive(self) -> Optional[Command]:
+        """Show interactive palette and return selected command."""
+        # Show search prompt
+        query = await self.enhanced_input.prompt_async("[cyan]Command Palette >[/cyan] ")
+        
+        if not query or not query.strip():
+            return None
+        
+        # Fuzzy search
+        results = self.palette.search(query, limit=10)
+        
+        if not results:
+            self.console.print("[yellow]No commands found[/yellow]")
+            return None
+        
+        # Display results
+        self.console.print("\n[cyan]Results:[/cyan]")
+        for i, cmd in enumerate(results, 1):
+            category_icon = CATEGORY_CONFIG.get(cmd.category, {}).get('icon', '📄')
+            self.console.print(f"  {i}. {category_icon} {cmd.title} - [dim]{cmd.description}[/dim]")
+        
+        # Get selection
+        try:
+            selection = await self.enhanced_input.prompt_async("\nSelect (1-10) or Enter to cancel: ")
+            if selection and selection.isdigit():
+                idx = int(selection) - 1
+                if 0 <= idx < len(results):
+                    return results[idx]
+        except (ValueError, IndexError):
+            pass
+        
+        return None
+    
     async def run(self):
         """Interactive REPL with Cursor+Claude+Gemini best practices."""
         self._show_welcome()
@@ -968,6 +1156,25 @@ Tool calls: {len(self.context.tool_calls)}
                     # [IDLE] Get user input (DAY 8: Enhanced input)
                     start_time = time.time()
                     user_input = await self.enhanced_input.prompt_async()
+                    
+                    # Handle Command Palette (Ctrl+K) - Integration Sprint Week 1
+                    if user_input == "__PALETTE__":
+                        self.console.print("\n[cyan]✨ Command Palette[/cyan]\n")
+                        
+                        # Show palette interactively
+                        selected = await self._show_palette_interactive()
+                        
+                        if selected:
+                            try:
+                                self.console.print(f"\n[dim]Executing: {selected.title}[/dim]\n")
+                                # Execute command action
+                                result = selected.action()
+                                if asyncio.iscoroutine(result):
+                                    await result
+                            except Exception as e:
+                                self.console.print(f"[red]Error executing command: {e}[/red]")
+                        
+                        continue
                     
                     # Handle empty input or Ctrl+D
                     if user_input is None or not user_input.strip():

@@ -20,12 +20,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 import re
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.text import Text
+from rich.progress import Progress, BarColumn, TextColumn, TaskID
+from rich.live import Live
 
 
 @dataclass
@@ -55,13 +57,29 @@ class FileRelevance:
 
 
 @dataclass
+class TokenUsageSnapshot:
+    """Snapshot of token usage at a point in time"""
+    timestamp: datetime
+    total_tokens: int
+    input_tokens: int
+    output_tokens: int
+    cost_estimate_usd: float = 0.0
+
+
+@dataclass
 class ContextWindow:
-    """Represents current context window state"""
+    """Represents current context window state (Enhanced DAY 8 Phase 4)"""
     total_tokens: int
     max_tokens: int
     files: Dict[str, FileRelevance] = field(default_factory=dict)
     auto_added: Set[str] = field(default_factory=set)
     user_pinned: Set[str] = field(default_factory=set)
+    
+    # NEW: Real-time token tracking (DAY 8 Phase 4)
+    current_input_tokens: int = 0
+    current_output_tokens: int = 0
+    streaming_tokens: int = 0  # Tokens being streamed right now
+    usage_history: deque = field(default_factory=lambda: deque(maxlen=100))  # Last 100 snapshots
     
     @property
     def utilization(self) -> float:
@@ -77,6 +95,29 @@ class ContextWindow:
     def is_critical(self) -> bool:
         """Check if context is critically full (>90%)"""
         return self.utilization > 0.9
+    
+    @property
+    def is_warning(self) -> bool:
+        """Check if context is in warning zone (>80%)"""
+        return self.utilization > 0.8
+    
+    def add_token_snapshot(
+        self,
+        input_tokens: int,
+        output_tokens: int,
+        cost_estimate: float = 0.0
+    ) -> None:
+        """Add token usage snapshot (DAY 8 Phase 4)"""
+        snapshot = TokenUsageSnapshot(
+            timestamp=datetime.now(),
+            total_tokens=input_tokens + output_tokens,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cost_estimate_usd=cost_estimate
+        )
+        self.usage_history.append(snapshot)
+        self.current_input_tokens = input_tokens
+        self.current_output_tokens = output_tokens
 
 
 class ContextAwarenessEngine:
@@ -402,6 +443,94 @@ class ContextAwarenessEngine:
             table,
             subtitle=summary,
             border_style="cyan"
+        )
+    
+    def render_token_usage_realtime(self) -> Panel:
+        """
+        Render real-time token usage panel (DAY 8 Phase 4)
+        
+        Shows:
+        - Current input/output tokens
+        - Streaming token counter
+        - Usage trend (last 10 interactions)
+        - Cost estimate
+        """
+        content = Text()
+        
+        # Current session stats
+        content.append("📊 Current Session\n", style="bold cyan")
+        content.append(f"  Input:  {self.window.current_input_tokens:,} tokens\n", style="green")
+        content.append(f"  Output: {self.window.current_output_tokens:,} tokens\n", style="yellow")
+        
+        if self.window.streaming_tokens > 0:
+            content.append(f"  🔄 Streaming: {self.window.streaming_tokens:,} tokens\n", style="magenta bold")
+        
+        total_session = self.window.current_input_tokens + self.window.current_output_tokens
+        content.append(f"  Total:  {total_session:,} tokens\n\n", style="bold")
+        
+        # Usage trend (last 10 snapshots)
+        if self.window.usage_history:
+            content.append("📈 Recent Trend\n", style="bold cyan")
+            
+            recent = list(self.window.usage_history)[-10:]
+            for i, snapshot in enumerate(recent, 1):
+                time_str = snapshot.timestamp.strftime("%H:%M:%S")
+                content.append(f"  {time_str} | ", style="dim")
+                content.append(f"↑{snapshot.input_tokens:,} ", style="green")
+                content.append(f"↓{snapshot.output_tokens:,}", style="yellow")
+                
+                if snapshot.cost_estimate_usd > 0:
+                    content.append(f" | ${snapshot.cost_estimate_usd:.4f}", style="magenta")
+                
+                content.append("\n")
+            
+            # Calculate cumulative cost
+            total_cost = sum(s.cost_estimate_usd for s in self.window.usage_history)
+            if total_cost > 0:
+                content.append(f"\n💰 Cumulative Cost: ${total_cost:.4f}\n", style="bold magenta")
+        
+        # Warning if approaching limit
+        if self.window.is_critical:
+            content.append("\n⚠️  CRITICAL: Context >90% full!\n", style="bold red")
+            content.append("    Consider optimizing context.\n", style="red")
+        elif self.window.is_warning:
+            content.append("\n⚠️  WARNING: Context >80% full\n", style="bold yellow")
+        
+        return Panel(
+            content,
+            title="🔢 Token Usage (Real-Time)",
+            border_style="magenta"
+        )
+    
+    def update_streaming_tokens(self, delta: int) -> None:
+        """
+        Update streaming token counter (DAY 8 Phase 4)
+        Called during LLM streaming to show real-time progress
+        
+        Args:
+            delta: Token count delta (positive = adding, negative = finalizing)
+        """
+        self.window.streaming_tokens = max(0, self.window.streaming_tokens + delta)
+    
+    def finalize_streaming_session(
+        self,
+        final_input_tokens: int,
+        final_output_tokens: int,
+        cost_estimate: float = 0.0
+    ) -> None:
+        """
+        Finalize streaming session and record snapshot (DAY 8 Phase 4)
+        
+        Args:
+            final_input_tokens: Total input tokens for this interaction
+            final_output_tokens: Total output tokens for this interaction
+            cost_estimate: Estimated cost in USD
+        """
+        self.window.streaming_tokens = 0
+        self.window.add_token_snapshot(
+            input_tokens=final_input_tokens,
+            output_tokens=final_output_tokens,
+            cost_estimate=cost_estimate
         )
     
     # Helper methods
