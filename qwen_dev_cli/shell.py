@@ -1257,7 +1257,15 @@ Tool calls: {len(self.context.tool_calls)}
                     # [THINKING] Process request with LLM
                     success = True
                     try:
+                        # Start workflow visualization (Task 1.4)
+                        self.workflow_viz.start_workflow("Process User Request")
+                        self.workflow_viz.add_step("parse_input", "Parsing user input", StepStatus.IN_PROGRESS)
+                        
                         await self._process_request_with_llm(user_input, suggestion_engine)
+                        
+                        # Complete workflow
+                        self.workflow_viz.update_step_status("parse_input", StepStatus.COMPLETED)
+                        self.workflow_viz.complete_workflow()
                         
                         # Show token usage after LLM response (Integration Sprint Week 1: Task 1.2)
                         if self.context_engine.window.current_output_tokens > 0:
@@ -1360,13 +1368,16 @@ Tool calls: {len(self.context.tool_calls)}
         )
         
         # Step 1/3: Analyze request (Cursor: multi-step breakdown)
+        self.workflow_viz.add_step("analyze", "Analyzing request", StepStatus.IN_PROGRESS)
         self.console.print("[cyan][THINKING][/cyan] Step 1/3: Analyzing request...")
         start_time = time.time()
         
         # Get LLM suggestion
         try:
             suggestion = await self._get_command_suggestion(user_input, rich_ctx)
+            self.workflow_viz.update_step_status("analyze", StepStatus.COMPLETED)
         except Exception as e:
+            self.workflow_viz.update_step_status("analyze", StepStatus.FAILED)
             self.console.print(f"[red]❌ LLM failed: {e}[/red]")
             self.console.print("[yellow]💡 Tip: Check your API key (HF_TOKEN)[/yellow]")
             return
@@ -1383,9 +1394,11 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print()
         
         # P1: Danger detection with visual warnings
+        self.workflow_viz.add_step("safety", "Safety check", StepStatus.IN_PROGRESS)
         danger_warning = danger_detector.analyze(suggestion)
         
         if danger_warning:
+            self.workflow_viz.update_step_status("safety", StepStatus.WARNING)
             # Show rich visual warning
             warning_panel = danger_detector.get_visual_warning(danger_warning)
             self.console.print(warning_panel)
@@ -1431,6 +1444,8 @@ Tool calls: {len(self.context.tool_calls)}
                     return
         
         # [EXECUTING] Run command
+        self.workflow_viz.update_step_status("safety", StepStatus.COMPLETED)
+        self.workflow_viz.add_step("execute", "Executing command", StepStatus.IN_PROGRESS)
         self.console.print("[cyan][EXECUTING][/cyan] Running command...")
         self.console.print()
         
@@ -1439,6 +1454,7 @@ Tool calls: {len(self.context.tool_calls)}
             
             # Show result
             if result.get('success'):
+                self.workflow_viz.update_step_status("execute", StepStatus.COMPLETED)
                 self.console.print("[green]✓ Success[/green]")
                 if result.get('output'):
                     self.console.print(result['output'])
@@ -1448,6 +1464,7 @@ Tool calls: {len(self.context.tool_calls)}
                 self.session_state.add_message("assistant", response)
                 self.session_state.increment_tool_calls()
             else:
+                self.workflow_viz.update_step_status("execute", StepStatus.FAILED)
                 self.console.print("[red]❌ Failed[/red]")
                 
                 # P1: Intelligent error parsing
