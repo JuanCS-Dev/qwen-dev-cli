@@ -5,8 +5,11 @@ import shutil
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+import logging
 
 from .base import Tool, ToolResult, ToolCategory
+
+logger = logging.getLogger(__name__)
 
 
 class ReadFileTool(Tool):
@@ -81,10 +84,12 @@ class ReadFileTool(Tool):
 class WriteFileTool(Tool):
     """Create new file with content."""
     
-    def __init__(self):
+    def __init__(self, hook_executor=None, config_loader=None):
         super().__init__()
         self.category = ToolCategory.FILE_WRITE
         self.description = "Create new file with content (fails if file exists)"
+        self.hook_executor = hook_executor
+        self.config_loader = config_loader
         self.parameters = {
             "path": {
                 "type": "string",
@@ -120,7 +125,7 @@ class WriteFileTool(Tool):
             
             file_path.write_text(content)
             
-            return ToolResult(
+            result = ToolResult(
                 success=True,
                 data=f"Created {path}",
                 metadata={
@@ -129,17 +134,63 @@ class WriteFileTool(Tool):
                     "lines": len(content.split('\n'))
                 }
             )
+            
+            # Execute post_write hooks
+            await self._execute_hooks("post_write", file_path)
+            
+            return result
         except Exception as e:
             return ToolResult(success=False, error=str(e))
+    
+    async def _execute_hooks(self, event_name: str, file_path: Path):
+        """Execute hooks for this event."""
+        if not self.hook_executor or not self.config_loader:
+            return
+        
+        try:
+            from qwen_dev_cli.hooks import HookEvent, HookContext
+            
+            # Get hooks from config
+            config = self.config_loader.config
+            if not config or not config.hooks:
+                return
+            
+            hooks_to_run = getattr(config.hooks, event_name, [])
+            if not hooks_to_run:
+                return
+            
+            # Create context
+            context = HookContext(
+                file_path=file_path,
+                event_name=event_name,
+                cwd=Path.cwd(),
+                project_name=config.project.name if config.project else "unknown"
+            )
+            
+            # Execute hooks
+            event = HookEvent(event_name)
+            results = await self.hook_executor.execute_hooks(event, context, hooks_to_run)
+            
+            # Log results
+            for result in results:
+                if result.success:
+                    logger.debug(f"Hook succeeded: {result.command}")
+                else:
+                    logger.warning(f"Hook failed: {result.command} - {result.error}")
+                    
+        except Exception as e:
+            logger.error(f"Error executing hooks: {e}")
 
 
 class EditFileTool(Tool):
     """Modify existing file using search/replace."""
     
-    def __init__(self):
+    def __init__(self, hook_executor=None, config_loader=None):
         super().__init__()
         self.category = ToolCategory.FILE_WRITE
         self.description = "Modify existing file using search/replace blocks"
+        self.hook_executor = hook_executor
+        self.config_loader = config_loader
         self.parameters = {
             "path": {
                 "type": "string",
@@ -200,7 +251,7 @@ class EditFileTool(Tool):
             # Write modified content
             file_path.write_text(modified_content)
             
-            return ToolResult(
+            result = ToolResult(
                 success=True,
                 data=f"Applied {changes} edits to {path}",
                 metadata={
@@ -211,8 +262,52 @@ class EditFileTool(Tool):
                     "lines_after": len(modified_content.split('\n'))
                 }
             )
+            
+            # Execute post_edit hooks
+            await self._execute_hooks("post_edit", file_path)
+            
+            return result
         except Exception as e:
             return ToolResult(success=False, error=str(e))
+    
+    async def _execute_hooks(self, event_name: str, file_path: Path):
+        """Execute hooks for this event."""
+        if not self.hook_executor or not self.config_loader:
+            return
+        
+        try:
+            from qwen_dev_cli.hooks import HookEvent, HookContext
+            
+            # Get hooks from config
+            config = self.config_loader.config
+            if not config or not config.hooks:
+                return
+            
+            hooks_to_run = getattr(config.hooks, event_name, [])
+            if not hooks_to_run:
+                return
+            
+            # Create context
+            context = HookContext(
+                file_path=file_path,
+                event_name=event_name,
+                cwd=Path.cwd(),
+                project_name=config.project.name if config.project else "unknown"
+            )
+            
+            # Execute hooks
+            event = HookEvent(event_name)
+            results = await self.hook_executor.execute_hooks(event, context, hooks_to_run)
+            
+            # Log results
+            for result in results:
+                if result.success:
+                    logger.debug(f"Hook succeeded: {result.command}")
+                else:
+                    logger.warning(f"Hook failed: {result.command} - {result.error}")
+                    
+        except Exception as e:
+            logger.error(f"Error executing hooks: {e}")
 
 
 class ListDirectoryTool(Tool):

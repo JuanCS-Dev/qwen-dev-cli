@@ -1,0 +1,102 @@
+# Qwen Dev CLI Configuration with Hooks Example
+# Copy this to .qwenrc in your project root
+
+project:
+  name: "my-awesome-project"
+  type: "python"
+  version: "1.0.0"
+  description: "An awesome project with automated hooks"
+
+rules:
+  - "Use type hints for all function parameters and return values"
+  - "Write docstrings in Google style for all public functions"
+  - "Follow PEP 8 style guide strictly"
+  - "Max line length: 100 characters"
+  - "Use async/await for I/O operations"
+  style_guide: "Google Python Style Guide"
+  max_line_length: 100
+
+safety:
+  allowed_paths:
+    - "./src"
+    - "./tests"
+    - "./docs"
+  dangerous_commands:
+    - "rm -rf"
+    - "chmod 777"
+    - "dd if="
+  require_approval:
+    - "git push"
+    - "pip install"
+  max_file_size_mb: 10
+
+# ⚡ HOOKS - Automated post-action execution
+hooks:
+  # Runs after writing a new file
+  post_write:
+    - "echo '✅ Created {file_name}'"
+    - "ruff check {file}"
+    
+  # Runs after editing a file
+  post_edit:
+    - "echo '🔧 Modified {file_name}'"
+    - "black {file}"
+    - "ruff check {file}"
+    - "mypy {file}"
+    
+  # Runs after deleting a file
+  post_delete:
+    - "echo '🗑️  Deleted {file_name}'"
+    
+  # Runs before git commit (future feature)
+  pre_commit:
+    - "echo '🚀 Running pre-commit checks...'"
+    - "pytest tests/"
+    - "ruff check ."
+    - "black --check ."
+
+context:
+  max_tokens: 32000
+  include_git: true
+  include_tests: true
+  exclude_patterns:
+    - "**/__pycache__/**"
+    - "**/venv/**"
+    - "**/.venv/**"
+    - "**/.git/**"
+
+# Hook Variables Available:
+# {file} - Full file path (e.g., "src/utils/helper.py")
+# {file_name} - File name with extension (e.g., "helper.py")
+# {file_stem} - File name without extension (e.g., "helper")
+# {file_extension} - Extension without dot (e.g., "py")
+# {dir} - Directory path (e.g., "src/utils")
+# {relative_path} - Path relative to cwd (e.g., "src/utils/helper.py")
+# {cwd} - Current working directory
+# {project_name} - Project name from config
+# {event} - Event name (post_write, post_edit, post_delete)
+
+# Examples of Powerful Hooks:
+# 
+# Auto-format on edit:
+#   post_edit:
+#     - "black {file}"
+#     - "isort {file}"
+# 
+# Run tests after write:
+#   post_write:
+#     - "pytest tests/test_{file_stem}.py"
+# 
+# Type check after edit:
+#   post_edit:
+#     - "mypy {file}"
+# 
+# Lint on every change:
+#   post_write:
+#     - "ruff check {file}"
+#   post_edit:
+#     - "ruff check {file}"
+# 
+# Custom validation:
+#   post_write:
+#     - "python scripts/validate.py {file}"
