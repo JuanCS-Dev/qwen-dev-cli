@@ -6,9 +6,11 @@ from pathlib import Path
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class CdTool(Tool):
+class CdTool(ValidatedTool):
     """Change directory."""
     
     def __init__(self):
@@ -23,7 +25,7 @@ class CdTool(Tool):
             }
         }
     
-    async def execute(self, path: str) -> ToolResult:
+    async def _execute_validated(self, path: str) -> ToolResult:
         """Change directory."""
         try:
             # Expand special paths
@@ -63,7 +65,7 @@ class CdTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class LsTool(Tool):
+class LsTool(ValidatedTool):
     """List directory contents (like ls command)."""
     
     def __init__(self):
@@ -88,7 +90,7 @@ class LsTool(Tool):
             }
         }
     
-    async def execute(self, path: str = ".", all: bool = False, long: bool = False) -> ToolResult:
+    async def _execute_validated(self, path: str = ".", all: bool = False, long: bool = False) -> ToolResult:
         """List directory contents."""
         try:
             dir_path = Path(path).expanduser().resolve()
@@ -141,7 +143,7 @@ class LsTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class PwdTool(Tool):
+class PwdTool(ValidatedTool):
     """Print working directory."""
     
     def __init__(self):
@@ -150,7 +152,7 @@ class PwdTool(Tool):
         self.description = "Print current working directory (pwd)"
         self.parameters = {}
     
-    async def execute(self) -> ToolResult:
+    async def _execute_validated(self) -> ToolResult:
         """Get current directory."""
         try:
             cwd = Path.cwd()
@@ -163,7 +165,7 @@ class PwdTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class MkdirTool(Tool):
+class MkdirTool(ValidatedTool):
     """Make directory (mkdir)."""
     
     def __init__(self):
@@ -183,7 +185,7 @@ class MkdirTool(Tool):
             }
         }
     
-    async def execute(self, path: str, parents: bool = True) -> ToolResult:
+    async def _execute_validated(self, path: str, parents: bool = True) -> ToolResult:
         """Create directory."""
         try:
             dir_path = Path(path).expanduser()
@@ -205,7 +207,7 @@ class MkdirTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class RmTool(Tool):
+class RmTool(ValidatedTool):
     """Remove file or directory (rm)."""
     
     def __init__(self):
@@ -230,7 +232,7 @@ class RmTool(Tool):
             }
         }
     
-    async def execute(self, path: str, recursive: bool = False, force: bool = False) -> ToolResult:
+    async def _execute_validated(self, path: str, recursive: bool = False, force: bool = False) -> ToolResult:
         """Remove file/directory."""
         try:
             target = Path(path).expanduser()
@@ -276,7 +278,7 @@ class RmTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class CpTool(Tool):
+class CpTool(ValidatedTool):
     """Copy file or directory (cp)."""
     
     def __init__(self):
@@ -301,7 +303,7 @@ class CpTool(Tool):
             }
         }
     
-    async def execute(self, source: str, destination: str, recursive: bool = False) -> ToolResult:
+    async def _execute_validated(self, source: str, destination: str, recursive: bool = False) -> ToolResult:
         """Copy file/directory."""
         try:
             src = Path(source).expanduser()
@@ -336,7 +338,7 @@ class CpTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class MvTool(Tool):
+class MvTool(ValidatedTool):
     """Move/rename file or directory (mv)."""
     
     def __init__(self):
@@ -356,7 +358,7 @@ class MvTool(Tool):
             }
         }
     
-    async def execute(self, source: str, destination: str) -> ToolResult:
+    async def _execute_validated(self, source: str, destination: str) -> ToolResult:
         """Move/rename file/directory."""
         try:
             src = Path(source).expanduser()
@@ -382,7 +384,7 @@ class MvTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class TouchTool(Tool):
+class TouchTool(ValidatedTool):
     """Create empty file or update timestamp (touch)."""
     
     def __init__(self):
@@ -397,7 +399,7 @@ class TouchTool(Tool):
             }
         }
     
-    async def execute(self, path: str) -> ToolResult:
+    async def _execute_validated(self, path: str) -> ToolResult:
         """Touch file."""
         try:
             file_path = Path(path).expanduser()
@@ -420,7 +422,7 @@ class TouchTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class CatTool(Tool):
+class CatTool(ValidatedTool):
     """Display file contents (cat)."""
     
     def __init__(self):
@@ -440,7 +442,7 @@ class CatTool(Tool):
             }
         }
     
-    async def execute(self, path: str, lines: Optional[int] = None) -> ToolResult:
+    async def _execute_validated(self, path: str, lines: Optional[int] = None) -> ToolResult:
         """Display file contents."""
         try:
             file_path = Path(path).expanduser()

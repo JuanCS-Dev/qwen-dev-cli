@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class SearchFilesTool(Tool):
+class SearchFilesTool(ValidatedTool):
     """Search for text pattern in files using ripgrep."""
     
     def __init__(self):
@@ -39,7 +41,7 @@ class SearchFilesTool(Tool):
             }
         }
     
-    async def execute(self, pattern: str, path: str = ".", file_pattern: Optional[str] = None, max_results: int = 50) -> ToolResult:
+    async def _execute_validated(self, pattern: str, path: str = ".", file_pattern: Optional[str] = None, max_results: int = 50) -> ToolResult:
         """Search for pattern in files."""
         try:
             # Try ripgrep first
@@ -124,7 +126,7 @@ class SearchFilesTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class GetDirectoryTreeTool(Tool):
+class GetDirectoryTreeTool(ValidatedTool):
     """Get hierarchical file tree structure."""
     
     def __init__(self):
@@ -144,7 +146,7 @@ class GetDirectoryTreeTool(Tool):
             }
         }
     
-    async def execute(self, path: str = ".", max_depth: int = 3) -> ToolResult:
+    async def _execute_validated(self, path: str = ".", max_depth: int = 3) -> ToolResult:
         """Get directory tree."""
         try:
             dir_path = Path(path)

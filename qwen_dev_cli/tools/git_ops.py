@@ -4,9 +4,11 @@ import subprocess
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class GitStatusTool(Tool):
+class GitStatusTool(ValidatedTool):
     """Get git repository status."""
     
     def __init__(self):
@@ -15,7 +17,7 @@ class GitStatusTool(Tool):
         self.description = "Get git repository status"
         self.parameters = {}
     
-    async def execute(self) -> ToolResult:
+    async def _execute_validated(self) -> ToolResult:
         """Get git status."""
         try:
             # Get branch
@@ -78,7 +80,7 @@ class GitStatusTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class GitDiffTool(Tool):
+class GitDiffTool(ValidatedTool):
     """Get git diff of changes."""
     
     def __init__(self):
@@ -98,7 +100,7 @@ class GitDiffTool(Tool):
             }
         }
     
-    async def execute(self, file: Optional[str] = None, staged: bool = False) -> ToolResult:
+    async def _execute_validated(self, file: Optional[str] = None, staged: bool = False) -> ToolResult:
         """Get git diff."""
         try:
             cmd = ["git", "diff"]

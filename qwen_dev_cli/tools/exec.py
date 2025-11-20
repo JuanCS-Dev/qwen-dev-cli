@@ -5,9 +5,11 @@ import asyncio
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class BashCommandTool(Tool):
+class BashCommandTool(ValidatedTool):
     """Execute bash command."""
     
     def __init__(self):
@@ -32,7 +34,7 @@ class BashCommandTool(Tool):
             }
         }
     
-    async def execute(self, command: str, cwd: Optional[str] = None, timeout: int = 30) -> ToolResult:
+    async def _execute_validated(self, command: str, cwd: Optional[str] = None, timeout: int = 30) -> ToolResult:
         """Execute bash command."""
         try:
             # Check for dangerous commands
