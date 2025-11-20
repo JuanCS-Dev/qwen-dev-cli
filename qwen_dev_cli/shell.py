@@ -91,6 +91,9 @@ from .tui.animations import Animator, AnimationConfig, StateTransition
 # Phase 6: Dashboard (Integration Sprint Week 1: Day 3)
 from .tui.components.dashboard import Dashboard, Operation, OperationStatus
 
+# Phase 7: Token Tracking (Boris Cherny Foundation)
+from .core.token_tracker import TokenTracker
+
 
 class SessionContext:
     """Persistent context across shell session."""
