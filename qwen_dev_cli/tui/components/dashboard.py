@@ -370,6 +370,7 @@ class Dashboard:
     
     def _render_active_operations(self) -> Panel:
         """Render active operations panel."""
+        content: Text | Table
         if not self.active_operations:
             content = Text("No active operations", style="dim italic")
         else:

@@ -4,6 +4,7 @@ import asyncio
 import os
 import time
 import json
+from datetime import datetime
 from typing import Optional, Dict, Any
 from pathlib import Path
 
@@ -69,6 +70,10 @@ from .tui.components.code import CodeBlock, CodeSnippet
 from .tui.components.diff import DiffViewer, DiffMode
 from .tui.theme import COLORS
 from .tui.styles import PRESET_STYLES, get_rich_theme
+
+# Phase 2: Enhanced Input System (DAY 8)
+from .tui.input_enhanced import EnhancedInputSession, InputContext
+from .tui.history import CommandHistory, HistoryEntry, SessionReplay
 
 
 class SessionContext:
@@ -146,8 +151,24 @@ class InteractiveShell:
             enable_learning=True
         )
         
-        # Setup prompt session
+        # Setup enhanced input session (DAY 8: Phase 2)
         history_file = Path.home() / ".qwen_shell_history"
+        self.input_context = InputContext(
+            cwd=str(Path.cwd()),
+            recent_files=[],
+            command_history=[],
+            session_data={}
+        )
+        self.enhanced_input = EnhancedInputSession(
+            history_file=history_file,
+            context=self.input_context
+        )
+        
+        # Command history with analytics (DAY 8: Phase 2)
+        self.cmd_history = CommandHistory()
+        self.session_replay = SessionReplay(self.cmd_history)
+        
+        # Legacy session (fallback)
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
             auto_suggest=AutoSuggestFromHistory(),
@@ -660,6 +681,11 @@ Response: I don't have a tool to check the current time, but I can help you with
   /metrics    - Show constitutional metrics
   /cache      - Show cache statistics
 
+[bold]History & Analytics:[/bold] 🆕
+  /history    - Show command history
+  /stats      - Show usage statistics
+  /sessions   - List previous sessions
+
 [bold]Cursor-style Intelligence:[/bold]
   /index      - Index codebase (Cursor magic!)
   /find NAME  - Search symbols by name
@@ -700,6 +726,82 @@ Tool calls: {len(self.context.tool_calls)}
         
         elif cmd == "/clear":
             self.console.clear()
+            return False, None
+        
+        # DAY 8: History commands
+        elif cmd == "/history":
+            entries = self.cmd_history.get_recent(limit=20)
+            if not entries:
+                self.console.print("[dim]No command history yet.[/dim]")
+                return False, None
+            
+            table = Table(title="Command History (Last 20)")
+            table.add_column("#", style="dim", width=4)
+            table.add_column("Time", style="cyan", width=10)
+            table.add_column("Command", style="white")
+            table.add_column("Status", style="green", width=8)
+            table.add_column("Duration", style="yellow", width=10)
+            
+            for i, entry in enumerate(reversed(entries), 1):
+                status = "✓ OK" if entry.success else "✗ FAIL"
+                status_style = "green" if entry.success else "red"
+                time_str = entry.timestamp.split('T')[1][:8]
+                cmd_preview = entry.command[:60] + "..." if len(entry.command) > 60 else entry.command
+                
+                table.add_row(
+                    str(i),
+                    time_str,
+                    cmd_preview,
+                    f"[{status_style}]{status}[/{status_style}]",
+                    f"{entry.duration_ms}ms"
+                )
+            
+            self.console.print(table)
+            return False, None
+        
+        elif cmd == "/stats":
+            stats = self.cmd_history.get_statistics(days=7)
+            
+            self.console.print("\n[bold cyan]📊 Command Statistics (Last 7 Days)[/bold cyan]\n")
+            self.console.print(f"  Total commands: [bold]{stats['total_commands']}[/bold]")
+            self.console.print(f"  Success rate:   [bold green]{stats['success_rate']}%[/bold green]")
+            self.console.print(f"  Avg duration:   [yellow]{stats['avg_duration_ms']}ms[/yellow]")
+            self.console.print(f"  Total tokens:   [cyan]{stats['total_tokens']:,}[/cyan]")
+            
+            if stats['top_commands']:
+                self.console.print("\n[bold]Top Commands:[/bold]")
+                for cmd_stat in stats['top_commands'][:5]:
+                    cmd_preview = cmd_stat['command'][:50]
+                    self.console.print(f"  • {cmd_preview}: [bold]{cmd_stat['count']}[/bold] times")
+            
+            return False, None
+        
+        elif cmd == "/sessions":
+            sessions = self.session_replay.list_sessions(limit=10)
+            if not sessions:
+                self.console.print("[dim]No previous sessions found.[/dim]")
+                return False, None
+            
+            table = Table(title="Recent Sessions")
+            table.add_column("Session ID", style="cyan")
+            table.add_column("Start Time", style="yellow")
+            table.add_column("Commands", style="white", width=10)
+            table.add_column("Tokens", style="magenta", width=10)
+            table.add_column("Files", style="green", width=8)
+            
+            for session in sessions:
+                start_time = session['start_time'].split('T')[0]
+                table.add_row(
+                    session['session_id'][:20] + "...",
+                    start_time,
+                    str(session['command_count']),
+                    f"{session['total_tokens']:,}",
+                    str(len(session['files_modified']))
+                )
+            
+            self.console.print(table)
+            return False, None
+        
         elif cmd == "/metrics":
             report = generate_constitutional_report(self.context.history)
             self.console.print(report)
@@ -855,11 +957,15 @@ Tool calls: {len(self.context.tool_calls)}
         try:
             while True:
                 try:
-                    # [IDLE] Get user input
-                    user_input = await self.session.prompt_async("qwen> ")
+                    # [IDLE] Get user input (DAY 8: Enhanced input)
+                    start_time = time.time()
+                    user_input = await self.enhanced_input.prompt_async()
                     
-                    # Handle empty input
-                    if not user_input.strip():
+                    # Handle empty input or Ctrl+D
+                    if user_input is None or not user_input.strip():
+                        if user_input is None:  # Ctrl+D
+                            self.console.print("[cyan]👋 Goodbye![/cyan]")
+                            break
                         continue
                     
                     # Handle system commands (quit, help, etc)
@@ -897,7 +1003,34 @@ Tool calls: {len(self.context.tool_calls)}
                         continue
                     
                     # [THINKING] Process request with LLM
-                    await self._process_request_with_llm(user_input, suggestion_engine)
+                    success = True
+                    try:
+                        await self._process_request_with_llm(user_input, suggestion_engine)
+                    except Exception as proc_error:
+                        success = False
+                        raise proc_error
+                    finally:
+                        # Track command in history (DAY 8: Phase 2)
+                        duration_ms = int((time.time() - start_time) * 1000)
+                        history_entry = HistoryEntry(
+                            timestamp=datetime.now().isoformat(),
+                            command=user_input[:200],  # Limit to 200 chars
+                            cwd=str(Path.cwd()),
+                            success=success,
+                            duration_ms=duration_ms,
+                            tokens_used=0,  # Will be updated later
+                            tool_calls=len(self.context.tool_calls),
+                            files_modified=list(self.context.modified_files),
+                            session_id=self.session_state.session_id
+                        )
+                        self.cmd_history.add(history_entry)
+                        
+                        # Update input context
+                        self.enhanced_input.update_context(
+                            cwd=str(Path.cwd()),
+                            recent_files=list(self.recent_files.get_recent()),
+                            command_history=self.cmd_history.get_recent(limit=10)
+                        )
                 
                 except KeyboardInterrupt:
                     self.console.print("\n[dim]Use 'quit' to exit[/dim]")

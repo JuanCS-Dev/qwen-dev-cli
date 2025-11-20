@@ -32,6 +32,7 @@ from rich.progress import (
     BarColumn,
     TextColumn,
     TimeRemainingColumn,
+    TimeElapsedColumn,
     TaskProgressColumn,
     SpinnerColumn,
 )
@@ -192,7 +193,7 @@ class EnhancedProgressDisplay:
         Returns:
             Rich Group renderable
         """
-        elements = []
+        elements: List[Panel | Table] = []
         
         # Overall progress bar
         overall_bar = self._render_overall_progress(workflow)
@@ -403,7 +404,7 @@ class ThinkingIndicator:
             text.append(frame, style="bold cyan")
             text.append(f" {self.message}", style="cyan")
             
-            yield text
+            yield str(text)
             
             self._frame_idx += 1
             await asyncio.sleep(0.1)  # 10 FPS

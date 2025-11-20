@@ -1,0 +1,301 @@
+"""Enhanced input system with multi-line editing and intelligent features.
+
+Constitutional compliance: P1 (Completeness), P2 (Validation), P6 (Efficiency)
+"""
+
+import os
+import re
+from pathlib import Path
+from typing import Optional, List, Tuple, Callable, Any, Dict
+from dataclasses import dataclass
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion, PathCompleter
+from prompt_toolkit.document import Document
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.keys import Keys
+from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.application import get_app
+from pygments.lexers.python import PythonLexer
+from pygments.lexers.markup import MarkdownLexer
+
+
+@dataclass
+class InputContext:
+    """Context for intelligent input processing."""
+    
+    cwd: str
+    recent_files: List[str]
+    command_history: List[str]
+    session_data: Dict[str, Any]
+
+
+class MultiLineMode:
+    """Handles multi-line input detection and processing."""
+    
+    CODE_BLOCK_PATTERNS = [
+        r'^```',  # Markdown code block
+        r'^def\s+\w+',  # Python function
+        r'^class\s+\w+',  # Python class
+        r'^if\s+.+:$',  # Python if statement
+        r'^for\s+.+:$',  # Python for loop
+        r'^while\s+.+:$',  # Python while loop
+        r'^try:$',  # Python try block
+    ]
+    
+    @staticmethod
+    def should_continue(text: str) -> bool:
+        """Determine if input should continue to next line."""
+        if not text.strip():
+            return False
+        
+        # Code block detection
+        if text.strip().startswith('```'):
+            # Check if code block is closed
+            return text.count('```') % 2 == 1
+        
+        # Python-like syntax detection
+        if text.rstrip().endswith(':'):
+            return True
+        
+        # Unclosed brackets/parentheses
+        open_count = text.count('(') + text.count('[') + text.count('{')
+        close_count = text.count(')') + text.count(']') + text.count('}')
+        if open_count > close_count:
+            return True
+        
+        # Explicit continuation (backslash at end)
+        if text.rstrip().endswith('\\'):
+            return True
+        
+        return False
+    
+    @staticmethod
+    def detect_language(text: str) -> Optional[str]:
+        """Detect programming language from code block."""
+        match = re.match(r'^```(\w+)', text.strip())
+        if match:
+            return match.group(1)
+        
+        # Heuristic detection
+        if re.search(r'\bdef\s+\w+|class\s+\w+|import\s+\w+', text):
+            return 'python'
+        if re.search(r'\bfunction\s+\w+|\bconst\s+\w+|\blet\s+\w+', text):
+            return 'javascript'
+        if re.search(r'\bpub\s+fn\s+\w+|\blet\s+mut\s+', text):
+            return 'rust'
+        
+        return None
+
+
+class IntelligentCompleter(Completer):
+    """Context-aware autocomplete system."""
+    
+    def __init__(self, context: InputContext):
+        self.context = context
+        self.path_completer = PathCompleter(expanduser=True)
+        self.commands = [
+            '/help', '/exit', '/clear', '/history', '/context',
+            '/files', '/git', '/search', '/test', '/commit'
+        ]
+    
+    def get_completions(self, document: Document, complete_event: Any) -> Any:
+        """Generate context-aware completions."""
+        text = document.text_before_cursor
+        word = document.get_word_before_cursor()
+        
+        # Command completion
+        if text.startswith('/'):
+            for cmd in self.commands:
+                if cmd.startswith(text):
+                    yield Completion(
+                        cmd[len(text):],
+                        display=cmd,
+                        display_meta='Command'
+                    )
+        
+        # File path completion
+        elif '/' in word or word.startswith('~') or word.startswith('.'):
+            for completion in self.path_completer.get_completions(document, complete_event):
+                yield completion
+        
+        # Recent files completion
+        elif word:
+            for file_path in self.context.recent_files:
+                file_name = Path(file_path).name
+                if file_name.startswith(word):
+                    yield Completion(
+                        file_name[len(word):],
+                        display=file_name,
+                        display_meta=f'Recent: {Path(file_path).parent}'
+                    )
+
+
+class EnhancedInputSession:
+    """Enhanced input session with rich features."""
+    
+    def __init__(
+        self,
+        history_file: Optional[Path] = None,
+        context: Optional[InputContext] = None
+    ):
+        self.context = context or InputContext(
+            cwd=os.getcwd(),
+            recent_files=[],
+            command_history=[],
+            session_data={}
+        )
+        
+        # Initialize key bindings
+        self.kb = self._create_key_bindings()
+        
+        # Initialize session
+        self.session: PromptSession[str] = PromptSession(
+            history=FileHistory(str(history_file)) if history_file else None,
+            auto_suggest=AutoSuggestFromHistory(),
+            completer=IntelligentCompleter(self.context),
+            complete_while_typing=True,
+            key_bindings=self.kb,
+            multiline=False,  # We handle multiline manually
+            enable_history_search=True,
+            mouse_support=True
+        )
+        
+        self.multi_line_buffer: List[str] = []
+        self.in_multiline = False
+    
+    def _create_key_bindings(self) -> KeyBindings:
+        """Create custom key bindings."""
+        kb = KeyBindings()
+        
+        @kb.add(Keys.ControlD)
+        def _exit(event: Any) -> None:
+            """Exit on Ctrl+D."""
+            event.app.exit(result=None)
+        
+        @kb.add(Keys.ControlC)
+        def _cancel(event: Any) -> None:
+            """Cancel current input on Ctrl+C."""
+            if self.in_multiline:
+                self.multi_line_buffer = []
+                self.in_multiline = False
+                event.app.current_buffer.reset()
+            else:
+                event.app.current_buffer.reset()
+        
+        @kb.add(Keys.ControlR)
+        def _search(event: Any) -> None:
+            """Reverse history search (built-in with prompt_toolkit)."""
+            event.app.current_buffer.start_history_search()
+        
+        @kb.add(Keys.Escape, Keys.Enter)
+        def _multiline(event: Any) -> None:
+            """Force multiline mode (Alt+Enter)."""
+            self.in_multiline = True
+            event.app.current_buffer.insert_text('\n')
+        
+        return kb
+    
+    def _get_prompt_message(self) -> str | HTML:
+        """Generate dynamic prompt message."""
+        if self.in_multiline:
+            return HTML('<ansigreen>... </ansigreen>')
+        else:
+            cwd = Path(self.context.cwd).name
+            return HTML(f'<ansicyan><b>{cwd}</b></ansicyan> <ansigreen>❯</ansigreen> ')
+    
+    async def prompt_async(self, message: Optional[str] = None) -> Optional[str]:
+        """Async prompt with multi-line support."""
+        try:
+            prompt_msg = message or self._get_prompt_message()
+            text = await self.session.prompt_async(prompt_msg)
+            
+            if not text.strip():
+                return None
+            
+            # Multi-line handling
+            if self.in_multiline or MultiLineMode.should_continue(text):
+                self.multi_line_buffer.append(text)
+                self.in_multiline = True
+                
+                # Check if multi-line is complete
+                full_text = '\n'.join(self.multi_line_buffer)
+                if not MultiLineMode.should_continue(full_text):
+                    self.in_multiline = False
+                    result = full_text
+                    self.multi_line_buffer = []
+                    return result
+                else:
+                    # Continue multi-line input
+                    return await self.prompt_async()
+            
+            return text
+        
+        except (EOFError, KeyboardInterrupt):
+            return None
+    
+    def update_context(self, **kwargs: Any) -> None:
+        """Update input context dynamically."""
+        for key, value in kwargs.items():
+            if hasattr(self.context, key):
+                setattr(self.context, key, value)
+
+
+class ClipboardIntegration:
+    """Cross-platform clipboard integration."""
+    
+    @staticmethod
+    def read() -> Optional[str]:
+        """Read from system clipboard."""
+        try:
+            import pyperclip
+            return str(pyperclip.paste())
+        except ImportError:
+            # Fallback to xclip/pbpaste
+            import subprocess
+            try:
+                if os.name == 'posix':
+                    if os.uname().sysname == 'Darwin':
+                        result = subprocess.run(['pbpaste'], capture_output=True, text=True)
+                    else:
+                        result = subprocess.run(['xclip', '-selection', 'clipboard', '-o'], 
+                                               capture_output=True, text=True)
+                    return str(result.stdout) if result.stdout else None
+            except FileNotFoundError:
+                pass
+        return None
+    
+    @staticmethod
+    def write(text: str) -> bool:
+        """Write to system clipboard."""
+        try:
+            import pyperclip
+            pyperclip.copy(text)
+            return True
+        except ImportError:
+            # Fallback to xclip/pbcopy
+            import subprocess
+            try:
+                if os.name == 'posix':
+                    if os.uname().sysname == 'Darwin':
+                        subprocess.run(['pbcopy'], input=text.encode(), check=True)
+                    else:
+                        subprocess.run(['xclip', '-selection', 'clipboard'], 
+                                      input=text.encode(), check=True)
+                    return True
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                pass
+        return False
+
+
+# Export main interface
+__all__ = [
+    'EnhancedInputSession',
+    'InputContext',
+    'MultiLineMode',
+    'ClipboardIntegration',
+    'IntelligentCompleter'
+]

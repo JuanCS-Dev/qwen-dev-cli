@@ -23,7 +23,7 @@ Created: 2025-11-20 12:50 UTC (DAY 8)
 """
 
 import re
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List, Tuple, Match
 from enum import Enum
 
 from rich.console import Console
@@ -196,7 +196,7 @@ class EnhancedMarkdown:
         Returns:
             Processed markdown
         """
-        def replace_callout(match: re.Match) -> str:
+        def replace_callout(match: Match[str]) -> str:
             callout_type = match.group(1).lower()
             content = match.group(2)
             
@@ -232,7 +232,7 @@ class EnhancedMarkdown:
         Returns:
             Processed markdown
         """
-        def replace_diff(match: re.Match) -> str:
+        def replace_diff(match: Match[str]) -> str:
             diff_content = match.group(1)
             
             # Parse diff lines
@@ -261,7 +261,7 @@ class EnhancedMarkdown:
         Returns:
             Processed markdown
         """
-        def replace_mermaid(match: re.Match) -> str:
+        def replace_mermaid(match: Match[str]) -> str:
             diagram = match.group(1)
             
             # Simple ASCII rendering (basic support)
@@ -310,7 +310,7 @@ class EnhancedMarkdown:
         Returns:
             Processed markdown
         """
-        def replace_math(match: re.Match) -> str:
+        def replace_math(match: Match[str]) -> str:
             math = match.group(1).strip()
             
             # Basic ASCII math conversion
@@ -368,7 +368,7 @@ class EnhancedMarkdown:
         Returns:
             Processed markdown
         """
-        def replace_collapsible(match: re.Match) -> str:
+        def replace_collapsible(match: Match[str]) -> str:
             summary = match.group(1).strip()
             content = match.group(2).strip()
             
