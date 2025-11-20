@@ -230,7 +230,7 @@ class TreeOfThought:
     - Best path selection
     """
     
-    def __init__(self, llm_client=None):
+    def __init__(self, llm_client: Any = None) -> None:
         self.llm = llm_client
     
     async def generate_paths(
@@ -499,7 +499,7 @@ class AutoCritique:
         
         # Check for error indicators
         if hasattr(result, 'success'):
-            return result.success
+            return bool(result.success)
         
         if hasattr(result, 'error') and result.error:
             return False
@@ -744,19 +744,19 @@ class WorkflowEngine:
     
     def __init__(
         self,
-        llm_client,
-        recovery_engine,
-        tool_registry
-    ):
+        llm_client: Any,
+        recovery_engine: Any,
+        tool_registry: Any
+    ) -> None:
         self.llm = llm_client
         self.recovery = recovery_engine
         self.tools = tool_registry
         
         # Components
-        self.tree_of_thought = TreeOfThought(llm_client)
-        self.dependency_graph = DependencyGraph()
-        self.auto_critique = AutoCritique()
-        self.checkpoints = CheckpointManager()
+        self.tree_of_thought: TreeOfThought = TreeOfThought(llm_client)
+        self.dependency_graph: DependencyGraph = DependencyGraph()
+        self.auto_critique: AutoCritique = AutoCritique()
+        self.checkpoints: CheckpointManager = CheckpointManager()
     
     async def execute_workflow(
         self,
@@ -808,7 +808,7 @@ class WorkflowEngine:
         
         # 4. Execute steps with checkpoints
         completed: List[WorkflowStep] = []
-        critiques: List[Dict[str, Any]] = []
+        critiques: List[Critique] = []
         
         for i, step in enumerate(execution_order):
             # Create checkpoint before risky operations
