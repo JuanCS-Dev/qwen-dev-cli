@@ -7,6 +7,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Import at module level for testability
+try:
+    import google.generativeai as genai
+    GENAI_AVAILABLE = True
+except ImportError:
+    genai = None
+    GENAI_AVAILABLE = False
+
 
 class GeminiProvider:
     """Google Gemini API provider."""
@@ -21,9 +29,8 @@ class GeminiProvider:
         self.model_name = os.getenv("GEMINI_MODEL", "gemini-pro")
         self.client = None
         
-        if self.api_key:
+        if self.api_key and GENAI_AVAILABLE:
             try:
-                import google.generativeai as genai
                 genai.configure(api_key=self.api_key)
                 self.client = genai.GenerativeModel(self.model_name)
                 logger.info(f"Gemini provider initialized with model: {self.model_name}")
