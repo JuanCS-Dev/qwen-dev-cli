@@ -105,6 +105,8 @@ class SessionContext:
         self.read_files = set()
         self.tool_calls = []
         self.history = []
+        # Week 2 Integration: Preview settings
+        self.preview_enabled = True
     
     def track_tool_call(self, tool_name: str, args: Dict[str, Any], result: Any):
         """Track tool usage."""
@@ -637,14 +639,31 @@ Response: I don't have a tool to check the current time, but I can help you with
         """Execute a sequence of tool calls with conversation tracking (Phase 2.3)."""
         results = []
         
-        for call in tool_calls:
+        # Week 2 Integration: Initialize workflow for tool execution
+        if len(tool_calls) > 1:
+            self.workflow_viz.start_workflow(f"Execute {len(tool_calls)} tools")
+        
+        for i, call in enumerate(tool_calls):
             tool_name = call.get("tool", "")
             args = call.get("args", {})
+            
+            # Week 2 Integration: Add workflow step for this tool
+            step_id = f"tool_{tool_name}_{i}"
+            dependencies = [f"tool_{tool_calls[i-1].get('tool', '')}_{i-1}"] if i > 0 else []
+            self.workflow_viz.add_step(
+                step_id,
+                f"Execute {tool_name}",
+                StepStatus.PENDING,
+                dependencies=dependencies
+            )
             
             tool = self.registry.get(tool_name)
             if not tool:
                 error_msg = f"Unknown tool: {tool_name}"
                 results.append(f"❌ {error_msg}")
+                
+                # Week 2 Integration: Mark step as failed
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
                 
                 # Phase 2.3: Track tool failure
                 self.conversation.add_tool_result(
@@ -652,6 +671,9 @@ Response: I don't have a tool to check the current time, but I can help you with
                     success=False, error=error_msg
                 )
                 continue
+            
+            # Week 2 Integration: Start executing step
+            self.workflow_viz.update_step_status(step_id, StepStatus.RUNNING)
             
             # TUI: Show status badge for operation
             args_str = ', '.join(f'{k}={v}' for k, v in args.items() if len(str(v)) < 50)
@@ -662,6 +684,11 @@ Response: I don't have a tool to check the current time, but I can help you with
             if tool_name in ['getcontext', 'savesession']:
                 args['session_context'] = self.context
             
+            # Week 2 Integration: Pass console and preview settings to file tools
+            if tool_name in ['write_file', 'edit_file']:
+                args['console'] = self.console
+                args['preview'] = getattr(self.context, 'preview_enabled', True)
+            
             # Execute tool with Phase 3.1: Error recovery loop
             result = await self._execute_with_recovery(
                 tool, tool_name, args, turn
@@ -670,7 +697,15 @@ Response: I don't have a tool to check the current time, but I can help you with
             if not result:
                 # Recovery failed completely
                 results.append(f"❌ {tool_name} failed after recovery attempts")
+                # Week 2 Integration: Mark as failed
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
                 continue
+            
+            # Week 2 Integration: Mark step completion based on result
+            if result.success:
+                self.workflow_viz.update_step_status(step_id, StepStatus.COMPLETED)
+            else:
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
             
             # Format result
             if result.success:
@@ -796,6 +831,15 @@ Response: I don't have a tool to check the current time, but I can help you with
             else:
                 results.append(f"❌ {result.error}")
         
+        # Week 2 Integration: Complete workflow and show visualization
+        if len(tool_calls) > 1:
+            self.workflow_viz.complete_workflow()
+            # Show workflow visualization if any step failed
+            if any(step.status == StepStatus.FAILED for step in self.workflow_viz.current_workflow.steps):
+                viz = self.workflow_viz.render_workflow()
+                self.console.print("\n")
+                self.console.print(viz)
+        
         return "\n".join(results)
     
     async def _handle_system_command(self, cmd: str) -> tuple[bool, Optional[str]]:
@@ -817,6 +861,10 @@ Response: I don't have a tool to check the current time, but I can help you with
   /metrics    - Show constitutional metrics
   /cache      - Show cache statistics
   /tokens     - Show token usage & budget 💰
+  /workflow   - Show workflow visualization 🔄
+  /dash       - Show operations dashboard 📊
+  /preview    - Enable file preview (default) 👁️
+  /nopreview  - Disable file preview ⚡
 
 [bold]History & Analytics:[/bold] 🆕
   /history    - Show command history
@@ -1021,6 +1069,16 @@ Tool calls: {len(self.context.tool_calls)}
             dashboard_view = self.dashboard.render_dashboard()
             self.console.print(dashboard_view)
             return False, None
+        
+        elif cmd == "/preview":
+            # Week 2 Integration: Enable preview
+            self.context.preview_enabled = True
+            return False, "[green]✓ Preview enabled for file operations[/green]"
+        
+        elif cmd == "/nopreview":
+            # Week 2 Integration: Disable preview
+            self.context.preview_enabled = False
+            return False, "[yellow]⚠ Preview disabled. Files will be written directly.[/yellow]"
         
         elif cmd == "/tokens":
             # Token Tracking (Integration Sprint Week 1: Day 1 - Task 1.2)
@@ -1296,7 +1354,7 @@ Tool calls: {len(self.context.tool_calls)}
                     try:
                         # Start workflow visualization (Task 1.4)
                         self.workflow_viz.start_workflow("Process User Request")
-                        self.workflow_viz.add_step("parse_input", "Parsing user input", StepStatus.IN_PROGRESS)
+                        self.workflow_viz.add_step("parse_input", "Parsing user input", StepStatus.RUNNING)
                         
                         await self._process_request_with_llm(user_input, suggestion_engine)
                         
@@ -1406,7 +1464,7 @@ Tool calls: {len(self.context.tool_calls)}
         
         # Step 1/3: Analyze request (Cursor: multi-step breakdown)
         self.state_transition.transition_to("thinking")
-        self.workflow_viz.add_step("analyze", "Analyzing request", StepStatus.IN_PROGRESS)
+        self.workflow_viz.add_step("analyze", "Analyzing request", StepStatus.RUNNING)
         
         # Track operation in dashboard (Task 1.6)
         op_id = f"llm_{int(time.time() * 1000)}"
@@ -1446,7 +1504,7 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print()
         
         # P1: Danger detection with visual warnings
-        self.workflow_viz.add_step("safety", "Safety check", StepStatus.IN_PROGRESS)
+        self.workflow_viz.add_step("safety", "Safety check", StepStatus.RUNNING)
         danger_warning = danger_detector.analyze(suggestion)
         
         if danger_warning:
@@ -1498,7 +1556,7 @@ Tool calls: {len(self.context.tool_calls)}
         # [EXECUTING] Run command
         self.state_transition.transition_to("executing")
         self.workflow_viz.update_step_status("safety", StepStatus.COMPLETED)
-        self.workflow_viz.add_step("execute", "Executing command", StepStatus.IN_PROGRESS)
+        self.workflow_viz.add_step("execute", "Executing command", StepStatus.RUNNING)
         
         # Animated status message (Task 1.5)
         text = Text("[EXECUTING] Running command...", style="cyan")
