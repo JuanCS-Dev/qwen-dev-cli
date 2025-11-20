@@ -7,6 +7,7 @@ from rich.console import Console
 
 from .schema import QwenConfig
 from .defaults import get_default_config
+from .validator import ConfigValidator
 
 
 console = Console()
@@ -60,6 +61,26 @@ class ConfigLoader:
                 if data:
                     self.config = QwenConfig.from_dict(data)
                     self.config_file = config_file
+                    
+                    # Validate configuration
+                    is_valid, errors, warnings = ConfigValidator.validate_config(
+                        self.config, self.cwd
+                    )
+                    
+                    if not is_valid:
+                        console.print(f"[red]✗ Security issues in config:[/red]")
+                        for error in errors:
+                            console.print(f"  [red]•[/red] {error}")
+                    
+                    if warnings:
+                        for warning in warnings:
+                            console.print(f"[yellow]⚠[/yellow]  {warning}")
+                    
+                    # Always sanitize if there are any issues
+                    if not is_valid or warnings:
+                        console.print("[yellow]Sanitizing config...[/yellow]")
+                        self.config = ConfigValidator.sanitize_config(self.config, self.cwd)
+                    
                     console.print(f"[dim]Config loaded from:[/dim] {config_file.name}")
             except yaml.YAMLError as e:
                 console.print(f"[yellow]Warning: Invalid YAML in {config_file}:[/yellow] {e}")
