@@ -93,7 +93,7 @@ def divide_numbers(a, b):
         # Simulate project context
         context_mgr.add_file(str(Path(__file__)))
         
-        context = context_mgr.build()
+        context = context_mgr.build_context()
         prompt = f"{context}\n\nWhat testing framework is being used?"
         
         response = await llm.generate(prompt, max_tokens=100)
@@ -211,12 +211,12 @@ class TestContextManagerRealUsage:
         context_mgr.add_file(str(file1))
         context_mgr.add_file(str(file2))
         
-        context = context_mgr.build()
+        context = context_mgr.build_context()
         
-        assert "main.py" in context
-        assert "utils.py" in context
-        assert "def main()" in context
-        assert "def helper()" in context
+        assert "main.py" in str(context)
+        assert "utils.py" in str(context)
+        assert "def main()" in str(context)
+        assert "def helper()" in str(context)
     
     def test_context_size_management(self, context_mgr, tmp_path):
         """Real scenario: Context doesn't exceed limits."""
@@ -226,10 +226,10 @@ class TestContextManagerRealUsage:
             f.write_text(f"def func{i}(): pass\n" * 100)
             context_mgr.add_file(str(f))
         
-        context = context_mgr.get_context_for_prompt()
+        context = context_mgr.get_context()
         
         # Should be limited to reasonable size
-        assert len(context) < 100000, "Context should be bounded"
+        assert len(str(context)) < 100000, "Context should be bounded"
     
     def test_clear_context(self, context_mgr, tmp_path):
         """Real scenario: User starts fresh conversation."""
@@ -237,10 +237,12 @@ class TestContextManagerRealUsage:
         file1.write_text("test content")
         
         context_mgr.add_file(str(file1))
-        assert len(context_mgr.build()) > 0
+        ctx = context_mgr.build_context()
+        assert ctx['file_count'] > 0
         
         context_mgr.files.clear()
-        assert len(context_mgr.build()) == 0
+        ctx_empty = context_mgr.build_context()
+        assert ctx_empty['file_count'] == 0
 
 
 class TestErrorHandlingRealWorld:

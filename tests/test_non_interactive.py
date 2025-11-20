@@ -139,7 +139,7 @@ class TestCLINonInteractive:
         
         assert result.exit_code == 0
         assert "chat" in result.output.lower()
-        assert "--message" in result.output or "-m" in result.output
+        assert "--message" in result.output
     
     def test_chat_without_message_requires_shell(self):
         """Test chat without -m tries to start shell."""

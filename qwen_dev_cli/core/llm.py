@@ -201,13 +201,19 @@ class LLMClient:
         timeout: float = 30.0,
         enable_circuit_breaker: bool = True,
         enable_rate_limiting: bool = True,
-        enable_telemetry: bool = True
+        enable_telemetry: bool = True,
+        token_callback: Optional[Any] = None
     ):
-        """Initialize resilient LLM client."""
+        """Initialize resilient LLM client.
+        
+        Args:
+            token_callback: Optional callback(input_tokens, output_tokens) for tracking
+        """
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
         self.timeout = timeout
+        self.token_callback = token_callback
         
         # Resilience components
         self.circuit_breaker = CircuitBreaker() if enable_circuit_breaker else None
@@ -266,6 +272,10 @@ class LLMClient:
         enable_failover: bool = True
     ) -> AsyncGenerator[str, None]:
         """Stream chat completion with full resilience."""
+        # Validate prompt
+        if not prompt or not prompt.strip():
+            raise ValueError("Prompt cannot be empty")
+        
         max_tokens = max_tokens or config.max_tokens
         temperature = temperature or config.temperature
         provider = provider or self.default_provider
@@ -396,6 +406,15 @@ class LLMClient:
                     self.circuit_breaker.record_success()
                 if self.rate_limiter:
                     self.rate_limiter.record_request(tokens=chunks_received)
+                
+                # Callback for token tracking (NEW!)
+                if self.token_callback:
+                    try:
+                        # Estimate input tokens (rough: 1 token = 4 chars)
+                        input_estimate = sum(len(m.get('content', '')) for m in messages) // 4
+                        self.token_callback(input_estimate, chunks_received)
+                    except Exception as e:
+                        logger.warning(f"Token callback failed: {e}")
                 
                 if attempt > 0:
                     logger.info(f"✅ Streaming succeeded after {attempt} retries")
