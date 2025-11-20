@@ -43,7 +43,7 @@ class SessionManager:
         )
     
     def save_session(self, state: SessionState) -> Path:
-        """Save session state to disk.
+        """Save session state to disk with atomic write protection.
         
         Args:
             state: SessionState to save
@@ -52,15 +52,24 @@ class SessionManager:
             Path to saved session file
         """
         session_file = self.session_dir / f"{state.session_id}.json"
+        temp_file = self.session_dir / f"{state.session_id}.json.tmp"
         
         try:
-            with open(session_file, 'w') as f:
+            # Atomic write pattern: write to temp, then replace
+            with open(temp_file, 'w') as f:
                 json.dump(state.to_dict(), f, indent=2)
+            
+            # Atomic replace (safe on all platforms)
+            import os
+            os.replace(temp_file, session_file)
             
             console.print(f"[dim]Session saved:[/dim] {state.session_id}")
             return session_file
             
         except Exception as e:
+            # Cleanup temp file on error
+            if temp_file.exists():
+                temp_file.unlink()
             console.print(f"[red]Failed to save session:[/red] {e}")
             raise
     

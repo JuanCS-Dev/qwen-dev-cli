@@ -79,6 +79,21 @@ from .tui.history import CommandHistory, HistoryEntry, SessionReplay
 from .tui.components.workflow_visualizer import WorkflowVisualizer, StepStatus
 from .tui.components.execution_timeline import ExecutionTimeline
 
+# Phase 4: Command Palette (Integration Sprint Week 1)
+from .tui.components.palette import (
+    create_default_palette, CommandPalette, Command, CommandCategory,
+    CATEGORY_CONFIG
+)
+
+# Phase 5: Animations (Integration Sprint Week 1: Day 3)
+from .tui.animations import Animator, AnimationConfig, StateTransition
+
+# Phase 6: Dashboard (Integration Sprint Week 1: Day 3)
+from .tui.components.dashboard import Dashboard, Operation, OperationStatus
+
+# Phase 7: Token Tracking (Boris Cherny Foundation)
+from .core.token_tracker import TokenTracker
+
 
 class SessionContext:
     """Persistent context across shell session."""
@@ -90,6 +105,8 @@ class SessionContext:
         self.read_files = set()
         self.tool_calls = []
         self.history = []
+        # Week 2 Integration: Preview settings
+        self.preview_enabled = True
     
     def track_tool_call(self, tool_name: str, args: Dict[str, Any], result: Any):
         """Track tool usage."""
@@ -176,6 +193,29 @@ class InteractiveShell:
         self.workflow_viz = WorkflowVisualizer(console=self.console)
         self.execution_timeline = ExecutionTimeline(console=self.console)
         
+        # Command Palette (Integration Sprint Week 1: Day 1)
+        self.palette = create_default_palette()
+        self._register_palette_commands()
+        
+        # Token Tracking (Integration Sprint Week 1: Day 1 - Task 1.2 - ACTIVATED)
+        self.token_tracker = TokenTracker(
+            budget=1000000,  # 1M tokens budget
+            cost_per_1k=0.002  # Gemini Pro pricing ($0.002 per 1k tokens)
+        )
+        
+        from .tui.components.context_awareness import ContextAwarenessEngine
+        self.context_engine = ContextAwarenessEngine(
+            max_context_tokens=100_000,  # 100k token window
+            console=self.console
+        )
+        
+        # Animations (Integration Sprint Week 1: Day 3 - Task 1.5)
+        self.animator = Animator(AnimationConfig(duration=0.3, easing="ease-out"))
+        self.state_transition = StateTransition("idle")
+        
+        # Dashboard (Integration Sprint Week 1: Day 3 - Task 1.6)
+        self.dashboard = Dashboard(console=self.console, max_history=5)
+        
         # Legacy session (fallback)
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
@@ -253,6 +293,96 @@ class InteractiveShell:
             self.registry.register(tool)
         
         self.console.print(f"[dim]Loaded {len(tools)} tools[/dim]")
+    
+    def _register_palette_commands(self):
+        """Register commands in command palette (Ctrl+K)."""
+        # File operations
+        self.palette.add_command(Command(
+            id="file.read",
+            title="Read File",
+            description="Read and display file contents",
+            category=CommandCategory.FILE,
+            keywords=["open", "cat", "view", "show"],
+            keybinding=None,
+            action=lambda: self._palette_read_file()
+        ))
+        
+        self.palette.add_command(Command(
+            id="file.write",
+            title="Write File",
+            description="Create or overwrite a file",
+            category=CommandCategory.FILE,
+            keywords=["create", "save", "new"],
+            action=lambda: self._palette_write_file()
+        ))
+        
+        self.palette.add_command(Command(
+            id="file.edit",
+            title="Edit File",
+            description="Edit file with AI assistance",
+            category=CommandCategory.EDIT,
+            keywords=["modify", "change", "update", "fix"],
+            action=lambda: self._palette_edit_file()
+        ))
+        
+        # Git operations
+        self.palette.add_command(Command(
+            id="git.status",
+            title="Git Status",
+            description="Show git repository status",
+            category=CommandCategory.GIT,
+            keywords=["git", "status", "changes", "diff"],
+            action=lambda: self._palette_git_status()
+        ))
+        
+        self.palette.add_command(Command(
+            id="git.diff",
+            title="Git Diff",
+            description="Show git diff",
+            category=CommandCategory.GIT,
+            keywords=["git", "diff", "changes"],
+            action=lambda: self._palette_git_diff()
+        ))
+        
+        # Search operations
+        self.palette.add_command(Command(
+            id="search.files",
+            title="Search Files",
+            description="Search for text in files",
+            category=CommandCategory.SEARCH,
+            keywords=["find", "grep", "search", "locate"],
+            action=lambda: self._palette_search_files()
+        ))
+        
+        # Help & System
+        self.palette.add_command(Command(
+            id="help.main",
+            title="Help",
+            description="Show main help",
+            category=CommandCategory.HELP,
+            keywords=["help", "docs", "guide"],
+            keybinding="?",
+            action=lambda: help_system.show_main_help()
+        ))
+        
+        self.palette.add_command(Command(
+            id="system.clear",
+            title="Clear Screen",
+            description="Clear the terminal screen",
+            category=CommandCategory.SYSTEM,
+            keywords=["clear", "cls", "clean"],
+            action=lambda: os.system('clear')
+        ))
+        
+        # Tools commands
+        self.palette.add_command(Command(
+            id="tools.list",
+            title="List Available Tools",
+            description="Show all registered tools",
+            category=CommandCategory.TOOLS,
+            keywords=["tools", "list", "available"],
+            action=lambda: self._palette_list_tools()
+        ))
     
     def _show_welcome(self):
         """Show welcome message with TUI styling."""
@@ -509,14 +639,31 @@ Response: I don't have a tool to check the current time, but I can help you with
         """Execute a sequence of tool calls with conversation tracking (Phase 2.3)."""
         results = []
         
-        for call in tool_calls:
+        # Week 2 Integration: Initialize workflow for tool execution
+        if len(tool_calls) > 1:
+            self.workflow_viz.start_workflow(f"Execute {len(tool_calls)} tools")
+        
+        for i, call in enumerate(tool_calls):
             tool_name = call.get("tool", "")
             args = call.get("args", {})
+            
+            # Week 2 Integration: Add workflow step for this tool
+            step_id = f"tool_{tool_name}_{i}"
+            dependencies = [f"tool_{tool_calls[i-1].get('tool', '')}_{i-1}"] if i > 0 else []
+            self.workflow_viz.add_step(
+                step_id,
+                f"Execute {tool_name}",
+                StepStatus.PENDING,
+                dependencies=dependencies
+            )
             
             tool = self.registry.get(tool_name)
             if not tool:
                 error_msg = f"Unknown tool: {tool_name}"
                 results.append(f"❌ {error_msg}")
+                
+                # Week 2 Integration: Mark step as failed
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
                 
                 # Phase 2.3: Track tool failure
                 self.conversation.add_tool_result(
@@ -524,6 +671,19 @@ Response: I don't have a tool to check the current time, but I can help you with
                     success=False, error=error_msg
                 )
                 continue
+            
+            # Week 2 Integration: Start executing step
+            self.workflow_viz.update_step_status(step_id, StepStatus.RUNNING)
+            
+            # Week 2 Day 2: Add operation to dashboard
+            op_id = f"{tool_name}_{i}_{int(time.time() * 1000)}"
+            operation = Operation(
+                id=op_id,
+                type=tool_name,
+                description=f"{tool_name}({', '.join(f'{k}={v}' for k, v in list(args.items())[:2])})",
+                status=OperationStatus.RUNNING
+            )
+            self.dashboard.add_operation(operation)
             
             # TUI: Show status badge for operation
             args_str = ', '.join(f'{k}={v}' for k, v in args.items() if len(str(v)) < 50)
@@ -534,6 +694,11 @@ Response: I don't have a tool to check the current time, but I can help you with
             if tool_name in ['getcontext', 'savesession']:
                 args['session_context'] = self.context
             
+            # Week 2 Integration: Pass console and preview settings to file tools
+            if tool_name in ['write_file', 'edit_file']:
+                args['console'] = self.console
+                args['preview'] = getattr(self.context, 'preview_enabled', True)
+            
             # Execute tool with Phase 3.1: Error recovery loop
             result = await self._execute_with_recovery(
                 tool, tool_name, args, turn
@@ -542,7 +707,26 @@ Response: I don't have a tool to check the current time, but I can help you with
             if not result:
                 # Recovery failed completely
                 results.append(f"❌ {tool_name} failed after recovery attempts")
+                # Week 2 Integration: Mark as failed
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
+                # Week 2 Day 2: Update dashboard
+                self.dashboard.complete_operation(op_id, OperationStatus.ERROR)
                 continue
+            
+            # Week 2 Integration: Mark step completion based on result
+            if result.success:
+                self.workflow_viz.update_step_status(step_id, StepStatus.COMPLETED)
+                # Week 2 Day 2: Update dashboard with success
+                self.dashboard.complete_operation(
+                    op_id,
+                    OperationStatus.SUCCESS,
+                    tokens_used=result.metadata.get('tokens', 0),
+                    cost=result.metadata.get('cost', 0.0)
+                )
+            else:
+                self.workflow_viz.update_step_status(step_id, StepStatus.FAILED)
+                # Week 2 Day 2: Update dashboard with error
+                self.dashboard.complete_operation(op_id, OperationStatus.ERROR)
             
             # Format result
             if result.success:
@@ -668,6 +852,15 @@ Response: I don't have a tool to check the current time, but I can help you with
             else:
                 results.append(f"❌ {result.error}")
         
+        # Week 2 Integration: Complete workflow and show visualization
+        if len(tool_calls) > 1:
+            self.workflow_viz.complete_workflow()
+            # Show workflow visualization if any step failed
+            if any(step.status == StepStatus.FAILED for step in self.workflow_viz.current_workflow.steps):
+                viz = self.workflow_viz.render_workflow()
+                self.console.print("\n")
+                self.console.print(viz)
+        
         return "\n".join(results)
     
     async def _handle_system_command(self, cmd: str) -> tuple[bool, Optional[str]]:
@@ -688,6 +881,11 @@ Response: I don't have a tool to check the current time, but I can help you with
   /clear      - Clear screen
   /metrics    - Show constitutional metrics
   /cache      - Show cache statistics
+  /tokens     - Show token usage & budget 💰
+  /workflow   - Show workflow visualization 🔄
+  /dash       - Show operations dashboard 📊
+  /preview    - Enable file preview (default) 👁️
+  /nopreview  - Disable file preview ⚡
 
 [bold]History & Analytics:[/bold] 🆕
   /history    - Show command history
@@ -878,6 +1076,61 @@ Tool calls: {len(self.context.tool_calls)}
             
             return False, None
         
+        elif cmd == "/workflow":
+            # Workflow Visualizer (Task 1.4)
+            if self.workflow_viz.current_workflow:
+                viz = self.workflow_viz.render_workflow()
+                self.console.print(viz)
+            else:
+                self.console.print("[dim]No active workflow. Execute a command to see workflow.[/dim]")
+            return False, None
+        
+        elif cmd == "/dash" or cmd == "/dashboard":
+            # Dashboard (Week 2 Day 2: Auto-updating dashboard)
+            dashboard_view = self.dashboard.render()
+            self.console.print(dashboard_view)
+            return False, None
+        
+        elif cmd == "/preview":
+            # Week 2 Integration: Enable preview
+            self.context.preview_enabled = True
+            return False, "[green]✓ Preview enabled for file operations[/green]"
+        
+        elif cmd == "/nopreview":
+            # Week 2 Integration: Disable preview
+            self.context.preview_enabled = False
+            return False, "[yellow]⚠ Preview disabled. Files will be written directly.[/yellow]"
+        
+        elif cmd == "/tokens":
+            # Token Tracking (Integration Sprint Week 1: Day 1 - Task 1.2)
+            # Show detailed token usage
+            token_panel = self.context_engine.render_token_usage_realtime()
+            self.console.print(token_panel)
+            
+            # Show token usage history
+            if self.context_engine.window.usage_history:
+                history_table = Table(title="Token Usage History (Last 10 Interactions)")
+                history_table.add_column("Time", style="cyan", width=10)
+                history_table.add_column("Input", justify="right", width=10)
+                history_table.add_column("Output", justify="right", width=10)
+                history_table.add_column("Total", justify="right", width=10)
+                history_table.add_column("Cost", justify="right", width=10)
+                
+                for snapshot in list(self.context_engine.window.usage_history)[-10:]:
+                    history_table.add_row(
+                        snapshot.timestamp.strftime("%H:%M:%S"),
+                        f"{snapshot.input_tokens:,}",
+                        f"{snapshot.output_tokens:,}",
+                        f"{snapshot.total_tokens:,}",
+                        f"${snapshot.cost_estimate_usd:.4f}"
+                    )
+                
+                self.console.print(history_table)
+            else:
+                self.console.print("\n[dim]No token usage history yet. Start a conversation to track tokens.[/dim]")
+            
+            return False, None
+        
         else:
             return False, f"Unknown command: {cmd}"
     
@@ -944,6 +1197,94 @@ Tool calls: {len(self.context.tool_calls)}
         
         self.console.print(f"\n{explanation.format()}\n")
     
+    # Command Palette Helper Methods (Integration Sprint Week 1)
+    
+    async def _palette_read_file(self):
+        """Read file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            await self._process_request_with_llm(f"read {file_path}", None)
+    
+    async def _palette_write_file(self):
+        """Write file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            content = await self.enhanced_input.prompt_async("Content: ")
+            if content:
+                await self._process_request_with_llm(f"write {file_path} with: {content}", None)
+    
+    async def _palette_edit_file(self):
+        """Edit file action from palette."""
+        file_path = await self.enhanced_input.prompt_async("File path: ")
+        if file_path:
+            instruction = await self.enhanced_input.prompt_async("Edit instruction: ")
+            if instruction:
+                await self._process_request_with_llm(f"edit {file_path}: {instruction}", None)
+    
+    async def _palette_git_status(self):
+        """Git status action from palette."""
+        tool = self.registry.get("git_status")
+        result = await tool.execute()
+        self.console.print(result.data.get("output", ""))
+    
+    async def _palette_git_diff(self):
+        """Git diff action from palette."""
+        tool = self.registry.get("git_diff")
+        result = await tool.execute()
+        self.console.print(result.data.get("output", ""))
+    
+    async def _palette_search_files(self):
+        """Search files action from palette."""
+        pattern = await self.enhanced_input.prompt_async("Search pattern: ")
+        if pattern:
+            await self._process_request_with_llm(f"search for {pattern}", None)
+    
+    def _palette_list_tools(self):
+        """List tools action from palette."""
+        tools = self.registry.list_tools()
+        table = Table(title="Available Tools")
+        table.add_column("Tool", style="cyan")
+        table.add_column("Description", style="white")
+        
+        for tool_name in tools:
+            tool = self.registry.get(tool_name)
+            table.add_row(tool_name, tool.description if hasattr(tool, 'description') else "")
+        
+        self.console.print(table)
+    
+    async def _show_palette_interactive(self) -> Optional[Command]:
+        """Show interactive palette and return selected command."""
+        # Show search prompt
+        query = await self.enhanced_input.prompt_async("[cyan]Command Palette >[/cyan] ")
+        
+        if not query or not query.strip():
+            return None
+        
+        # Fuzzy search
+        results = self.palette.search(query, limit=10)
+        
+        if not results:
+            self.console.print("[yellow]No commands found[/yellow]")
+            return None
+        
+        # Display results
+        self.console.print("\n[cyan]Results:[/cyan]")
+        for i, cmd in enumerate(results, 1):
+            category_icon = CATEGORY_CONFIG.get(cmd.category, {}).get('icon', '📄')
+            self.console.print(f"  {i}. {category_icon} {cmd.title} - [dim]{cmd.description}[/dim]")
+        
+        # Get selection
+        try:
+            selection = await self.enhanced_input.prompt_async("\nSelect (1-10) or Enter to cancel: ")
+            if selection and selection.isdigit():
+                idx = int(selection) - 1
+                if 0 <= idx < len(results):
+                    return results[idx]
+        except (ValueError, IndexError):
+            pass
+        
+        return None
+    
     async def run(self):
         """Interactive REPL with Cursor+Claude+Gemini best practices."""
         self._show_welcome()
@@ -968,6 +1309,25 @@ Tool calls: {len(self.context.tool_calls)}
                     # [IDLE] Get user input (DAY 8: Enhanced input)
                     start_time = time.time()
                     user_input = await self.enhanced_input.prompt_async()
+                    
+                    # Handle Command Palette (Ctrl+K) - Integration Sprint Week 1
+                    if user_input == "__PALETTE__":
+                        self.console.print("\n[cyan]✨ Command Palette[/cyan]\n")
+                        
+                        # Show palette interactively
+                        selected = await self._show_palette_interactive()
+                        
+                        if selected:
+                            try:
+                                self.console.print(f"\n[dim]Executing: {selected.title}[/dim]\n")
+                                # Execute command action
+                                result = selected.action()
+                                if asyncio.iscoroutine(result):
+                                    await result
+                            except Exception as e:
+                                self.console.print(f"[red]Error executing command: {e}[/red]")
+                        
+                        continue
                     
                     # Handle empty input or Ctrl+D
                     if user_input is None or not user_input.strip():
@@ -1013,7 +1373,37 @@ Tool calls: {len(self.context.tool_calls)}
                     # [THINKING] Process request with LLM
                     success = True
                     try:
+                        # Start workflow visualization (Task 1.4)
+                        self.workflow_viz.start_workflow("Process User Request")
+                        self.workflow_viz.add_step("parse_input", "Parsing user input", StepStatus.RUNNING)
+                        
                         await self._process_request_with_llm(user_input, suggestion_engine)
+                        
+                        # Complete workflow
+                        self.workflow_viz.update_step_status("parse_input", StepStatus.COMPLETED)
+                        self.workflow_viz.complete_workflow()
+                        
+                        # Show token usage after LLM response (Integration Sprint Week 1: Task 1.2)
+                        if self.context_engine.window.current_output_tokens > 0:
+                            token_panel = self.context_engine.render_token_usage_realtime()
+                            self.console.print(token_panel)
+                            
+                            # Warning if approaching limit
+                            usage_percent = (self.context_engine.window.total_tokens / 
+                                           self.context_engine.max_context_tokens * 100)
+                            
+                            if usage_percent >= 90:
+                                self.console.print(
+                                    "\n[bold red]⚠️  WARNING: Context window >90% full![/bold red]"
+                                )
+                                self.console.print(
+                                    "[yellow]Consider using /clear to reset context[/yellow]\n"
+                                )
+                            elif usage_percent >= 80:
+                                self.console.print(
+                                    "\n[yellow]⚠️  Context window >80% full[/yellow]\n"
+                                )
+                    
                     except Exception as proc_error:
                         success = False
                         raise proc_error
@@ -1094,13 +1484,31 @@ Tool calls: {len(self.context.tool_calls)}
         )
         
         # Step 1/3: Analyze request (Cursor: multi-step breakdown)
-        self.console.print("[cyan][THINKING][/cyan] Step 1/3: Analyzing request...")
+        self.state_transition.transition_to("thinking")
+        self.workflow_viz.add_step("analyze", "Analyzing request", StepStatus.RUNNING)
+        
+        # Track operation in dashboard (Task 1.6)
+        op_id = f"llm_{int(time.time() * 1000)}"
+        operation = Operation(
+            id=op_id,
+            type="llm",
+            description=f"Process: {user_input[:40]}...",
+            status=OperationStatus.RUNNING
+        )
+        self.dashboard.add_operation(operation)
+        
+        # Animated status message (Task 1.5)
+        from rich.text import Text
+        text = Text("[THINKING] Step 1/3: Analyzing request...", style="cyan")
+        self.console.print(text)
         start_time = time.time()
         
         # Get LLM suggestion
         try:
             suggestion = await self._get_command_suggestion(user_input, rich_ctx)
+            self.workflow_viz.update_step_status("analyze", StepStatus.COMPLETED)
         except Exception as e:
+            self.workflow_viz.update_step_status("analyze", StepStatus.FAILED)
             self.console.print(f"[red]❌ LLM failed: {e}[/red]")
             self.console.print("[yellow]💡 Tip: Check your API key (HF_TOKEN)[/yellow]")
             return
@@ -1117,9 +1525,11 @@ Tool calls: {len(self.context.tool_calls)}
         self.console.print()
         
         # P1: Danger detection with visual warnings
+        self.workflow_viz.add_step("safety", "Safety check", StepStatus.RUNNING)
         danger_warning = danger_detector.analyze(suggestion)
         
         if danger_warning:
+            self.workflow_viz.update_step_status("safety", StepStatus.WARNING)
             # Show rich visual warning
             warning_panel = danger_detector.get_visual_warning(danger_warning)
             self.console.print(warning_panel)
@@ -1165,7 +1575,13 @@ Tool calls: {len(self.context.tool_calls)}
                     return
         
         # [EXECUTING] Run command
-        self.console.print("[cyan][EXECUTING][/cyan] Running command...")
+        self.state_transition.transition_to("executing")
+        self.workflow_viz.update_step_status("safety", StepStatus.COMPLETED)
+        self.workflow_viz.add_step("execute", "Executing command", StepStatus.RUNNING)
+        
+        # Animated status message (Task 1.5)
+        text = Text("[EXECUTING] Running command...", style="cyan")
+        self.console.print(text)
         self.console.print()
         
         try:
@@ -1173,7 +1589,15 @@ Tool calls: {len(self.context.tool_calls)}
             
             # Show result
             if result.get('success'):
-                self.console.print("[green]✓ Success[/green]")
+                self.state_transition.transition_to("success")
+                self.workflow_viz.update_step_status("execute", StepStatus.COMPLETED)
+                
+                # Complete dashboard operation (Task 1.6)
+                self.dashboard.complete_operation(op_id, OperationStatus.SUCCESS, tokens_used=0, cost=0.0)
+                
+                # Animated success message (Task 1.5)
+                text = Text("✓ Success", style="green bold")
+                self.console.print(text)
                 if result.get('output'):
                     self.console.print(result['output'])
                 
@@ -1182,7 +1606,15 @@ Tool calls: {len(self.context.tool_calls)}
                 self.session_state.add_message("assistant", response)
                 self.session_state.increment_tool_calls()
             else:
-                self.console.print("[red]❌ Failed[/red]")
+                self.state_transition.transition_to("error")
+                self.workflow_viz.update_step_status("execute", StepStatus.FAILED)
+                
+                # Complete dashboard operation as error (Task 1.6)
+                self.dashboard.complete_operation(op_id, OperationStatus.ERROR)
+                
+                # Animated error message (Task 1.5)
+                text = Text("❌ Failed", style="red bold")
+                self.console.print(text)
                 
                 # P1: Intelligent error parsing
                 if result.get('error'):

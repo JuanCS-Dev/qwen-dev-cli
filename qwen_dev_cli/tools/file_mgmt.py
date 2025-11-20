@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class MoveFileTool(Tool):
+class MoveFileTool(ValidatedTool):
     """Move or rename file."""
     
     def __init__(self):
@@ -31,8 +33,12 @@ class MoveFileTool(Tool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, source: str, destination: str, overwrite: bool = False) -> ToolResult:
+    async def _execute_validated(self, source: str, destination: str, overwrite: bool = False) -> ToolResult:
         """Move/rename file."""
         try:
             src = Path(source)
@@ -55,7 +61,7 @@ class MoveFileTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class CopyFileTool(Tool):
+class CopyFileTool(ValidatedTool):
     """Copy file to new location."""
     
     def __init__(self):
@@ -74,8 +80,12 @@ class CopyFileTool(Tool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, source: str, destination: str) -> ToolResult:
+    async def _execute_validated(self, source: str, destination: str) -> ToolResult:
         """Copy file."""
         try:
             src = Path(source)
@@ -98,7 +108,7 @@ class CopyFileTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class CreateDirectoryTool(Tool):
+class CreateDirectoryTool(ValidatedTool):
     """Create new directory."""
     
     def __init__(self):
@@ -117,8 +127,12 @@ class CreateDirectoryTool(Tool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, path: str, recursive: bool = True) -> ToolResult:
+    async def _execute_validated(self, path: str, recursive: bool = True) -> ToolResult:
         """Create directory."""
         try:
             dir_path = Path(path)
@@ -137,7 +151,7 @@ class CreateDirectoryTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class ReadMultipleFilesTool(Tool):
+class ReadMultipleFilesTool(ValidatedTool):
     """Read multiple files at once."""
     
     def __init__(self):
@@ -156,8 +170,12 @@ class ReadMultipleFilesTool(Tool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, paths: list[str], max_files: int = 10) -> ToolResult:
+    async def _execute_validated(self, paths: list[str], max_files: int = 10) -> ToolResult:
         """Read multiple files."""
         try:
             if len(paths) > max_files:
@@ -200,7 +218,7 @@ class ReadMultipleFilesTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class InsertLinesTool(Tool):
+class InsertLinesTool(ValidatedTool):
     """Insert lines at specific position in file."""
     
     def __init__(self):
@@ -224,8 +242,12 @@ class InsertLinesTool(Tool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, path: str, line_number: int, content: str) -> ToolResult:
+    async def _execute_validated(self, path: str, line_number: int, content: str) -> ToolResult:
         """Insert lines at position."""
         try:
             file_path = Path(path)

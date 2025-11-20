@@ -330,7 +330,7 @@ app.add_typer(sessions_app, name="sessions")
 
 @sessions_app.command("list")
 def list_sessions(
-    limit: int = typer.Option(10, "--limit", "-n", help="Number of sessions to show"),
+    limit: int = typer.Option(10, "--limit", help="Number of sessions to show"),
     all_sessions: bool = typer.Option(False, "--all", "-a", help="Show all sessions"),
     cwd_filter: Optional[str] = typer.Option(None, "--cwd", help="Filter by working directory (substring)"),
     min_messages: Optional[int] = typer.Option(None, "--min-messages", help="Minimum number of messages"),
@@ -508,7 +508,7 @@ def delete_session(
 
 @sessions_app.command("cleanup")
 def cleanup_sessions(
-    days: int = typer.Option(30, "--days", "-d", help="Delete sessions older than N days"),
+    days: int = typer.Option(30, "--days", help="Delete sessions older than N days"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation"),
 ):
     """Clean up old sessions."""

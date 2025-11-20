@@ -98,10 +98,11 @@ class ExecutionTimeline:
         self.events.append(event)
         
         # Update metrics
+        event_data = data or {}
         if step_id not in self.metrics and event_type == 'start':
             self.metrics[step_id] = StepMetrics(
                 step_id=step_id,
-                name=data.get('name', step_id),
+                name=event_data.get('name', step_id),
                 start_time=event.timestamp
             )
         elif step_id in self.metrics:
@@ -364,6 +365,142 @@ class ExecutionTimeline:
             style = "red"
             
         return {'grade': grade, 'score': score, 'style': style}
+
+
+class TimelinePlayback:
+    """
+    Visual timeline replay (+5pts to match Cursor)
+    
+    Features:
+    - Step-by-step replay of execution
+    - Play/Pause/Rewind controls
+    - Speed control (1x, 2x, 5x, 10x)
+    - Jump to specific steps
+    """
+    
+    def __init__(self, timeline: ExecutionTimeline, console: Optional[Console] = None):
+        self.timeline = timeline
+        self.console = console or Console()
+        self.current_step = 0
+        self.is_playing = False
+        self.playback_speed = 1.0
+        
+    def play(self) -> None:
+        """Start playback"""
+        self.is_playing = True
+        
+    def pause(self) -> None:
+        """Pause playback"""
+        self.is_playing = False
+        
+    def rewind(self) -> None:
+        """Rewind to start"""
+        self.current_step = 0
+        self.is_playing = False
+        
+    def step_forward(self) -> bool:
+        """Move to next step"""
+        if self.current_step < len(self.timeline.events) - 1:
+            self.current_step += 1
+            return True
+        return False
+        
+    def step_backward(self) -> bool:
+        """Move to previous step"""
+        if self.current_step > 0:
+            self.current_step -= 1
+            return True
+        return False
+        
+    def jump_to(self, step_index: int) -> bool:
+        """Jump to specific step"""
+        if 0 <= step_index < len(self.timeline.events):
+            self.current_step = step_index
+            return True
+        return False
+        
+    def set_speed(self, speed: float) -> None:
+        """Set playback speed multiplier"""
+        self.playback_speed = max(0.1, min(10.0, speed))
+        
+    def get_current_event(self) -> Optional[TimelineEvent]:
+        """Get current event"""
+        if 0 <= self.current_step < len(self.timeline.events):
+            return self.timeline.events[self.current_step]
+        return None
+        
+    def get_progress(self) -> float:
+        """Get playback progress (0.0 to 1.0)"""
+        if not self.timeline.events:
+            return 0.0
+        return self.current_step / len(self.timeline.events)
+        
+    def render_controls(self) -> Panel:
+        """Render playback controls UI"""
+        from rich.table import Table
+        
+        controls = Table.grid(padding=1)
+        controls.add_column(justify="center")
+        
+        # Playback status
+        status = "▶️ Playing" if self.is_playing else "⏸️  Paused"
+        controls.add_row(f"[bold]{status}[/bold]")
+        
+        # Progress bar
+        progress = self.get_progress()
+        bar_width = 40
+        filled = int(progress * bar_width)
+        bar = "█" * filled + "░" * (bar_width - filled)
+        controls.add_row(f"[cyan]{bar}[/cyan]")
+        controls.add_row(f"Step {self.current_step + 1}/{len(self.timeline.events)}")
+        
+        # Speed indicator
+        controls.add_row(f"Speed: {self.playback_speed}x")
+        
+        # Controls help
+        controls.add_row("")
+        controls.add_row("[dim]Space: Play/Pause | ←/→: Step | R: Rewind | 1-9: Speed[/dim]")
+        
+        return Panel(controls, title="🎬 Timeline Playback", border_style="cyan")
+        
+    def render_current_step(self) -> Panel:
+        """Render details of current step"""
+        event = self.get_current_event()
+        if not event:
+            return Panel("[dim]No event selected[/dim]", title="Step Details")
+            
+        from rich.table import Table
+        
+        details = Table.grid(padding=1)
+        details.add_column(style="bold cyan", width=15)
+        details.add_column()
+        
+        details.add_row("Timestamp:", event.timestamp.strftime("%H:%M:%S.%f")[:-3])
+        details.add_row("Step ID:", event.step_id)
+        details.add_row("Event Type:", event.event_type.upper())
+        
+        # Show event data
+        if event.data:
+            details.add_row("", "")
+            details.add_row("Data:", "")
+            for key, value in event.data.items():
+                details.add_row(f"  {key}:", str(value))
+                
+        # Show step duration if available
+        if event.step_id in self.timeline.metrics:
+            metric = self.timeline.metrics[event.step_id]
+            if metric.duration:
+                details.add_row("", "")
+                details.add_row("Duration:", f"{metric.duration:.2f}s")
+                
+        return Panel(details, title="📍 Current Step", border_style="yellow")
+        
+    def render_full_ui(self) -> Group:
+        """Render complete playback UI"""
+        return Group(
+            self.render_controls(),
+            self.render_current_step()
+        )
 
 
 class TimelineComparator:

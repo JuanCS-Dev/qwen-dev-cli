@@ -50,7 +50,7 @@ class Tool(ABC):
         self.parameters: Dict[str, Any] = {}
     
     @abstractmethod
-    async def execute(self, **kwargs) -> ToolResult:
+    async def _execute_validated(self, **kwargs) -> ToolResult:
         """Execute the tool with given parameters.
         
         Args:

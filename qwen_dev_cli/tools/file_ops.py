@@ -3,17 +3,23 @@
 import os
 import shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 import logging
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from .preview_mixin import PreviewMixin
+from ..core.validation import Required, TypeCheck, PathExists
 
 logger = logging.getLogger(__name__)
 
 
-class ReadFileTool(Tool):
-    """Read complete contents of a file."""
+class ReadFileTool(ValidatedTool):
+    """Read complete contents of a file.
+    
+    Boris Cherny: Type-safe file reading with validation.
+    """
     
     def __init__(self):
         super().__init__()
@@ -32,7 +38,14 @@ class ReadFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, line_range: Optional[tuple] = None) -> ToolResult:
+    def get_validators(self) -> Dict[str, Any]:
+        """Validate input parameters."""
+        return {
+            'path': Required('path'),
+            'line_range': TypeCheck((list, tuple, type(None)), 'line_range')
+        }
+    
+    async def _execute_validated(self, path: str, line_range: Optional[tuple] = None, **kwargs) -> ToolResult:
         """Read file contents."""
         try:
             file_path = Path(path)
@@ -81,7 +94,7 @@ class ReadFileTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class WriteFileTool(Tool):
+class WriteFileTool(ValidatedTool):
     """Create new file with content."""
     
     def __init__(self, hook_executor=None, config_loader=None):
@@ -108,16 +121,40 @@ class WriteFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, content: str, create_dirs: bool = True) -> ToolResult:
+    def get_validators(self):
+        return {'path': Required('path'), 'content': Required('content')}
+    
+    async def _execute_validated(self, path: str, content: str, create_dirs: bool = True, 
+                     preview: bool = True, console=None) -> ToolResult:
         """Create file with content."""
         try:
             file_path = Path(path)
             
+            # Show preview if file exists (Integration Sprint Week 1: Task 1.3)
             if file_path.exists():
-                return ToolResult(
-                    success=False,
-                    error=f"File already exists: {path}. Use edit_file to modify."
-                )
+                if preview and console:
+                    from ..tui.components.preview import EditPreview
+                    
+                    original_content = file_path.read_text()
+                    preview_component = EditPreview()
+                    accepted = await preview_component.show_diff_interactive(
+                        original_content=original_content,
+                        proposed_content=content,
+                        file_path=str(file_path),
+                        console=console
+                    )
+                    
+                    if not accepted:
+                        return ToolResult(
+                            success=False,
+                            data={"path": str(path), "message": "Overwrite cancelled by user"},
+                            error="Overwrite cancelled by user"
+                        )
+                else:
+                    return ToolResult(
+                        success=False,
+                        error=f"File already exists: {path}. Use edit_file to modify."
+                    )
             
             # Create parent directories if needed
             if create_dirs and not file_path.parent.exists():
@@ -182,8 +219,11 @@ class WriteFileTool(Tool):
             logger.error(f"Error executing hooks: {e}")
 
 
-class EditFileTool(Tool):
-    """Modify existing file using search/replace."""
+class EditFileTool(ValidatedTool):
+    """Modify existing file using search/replace.
+    
+    Boris Cherny: Type-safe editing with validation.
+    """
     
     def __init__(self, hook_executor=None, config_loader=None):
         super().__init__()
@@ -209,7 +249,15 @@ class EditFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, edits: list[dict], create_backup: bool = True) -> ToolResult:
+    def get_validators(self) -> Dict[str, Any]:
+        """Validate input parameters."""
+        return {
+            'path': Required('path'),
+            'edits': TypeCheck(list, 'edits')
+        }
+    
+    async def _execute_validated(self, path: str, edits: list[dict], create_backup: bool = True, 
+                     preview: bool = True, console=None) -> ToolResult:
         """Edit file with search/replace operations."""
         try:
             file_path = Path(path)
@@ -246,6 +294,25 @@ class EditFileTool(Tool):
                     return ToolResult(
                         success=False,
                         error=f"Search string not found: {search[:50]}..."
+                    )
+            
+            # Show preview if enabled (Integration Sprint Week 1: Task 1.3)
+            if preview and console and original_content != modified_content:
+                from ..tui.components.preview import EditPreview
+                
+                preview_component = EditPreview()
+                accepted = await preview_component.show_diff_interactive(
+                    original_content=original_content,
+                    proposed_content=modified_content,
+                    file_path=str(file_path),
+                    console=console
+                )
+                
+                if not accepted:
+                    return ToolResult(
+                        success=False,
+                        data={"path": str(path), "message": "Edit cancelled by user"},
+                        error="Edit cancelled by user"
                     )
             
             # Write modified content
@@ -310,7 +377,7 @@ class EditFileTool(Tool):
             logger.error(f"Error executing hooks: {e}")
 
 
-class ListDirectoryTool(Tool):
+class ListDirectoryTool(ValidatedTool):
     """List files and directories."""
     
     def __init__(self):
@@ -335,7 +402,10 @@ class ListDirectoryTool(Tool):
             }
         }
     
-    async def execute(self, path: str = ".", recursive: bool = False, pattern: Optional[str] = None) -> ToolResult:
+    def get_validators(self):
+        return {}
+    
+    async def _execute_validated(self, path: str = ".", recursive: bool = False, pattern: Optional[str] = None, **kwargs) -> ToolResult:
         """List directory contents."""
         try:
             dir_path = Path(path)
@@ -400,7 +470,7 @@ class ListDirectoryTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class DeleteFileTool(Tool):
+class DeleteFileTool(ValidatedTool):
     """Delete file (moves to .trash for safety)."""
     
     def __init__(self):
@@ -420,7 +490,10 @@ class DeleteFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, permanent: bool = False) -> ToolResult:
+    def get_validators(self):
+        return {'path': Required('path')}
+    
+    async def _execute_validated(self, path: str, permanent: bool = False, **kwargs) -> ToolResult:
         """Delete file."""
         try:
             file_path = Path(path)

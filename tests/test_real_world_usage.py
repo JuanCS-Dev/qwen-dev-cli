@@ -4,7 +4,7 @@ import asyncio
 import os
 from pathlib import Path
 from qwen_dev_cli.core.llm import LLMClient
-from qwen_dev_cli.core.context import ContextBuilder as ContextManager
+from qwen_dev_cli.core.context import ContextBuilder
 from qwen_dev_cli.core.config import Config
 
 
@@ -19,15 +19,15 @@ def config():
 
 
 @pytest.fixture
-def llm(config):
+def llm():
     """Real LLM client."""
-    return LLMClient(config)
+    return LLMClient()
 
 
 @pytest.fixture
-def context_mgr(config):
+def context_mgr():
     """Real context manager."""
-    return ContextManager(config)
+    return ContextBuilder()
 
 
 class TestRealUsageScenarios:
@@ -91,12 +91,9 @@ def divide_numbers(a, b):
     async def test_context_aware_response(self, llm, context_mgr):
         """Real scenario: Response considers project context."""
         # Simulate project context
-        context_mgr.add_file_to_context(
-            Path(__file__),
-            "Test file with pytest usage"
-        )
+        context_mgr.add_file(str(Path(__file__)))
         
-        context = context_mgr.get_context_for_prompt()
+        context = context_mgr.build_context()
         prompt = f"{context}\n\nWhat testing framework is being used?"
         
         response = await llm.generate(prompt, max_tokens=100)
@@ -211,15 +208,15 @@ class TestContextManagerRealUsage:
         file2 = tmp_path / "utils.py"
         file2.write_text("def helper(): pass")
         
-        context_mgr.add_file_to_context(file1, "Main entry")
-        context_mgr.add_file_to_context(file2, "Helper utils")
+        context_mgr.add_file(str(file1))
+        context_mgr.add_file(str(file2))
         
-        context = context_mgr.get_context_for_prompt()
+        context = context_mgr.build_context()
         
-        assert "main.py" in context
-        assert "utils.py" in context
-        assert "def main()" in context
-        assert "def helper()" in context
+        assert "main.py" in str(context)
+        assert "utils.py" in str(context)
+        assert "def main()" in str(context)
+        assert "def helper()" in str(context)
     
     def test_context_size_management(self, context_mgr, tmp_path):
         """Real scenario: Context doesn't exceed limits."""
@@ -227,23 +224,25 @@ class TestContextManagerRealUsage:
         for i in range(50):
             f = tmp_path / f"file{i}.py"
             f.write_text(f"def func{i}(): pass\n" * 100)
-            context_mgr.add_file_to_context(f, f"File {i}")
+            context_mgr.add_file(str(f))
         
-        context = context_mgr.get_context_for_prompt()
+        context = context_mgr.get_context()
         
         # Should be limited to reasonable size
-        assert len(context) < 100000, "Context should be bounded"
+        assert len(str(context)) < 100000, "Context should be bounded"
     
     def test_clear_context(self, context_mgr, tmp_path):
         """Real scenario: User starts fresh conversation."""
         file1 = tmp_path / "test.py"
         file1.write_text("test content")
         
-        context_mgr.add_file_to_context(file1, "Test")
-        assert len(context_mgr.get_context_for_prompt()) > 0
+        context_mgr.add_file(str(file1))
+        ctx = context_mgr.build_context()
+        assert ctx['file_count'] > 0
         
-        context_mgr.clear_context()
-        assert len(context_mgr.get_context_for_prompt()) == 0
+        context_mgr.files.clear()
+        ctx_empty = context_mgr.build_context()
+        assert ctx_empty['file_count'] == 0
 
 
 class TestErrorHandlingRealWorld:

@@ -6,9 +6,11 @@ from datetime import datetime
 from typing import Optional
 
 from .base import Tool, ToolResult, ToolCategory
+from .validated import ValidatedTool
+from ..core.validation import Required, TypeCheck
 
 
-class GetContextTool(Tool):
+class GetContextTool(ValidatedTool):
     """Get current session context."""
     
     def __init__(self):
@@ -17,7 +19,7 @@ class GetContextTool(Tool):
         self.description = "Get current session context"
         self.parameters = {}
     
-    async def execute(self, session_context=None) -> ToolResult:
+    async def _execute_validated(self, session_context=None) -> ToolResult:
         """Get context."""
         try:
             import os
@@ -52,7 +54,7 @@ class GetContextTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class SaveSessionTool(Tool):
+class SaveSessionTool(ValidatedTool):
     """Save conversation session to file."""
     
     def __init__(self):
@@ -71,8 +73,12 @@ class SaveSessionTool(Tool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, path: str, format: str = "markdown", session_context=None) -> ToolResult:
+    async def _execute_validated(self, path: str, format: str = "markdown", session_context=None) -> ToolResult:
         """Save session."""
         try:
             if not session_context:
@@ -127,7 +133,7 @@ class SaveSessionTool(Tool):
             return ToolResult(success=False, error=str(e))
 
 
-class RestoreBackupTool(Tool):
+class RestoreBackupTool(ValidatedTool):
     """Restore file from backup."""
     
     def __init__(self):
@@ -146,8 +152,12 @@ class RestoreBackupTool(Tool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {}
+
     
-    async def execute(self, file: str, backup_id: Optional[str] = None) -> ToolResult:
+    async def _execute_validated(self, file: str, backup_id: Optional[str] = None) -> ToolResult:
         """Restore from backup."""
         try:
             import shutil
