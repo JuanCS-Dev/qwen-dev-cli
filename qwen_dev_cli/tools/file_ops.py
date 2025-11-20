@@ -216,8 +216,11 @@ class WriteFileTool(Tool):
             logger.error(f"Error executing hooks: {e}")
 
 
-class EditFileTool(Tool):
-    """Modify existing file using search/replace."""
+class EditFileTool(ValidatedTool):
+    """Modify existing file using search/replace.
+    
+    Boris Cherny: Type-safe editing with validation.
+    """
     
     def __init__(self, hook_executor=None, config_loader=None):
         super().__init__()
@@ -243,7 +246,14 @@ class EditFileTool(Tool):
             }
         }
     
-    async def execute(self, path: str, edits: list[dict], create_backup: bool = True, 
+    def get_validators(self) -> Dict[str, Any]:
+        """Validate input parameters."""
+        return {
+            'path': Required('path'),
+            'edits': TypeCheck(list, 'edits')
+        }
+    
+    async def _execute_validated(self, path: str, edits: list[dict], create_backup: bool = True, 
                      preview: bool = True, console=None) -> ToolResult:
         """Edit file with search/replace operations."""
         try:
