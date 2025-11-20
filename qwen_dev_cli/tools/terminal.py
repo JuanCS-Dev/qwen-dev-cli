@@ -24,6 +24,10 @@ class CdTool(ValidatedTool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str) -> ToolResult:
         """Change directory."""
@@ -89,6 +93,10 @@ class LsTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str = ".", all: bool = False, long: bool = False) -> ToolResult:
         """List directory contents."""
@@ -184,6 +192,10 @@ class MkdirTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str, parents: bool = True) -> ToolResult:
         """Create directory."""
@@ -231,6 +243,10 @@ class RmTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str, recursive: bool = False, force: bool = False) -> ToolResult:
         """Remove file/directory."""
@@ -302,6 +318,10 @@ class CpTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, source: str, destination: str, recursive: bool = False) -> ToolResult:
         """Copy file/directory."""
@@ -357,6 +377,10 @@ class MvTool(ValidatedTool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, source: str, destination: str) -> ToolResult:
         """Move/rename file/directory."""
@@ -398,6 +422,10 @@ class TouchTool(ValidatedTool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str) -> ToolResult:
         """Touch file."""
@@ -441,6 +469,10 @@ class CatTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str, lines: Optional[int] = None) -> ToolResult:
         """Display file contents."""

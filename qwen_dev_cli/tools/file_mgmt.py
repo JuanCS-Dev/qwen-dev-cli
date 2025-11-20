@@ -33,6 +33,10 @@ class MoveFileTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, source: str, destination: str, overwrite: bool = False) -> ToolResult:
         """Move/rename file."""
@@ -76,6 +80,10 @@ class CopyFileTool(ValidatedTool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, source: str, destination: str) -> ToolResult:
         """Copy file."""
@@ -119,6 +127,10 @@ class CreateDirectoryTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str, recursive: bool = True) -> ToolResult:
         """Create directory."""
@@ -158,6 +170,10 @@ class ReadMultipleFilesTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, paths: list[str], max_files: int = 10) -> ToolResult:
         """Read multiple files."""
@@ -226,6 +242,10 @@ class InsertLinesTool(ValidatedTool):
                 "required": True
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, path: str, line_number: int, content: str) -> ToolResult:
         """Insert lines at position."""

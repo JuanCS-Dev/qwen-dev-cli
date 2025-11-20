@@ -816,6 +816,7 @@ Response: I don't have a tool to check the current time, but I can help you with
   /clear      - Clear screen
   /metrics    - Show constitutional metrics
   /cache      - Show cache statistics
+  /tokens     - Show token usage & budget 💰
 
 [bold]History & Analytics:[/bold] 🆕
   /history    - Show command history

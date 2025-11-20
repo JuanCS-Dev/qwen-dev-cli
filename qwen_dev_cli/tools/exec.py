@@ -33,6 +33,10 @@ class BashCommandTool(ValidatedTool):
                 "required": False
             }
         }
+    def get_validators(self):
+        """Validate parameters."""
+        return {{}}
+
     
     async def _execute_validated(self, command: str, cwd: Optional[str] = None, timeout: int = 30) -> ToolResult:
         """Execute bash command."""
