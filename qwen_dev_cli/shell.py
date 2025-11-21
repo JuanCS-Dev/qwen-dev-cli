@@ -234,6 +234,10 @@ class InteractiveShell:
         from .core.context_manager_consolidated import ConsolidatedContextManager
         self.context_manager = ConsolidatedContextManager(max_tokens=100_000)
         
+        # Week 4 Day 2: Refactoring engine
+        from .refactoring.engine import RefactoringEngine
+        self.refactoring_engine = RefactoringEngine(project_root=Path.cwd())
+        
         # Legacy session (fallback)
         self.session = PromptSession(
             history=FileHistory(str(history_file)),
@@ -932,6 +936,10 @@ Response: I don't have a tool to check the current time, but I can help you with
 [bold]Smart Suggestions:[/bold] 🆕
   /suggest FILE             - Get related files & code suggestions
 
+[bold]Refactoring:[/bold] 🆕
+  /refactor rename FILE OLD NEW - Rename symbol
+  /refactor imports FILE        - Organize imports
+
 [bold]Natural Language Commands:[/bold]
   Just type what you want to do, e.g.:
   - "read api.py"
@@ -989,6 +997,43 @@ Context Optimizer:
             self.console.print(f"[green]✓ Optimization complete in {metrics.duration_ms:.1f}ms[/green]")
             self.console.print(f"  Items: {metrics.items_before} → {metrics.items_after} ({metrics.items_removed} removed)")
             self.console.print(f"  Tokens: {metrics.tokens_before:,} → {metrics.tokens_after:,} ({metrics.tokens_freed:,} freed)")
+            
+            return False, None
+        
+        elif cmd.startswith("/refactor rename "):
+            # Week 4 Day 2: Rename symbol
+            args = cmd[17:].strip().split()
+            if len(args) < 3:
+                return False, "[red]Usage: /refactor rename <file> <old_name> <new_name>[/red]"
+            
+            file_path, old_name, new_name = Path(args[0]), args[1], args[2]
+            if not file_path.exists():
+                return False, f"[red]File not found: {file_path}[/red]"
+            
+            result = self.refactoring_engine.rename_symbol(file_path, old_name, new_name)
+            
+            if result.success:
+                self.console.print(f"[green]✓ {result.message}[/green]")
+                self.console.print(f"[dim]{result.changes_preview}[/dim]")
+            else:
+                self.console.print(f"[red]✗ {result.message}: {result.error}[/red]")
+            
+            return False, None
+        
+        elif cmd.startswith("/refactor imports "):
+            # Week 4 Day 2: Organize imports
+            file_arg = cmd[18:].strip()
+            file_path = Path(file_arg)
+            
+            if not file_path.exists():
+                return False, f"[red]File not found: {file_path}[/red]"
+            
+            result = self.refactoring_engine.organize_imports(file_path)
+            
+            if result.success:
+                self.console.print(f"[green]✓ {result.message}[/green]")
+            else:
+                self.console.print(f"[red]✗ {result.message}: {result.error}[/red]")
             
             return False, None
         
