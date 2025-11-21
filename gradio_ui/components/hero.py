@@ -13,35 +13,47 @@ def create_hero_section():
     """
     gr.HTML(
         """
-        <div class="hero-section" style="
+        <div style="
             text-align: center;
-            padding: 60px 20px;
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(6, 182, 212, 0.2));
-            border-radius: 24px;
-            margin-bottom: 40px;
+            padding: 48px 24px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         ">
-            <div class="hero-title" style="
-                font-size: 3.5rem;
-                font-weight: 700;
-                background: linear-gradient(135deg, #3b82f6, #06b6d4);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-                margin-bottom: 16px;
-                display: inline-block;
+            <div style="
+                font-size: 2.25rem;
+                font-weight: 600;
+                color: #1A202C;
+                margin-bottom: 12px;
+                letter-spacing: -0.02em;
             ">
-                🚀 QWEN-DEV-CLI
+                QWEN-DEV-CLI
             </div>
-            <div class="hero-subtitle" style="
-                font-size: 1.25rem;
-                color: #94a3b8;
-                margin-bottom: 16px;
+            <div style="
+                font-size: 1.125rem;
+                color: #4A5568;
+                margin-bottom: 8px;
+                font-weight: 400;
             ">
-                Your AI-Powered Development Partner
+                AI-Powered Development Partner
             </div>
-            <p style="color: #64748b; font-size: 1rem; margin: 0;">
-                Multi-language LSP • Smart Refactoring • Context-Aware Suggestions
-            </p>
+            <div style="
+                font-size: 0.875rem;
+                color: #A0AEC0;
+                display: flex;
+                gap: 12px;
+                justify-content: center;
+                flex-wrap: wrap;
+                margin-top: 16px;
+            ">
+                <span>Multi-language LSP</span>
+                <span>•</span>
+                <span>Smart Refactoring</span>
+                <span>•</span>
+                <span>Context-Aware AI</span>
+            </div>
         </div>
         """
     )

@@ -20,56 +20,65 @@ def create_command_interface() -> Tuple[gr.Textbox, gr.HTML]:
         show_label=True
     )
     
-    # Smart suggestions with inline styles
+    # Minimal suggestions
     suggestions = gr.HTML(
         """
         <div style="margin-top: 16px;">
-            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 12px;">💡 Quick Suggestions:</p>
+            <p style="
+                color: #4A5568;
+                font-size: 0.875rem;
+                margin-bottom: 12px;
+                font-weight: 500;
+            ">Suggestions:</p>
             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <span class="suggestion-chip" style="
+                <span style="
                     display: inline-block;
-                    background: rgba(59, 130, 246, 0.15);
-                    border: 1px solid rgba(59, 130, 246, 0.4);
-                    color: #60a5fa;
-                    padding: 8px 16px;
-                    border-radius: 20px;
+                    background: #EFF6FF;
+                    border: 1px solid #DBEAFE;
+                    color: #1E40AF;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 0.9rem;
-                ">📖 Read main.py</span>
-                <span class="suggestion-chip" style="
+                    transition: all 150ms;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                ">Read README.md</span>
+                <span style="
                     display: inline-block;
-                    background: rgba(59, 130, 246, 0.15);
-                    border: 1px solid rgba(59, 130, 246, 0.4);
-                    color: #60a5fa;
-                    padding: 8px 16px;
-                    border-radius: 20px;
+                    background: #EFF6FF;
+                    border: 1px solid #DBEAFE;
+                    color: #1E40AF;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 0.9rem;
-                ">🔧 Refactor legacy code</span>
-                <span class="suggestion-chip" style="
+                    transition: all 150ms;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                ">Search imports</span>
+                <span style="
                     display: inline-block;
-                    background: rgba(59, 130, 246, 0.15);
-                    border: 1px solid rgba(59, 130, 246, 0.4);
-                    color: #60a5fa;
-                    padding: 8px 16px;
-                    border-radius: 20px;
+                    background: #EFF6FF;
+                    border: 1px solid #DBEAFE;
+                    color: #1E40AF;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 0.9rem;
-                ">✅ Fix all TODOs</span>
-                <span class="suggestion-chip" style="
+                    transition: all 150ms;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                ">Fix TODOs</span>
+                <span style="
                     display: inline-block;
-                    background: rgba(59, 130, 246, 0.15);
-                    border: 1px solid rgba(59, 130, 246, 0.4);
-                    color: #60a5fa;
-                    padding: 8px 16px;
-                    border-radius: 20px;
+                    background: #EFF6FF;
+                    border: 1px solid #DBEAFE;
+                    color: #1E40AF;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     cursor: pointer;
-                    transition: all 0.2s ease;
-                    font-size: 0.9rem;
-                ">🔍 Search for imports</span>
+                    transition: all 150ms;
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                ">LSP diagnostics</span>
             </div>
         </div>
         """
