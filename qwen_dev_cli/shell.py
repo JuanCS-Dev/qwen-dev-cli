@@ -1291,7 +1291,7 @@ Tool calls: {len(self.context.tool_calls)}
         
         return None
     
-    async def _auto_index_background(self):
+    async def _auto_index_background(self) -> None:
         """
         Week 3 Day 1: Background indexing task.
         
