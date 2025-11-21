@@ -33,3 +33,4 @@ google-generativeai>=0.3.0
 python-lsp-server[all]>=1.9.0
 pylsp-mypy>=0.6.0
 python-lsp-black>=2.0.0
+ddgs>=9.9.1  # Web search (DuckDuckGo)
