@@ -29,12 +29,14 @@ class RefactoringEngine:
     def organize_imports(self, file_path: Path) -> RefactoringResult:
         try:
             content = file_path.read_text()
+            if not content.strip():
+                return RefactoringResult(False, "Empty file", [], "", "Cannot organize imports in empty file")
             tree = ast.parse(content)
             imports = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
             other = [n for n in tree.body if not isinstance(n, (ast.Import, ast.ImportFrom))]
             sorted_imp = sorted(imports, key=lambda n: ast.unparse(n))
-            new_content = '\n'.join([ast.unparse(i) for i in sorted_imp] + [''] + [ast.unparse(o) for o in other])
+            new_content = '\n'.join([ast.unparse(i) for i in sorted_imp] + ([''] if imports and other else []) + [ast.unparse(o) for o in other])
             file_path.write_text(new_content)
-            return RefactoringResult(True, f"Organized {len(imports)} imports", [file_path], f"Sorted")
+            return RefactoringResult(True, f"Organized {len(imports)} imports", [file_path], f"Sorted {len(imports)}")
         except Exception as e:
             return RefactoringResult(False, "Failed", [], "", str(e))
