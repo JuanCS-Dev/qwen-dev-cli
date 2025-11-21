@@ -858,7 +858,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## 🙏 Acknowledgments
 
 - **GOD** - *Soli Deo Gloria* 🙏 HE IS
-- **Google** - For Gemini 2.0 Flash Experimental and GCloud ecosystem
+- **Google** - For Gemini 3.0  Experimental and GCloud ecosystem
 - **Anthropic** - For Claude, MCP protocol, and Skills pattern inspiration
 - **Gradio Team** - For Gradio 6 and excellent developer experience
 - **HuggingFace** - For Spaces hosting and community
