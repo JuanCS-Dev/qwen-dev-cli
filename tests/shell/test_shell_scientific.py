@@ -17,6 +17,7 @@ Date: 2025-11-21
 import pytest
 import asyncio
 import tempfile
+import os
 from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch, AsyncMock
 from typing import Optional
@@ -24,6 +25,18 @@ from typing import Optional
 from qwen_dev_cli.shell import InteractiveShell
 from qwen_dev_cli.tools.exec_hardened import BashCommandTool
 from qwen_dev_cli.core.conversation import ConversationState
+
+
+@pytest.fixture(autouse=True)
+def restore_cwd():
+    """Restore CWD after each test to prevent interference."""
+    original_cwd = os.getcwd()
+    yield
+    try:
+        os.chdir(original_cwd)
+    except (FileNotFoundError, OSError):
+        # Original CWD was deleted, stay where we are
+        pass
 
 
 # =============================================================================
@@ -169,7 +182,7 @@ class TestToolExecutionScientific:
             result = await tool.execute(path=temp_path)
             
             assert result.success
-            assert "test content" in result.data["content"]
+            assert "test content" in result.data
         finally:
             Path(temp_path).unlink()
     
@@ -178,23 +191,20 @@ class TestToolExecutionScientific:
         """File write tool works."""
         shell = InteractiveShell()
         
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
-            temp_path = f.name
-        
-        try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            temp_path = Path(tmpdir) / "new_file.txt"
+            
             tool = shell.registry.tools["write_file"]
             result = await tool.execute(
-                path=temp_path,
+                path=str(temp_path),
                 content="new content"
             )
             
             assert result.success
             
             # Verify written
-            content = Path(temp_path).read_text()
+            content = temp_path.read_text()
             assert "new content" in content
-        finally:
-            Path(temp_path).unlink()
     
     @pytest.mark.asyncio
     async def test_list_directory_execution(self):
@@ -263,7 +273,7 @@ class TestToolExecutionScientific:
             read_tool = shell.registry.tools["read_file"]
             result2 = await read_tool.execute(path=str(test_file))
             assert result2.success
-            assert "test" in result2.data["content"]
+            assert "test" in result2.data
     
     @pytest.mark.asyncio
     async def test_tool_with_invalid_params(self):

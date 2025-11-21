@@ -102,7 +102,12 @@ class SessionContext:
     """Persistent context across shell session."""
     
     def __init__(self):
-        self.cwd = os.getcwd()
+        try:
+            self.cwd = os.getcwd()
+        except (FileNotFoundError, OSError):
+            # CWD may not exist (e.g., deleted temp dir)
+            # Fallback to home or /tmp
+            self.cwd = os.path.expanduser("~")
         self.conversation = []
         self.modified_files = set()
         self.read_files = set()
