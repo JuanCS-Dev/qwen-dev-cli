@@ -1,0 +1,116 @@
+/* CYBERPUNK THEME OVERRIDES 
+   Focado em Glassmorphism e Neon Glows cirúrgicos
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+:root {
+    --cyber-bg: #0A0E14;
+    --cyber-panel: #141922;
+    --cyber-accent: #00D9FF;
+}
+
+body {
+    background-color: var(--cyber-bg) !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    overflow: hidden; /* Remove scrollbar global chata */
+}
+
+.gradio-container {
+    background-color: transparent !important;
+    max-width: 100% !important;
+}
+
+/* --- EFEITOS DE PAINEL (GLASS) --- */
+.cyber-glass {
+    background: rgba(20, 25, 34, 0.7) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 217, 255, 0.15);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+    border-radius: 8px;
+}
+
+/* --- TEXTO GLOW --- */
+.cyber-glow {
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.6);
+}
+
+.cyber-glow-red {
+    text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+
+/* --- FILE EXPLORER CUSTOMIZADO --- */
+/* Remove o look padrão do Gradio FileExplorer e aplica o tema */
+.file-explorer-cyber {
+    background: transparent !important;
+    border: none !important;
+}
+.file-explorer-cyber .icon {
+    filter: hue-rotate(180deg) brightness(1.5); /* Deixa os icones azulados */
+}
+.file-explorer-cyber span {
+    color: #94a3b8 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.85rem !important;
+}
+
+/* --- TERMINAL LOG --- */
+.terminal-log .cm-editor {
+    background-color: transparent !important;
+}
+.terminal-log {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* --- INPUT ANIMADO --- */
+.cyber-input textarea {
+    background-color: rgba(10, 14, 20, 0.8) !important;
+    border: 1px solid #334155 !important;
+    color: #00D9FF !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    transition: all 0.3s ease;
+}
+.cyber-input textarea:focus {
+    border-color: #00D9FF !important;
+    box-shadow: 0 0 15px rgba(0, 217, 255, 0.3) !important;
+}
+
+/* --- SCROLLBARS INVISÍVEIS/MINIMALISTAS --- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #0A0E14; 
+}
+::-webkit-scrollbar-thumb {
+    background: #1e293b; 
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #00D9FF; 
+}
+
+/* --- ANIMAÇÕES --- */
+@keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+.animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Blinking Cursor para o Terminal */
+.cursor-blink {
+    display: inline-block;
+    width: 8px;
+    height: 15px;
+    background-color: #00D9FF;
+    animation: blink 1s step-end infinite;
+    vertical-align: middle;
+}
+@keyframes blink {
+    50% { opacity: 0; }
+}

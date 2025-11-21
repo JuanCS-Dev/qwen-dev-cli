@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Qwen Dev CLI - Cyberpunk Gradio UI
+Qwen Dev CLI - Minimal Clean Gradio UI
 
-Cyberpunk-themed interface with Tailwind CSS + SVG visualizations.
+Clean, minimal interface using only native Gradio components.
 Built for the MCP Hackathon with 27+ production tools.
 """
 
 from __future__ import annotations
 
 import os
-import random
 import shutil
 import time
 import uuid
@@ -20,55 +19,11 @@ import gradio as gr
 import pandas as pd
 
 from .cli_bridge import CLIStreamBridge
-from .components import (
-    render_tailwind_header,
-    render_gauge,
-    render_bar_chart,
-    render_dual_gauge,
-    render_terminal_logs,
-)
 
 PROJECT_ROOT = Path.cwd()
 
 # Initialize CLI bridge
 _bridge = CLIStreamBridge()
-
-# System Monitor for live metrics
-class SystemMonitor:
-    def __init__(self):
-        self.token_usage = 0
-        self.token_limit = 1000000
-        self.safety_history = [0.85, 0.9, 0.88, 0.95, 0.92, 0.94]
-        self.logs = [
-            f"{time.strftime('%H:%M:%S')} - [INFO] System initialized via MCP protocol",
-            f"{time.strftime('%H:%M:%S')} - [INFO] Loaded Constitutional AI constraints",
-            f"{time.strftime('%H:%M:%S')} - [SUCCESS] Connected to {_bridge.backend_label}",
-        ]
-    
-    def add_log(self, level: str, message: str):
-        """Add a timestamped log entry."""
-        timestamp = time.strftime('%H:%M:%S')
-        self.logs.append(f"{timestamp} - [{level}] {message}")
-        if len(self.logs) > 20:
-            self.logs.pop(0)
-    
-    def increment_tokens(self, count: int):
-        """Increment token usage."""
-        self.token_usage += count
-        if random.random() > 0.7:  # Simulate safety fluctuation
-            self.safety_history.pop(0)
-            self.safety_history.append(random.uniform(0.85, 1.0))
-    
-    def get_metrics(self):
-        """Get current system metrics."""
-        return {
-            "token_pct": (self.token_usage / self.token_limit) * 100,
-            "token_str": f"{self.token_usage // 1000}k / {self.token_limit // 1000}k",
-            "safety_data": self.safety_history,
-            "logs": self.logs[-8:]
-        }
-
-_monitor = SystemMonitor()
 
 # --- HELPER FUNCTIONS ---
 
@@ -227,17 +182,9 @@ async def stream_conversation(
     history: List[Dict[str, Any]],
     session_id: str,
 ):
-    """Stream output from CLI backend with live monitoring."""
+    """Stream output from CLI backend."""
     if not message.strip():
-        metrics = _monitor.get_metrics()
-        yield (
-            history,
-            render_terminal_logs(metrics["logs"]),
-            session_id,
-            render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-            render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-            render_dual_gauge(99, "MODEL", 100, "ENV")
-        )
+        yield history, "", session_id, _blank_metrics()
         return
 
     # Initialize session
@@ -249,17 +196,9 @@ async def stream_conversation(
     
     # Add thinking state
     history.append({"role": "assistant", "content": "⏳ Analyzing request..."})
-    _monitor.add_log("INFO", f"Processing: {message[:40]}...")
+    terminal_output = "# Starting execution...\n"
     
-    metrics = _monitor.get_metrics()
-    yield (
-        history,
-        render_terminal_logs(metrics["logs"]),
-        session_value,
-        render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-        render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-        render_dual_gauge(99, "MODEL", 100, "ENV")
-    )
+    yield history, terminal_output, session_value, _blank_metrics()
 
     start = time.monotonic()
     live_text = ""
@@ -272,239 +211,258 @@ async def stream_conversation(
             chunk_count += 1
             live_text += chunk_text
             
-            # Simulate token usage (in real impl, get from backend)
-            _monitor.increment_tokens(len(chunk_text.split()))
+            # Build terminal output
+            terminal_lines = [
+                f"# Execution Log (Session: {session_value[:8]})",
+                f"# Time: {round(time.monotonic() - start, 2)}s | Chunks: {chunk_count}",
+                "",
+                "## Output Stream:",
+                live_text if live_text else "(waiting for output...)",
+            ]
+            terminal_output = "\n".join(terminal_lines)
+            
+            # Update metrics
+            metrics = {
+                "chunks": chunk_count,
+                "chars": len(live_text),
+                "sec": round(time.monotonic() - start, 2),
+                "backend": _bridge.backend_label,
+            }
             
             # Update chat with streaming cursor
             history[-1]["content"] = live_text + " ▌"
             
-            # Get updated metrics
-            metrics = _monitor.get_metrics()
-            
-            yield (
-                history,
-                render_terminal_logs(metrics["logs"]),
-                session_value,
-                render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-                render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-                render_dual_gauge(99, "MODEL", 100, "ENV")
-            )
+            yield history, terminal_output, session_value, metrics
             
     except Exception as e:
         # Error state
         error_msg = f"❌ **Error**: {str(e)}"
         history[-1]["content"] = error_msg
-        _monitor.add_log("ERROR", str(e))
-        metrics = _monitor.get_metrics()
-        yield (
-            history,
-            render_terminal_logs(metrics["logs"]),
-            session_value,
-            render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-            render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-            render_dual_gauge(99, "MODEL", 100, "ENV")
-        )
+        terminal_output += f"\n\n❌ ERROR: {str(e)}"
+        yield history, terminal_output, session_value, _blank_metrics()
         return
 
     # Complete state - remove cursor
     history[-1]["content"] = live_text
-    _monitor.add_log("SUCCESS", f"Task completed. {chunk_count} chunks processed.")
     
-    # Final metrics
-    metrics = _monitor.get_metrics()
-    yield (
-        history,
-        render_terminal_logs(metrics["logs"]),
-        session_value,
-        render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-        render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-        render_dual_gauge(99, "MODEL", 100, "ENV")
-    )
+    # Final terminal output
+    terminal_lines = [
+        f"# Execution Log (Session: {session_value[:8]})",
+        f"# Time: {round(time.monotonic() - start, 2)}s | Chunks: {chunk_count}",
+        "",
+        "## Output Stream:",
+        live_text if live_text else "(no output)",
+        "",
+        "✓ Execution complete",
+    ]
+    terminal_output = "\n".join(terminal_lines)
+    
+    final_metrics = {
+        "chunks": chunk_count,
+        "chars": len(live_text),
+        "sec": round(time.monotonic() - start, 2),
+        "backend": _bridge.backend_label,
+    }
+    
+    yield history, terminal_output, session_value, final_metrics
 
-# --- LOAD CYBERPUNK CSS ---
+# --- MINIMAL CSS (only essential adjustments) ---
 
-def _load_cyber_css() -> str:
-    """Load the cyberpunk theme CSS."""
-    css_path = Path(__file__).parent / "cyber_theme.css"
-    if css_path.exists():
-        return css_path.read_text()
-    return ""
+MINIMAL_CSS = """
+/* Minimal CSS for contrast and spacing only */
+
+/* Ensure terminal text is readable in both themes */
+.gr-code, .cm-editor {
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Chat message spacing */
+.chat-message {
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 8px;
+}
+
+/* Dark mode adjustments (Gradio Soft theme handles most of this) */
+@media (prefers-color-scheme: dark) {
+    .gr-code {
+        background: #1a1a1a !important;
+        color: #e5e5e5 !important;
+    }
+}
+
+/* Light mode adjustments */
+@media (prefers-color-scheme: light) {
+    .gr-code {
+        background: #f5f5f5 !important;
+        color: #1a1a1a !important;
+    }
+}
+"""
 
 # --- UI CONSTRUCTION ---
 
 def create_ui() -> gr.Blocks:
-    """Build cyberpunk-themed UI with live monitoring."""
+    """Build minimal clean UI using only native Gradio components."""
     
-    # Load cyberpunk CSS and inject Tailwind
-    cyber_css = _load_cyber_css()
-    # Inject Tailwind via CSS import
-    tailwind_inject = """
-    @import url('https://cdn.tailwindcss.com');
-    """
-    combined_css = tailwind_inject + "\n" + cyber_css
+    # Import heroic theme (Gradio 6 with glassmorphism)
+    from .heroic_theme import create_heroic_theme, get_glassmorphism_css
+    
+    theme = create_heroic_theme()
+    
+    # Combine minimal CSS with glassmorphism CSS
+    combined_css = MINIMAL_CSS + "\n\n" + get_glassmorphism_css()
 
     # Gradio 6: theme and css go in launch(), not Blocks()
     with gr.Blocks(
-        title="GEMINI-CLI-2 · THE BOSS · NEW STANDARD",
-        fill_height=True,
+        title="Qwen Dev CLI · 27 MCP Tools · Constitutional AI",
+        fill_height=True,  # Gradio 6: Better layout
     ) as demo:
         
         # State Management
         session_state = gr.State(value=None)
         
-        # Inject Tailwind script (workaround for Gradio 6)
-        gr.HTML(render_tailwind_header())
+        # Header
+        gr.Markdown(
+            "### **Qwen Dev CLI** · 27 MCP Tools · Constitutional AI-Powered Development",
+            elem_id="header"
+        )
         
-        # HEADER (Cyberpunk Style)
-        with gr.Row(elem_classes="mb-2 items-center border-b border-gray-800 pb-2"):
-            with gr.Column(scale=1):
-                gr.Markdown("# GEMINI-CLI-2", elem_classes="text-2xl font-bold text-white tracking-tighter cyber-glow")
-                gr.Markdown("THE BOSS // NEW STANDARD", elem_classes="text-[10px] text-cyber-accent tracking-[0.3em] -mt-2")
-            with gr.Column(scale=1):
-                gr.Markdown("Resistance is futile.", elem_classes="text-right text-red-500 text-xs font-mono animate-pulse")
-        
-        # Main Layout: 3-Column Cyberpunk
-        with gr.Row(equal_height=True):
+        # Main Layout: 3-Pane
+        with gr.Row(equal_height=False):
             
-            # COLUMN 1: PROJECT EXPLORER
-            with gr.Column(scale=1, min_width=250, elem_classes="cyber-glass p-0"):
-                gr.Markdown("## 📁 PROJECT CONTEXT", elem_classes="text-xs font-bold text-gray-400 p-3 border-b border-gray-800")
+            # Left: Files + Telemetry
+            with gr.Column(scale=1, min_width=250, variant="panel"):
+                gr.Markdown("**FILES**")
                 
-                # File Upload
+                # File Upload - User can upload files/folders from their computer
                 file_upload = gr.File(
-                    label="Upload Files",
+                    label="Upload Files or Folder",
                     file_count="multiple",
-                    file_types=None,
-                    height=80,
-                    elem_classes="cyber-glass"
+                    file_types=None,  # Accept all file types
+                    height=100,
                 )
                 
+                # Upload status
                 upload_status = gr.Markdown(
-                    value="Ready to upload...",
+                    value="Ready to upload files...",
                     visible=True,
-                    elem_classes="text-xs text-gray-500 p-2"
+                    elem_id="upload-status"
                 )
                 
-                # File Explorer
+                # File Explorer - Shows workspace files (will refresh after upload)
                 file_explorer = gr.FileExplorer(
                     glob="**/*",
                     root_dir=str(PROJECT_ROOT),
-                    height=250,
+                    height=150,
                     label="Workspace",
                     file_count="multiple",
-                    elem_classes="file-explorer-cyber"
+                )
+                
+                # Telemetry
+                metrics_display = gr.JSON(
+                    value=_blank_metrics(),
+                    label="Telemetry",
                 )
 
-            # COLUMN 2: WORKSPACE (Chat + Input)
-            with gr.Column(scale=3):
-                # Chat
+            # Center: Chat + Input
+            with gr.Column(scale=3, min_width=500):
+                
+                # Chat (Gradio 6: always uses "messages" format, no type parameter)
                 chatbot = gr.Chatbot(
                     label="Dev Session",
                     height=400,
                     render_markdown=True,
                     avatar_images=(None, None),
-                    elem_classes="cyber-glass"
                 )
                 
-                # Input Area
-                with gr.Group(elem_classes="mb-4 relative"):
+                # Input Bar
+                with gr.Row():
                     msg_input = gr.Textbox(
-                        placeholder="> Aguardando comando do Mestre...",
                         show_label=False,
-                        lines=1,
-                        max_lines=3,
-                        elem_classes="cyber-input text-sm",
-                        autofocus=True,
+                        placeholder="Instruct the agent (e.g., 'Run tests and fix errors')...",
+                        container=False,
+                        scale=9,
                     )
-                
-                # Terminal Logs (HTML)
-                log_display = gr.HTML(
-                    value=render_terminal_logs(_monitor.logs[-8:]),
-                    elem_classes="h-32 overflow-hidden bg-black/50 rounded border border-gray-800 terminal-log"
-                )
+                    run_btn = gr.Button(
+                        "Run", 
+                        variant="primary", 
+                        scale=1,
+                        min_width=80,
+                    )
 
-            # COLUMN 3: TELEMETRY
-            with gr.Column(scale=1, min_width=250, elem_classes="space-y-4"):
-                
-                # Token Gauge
-                with gr.Group(elem_classes="cyber-glass h-48"):
-                    gauge_html = gr.HTML(
-                        value=render_gauge(0, "TOKEN BUDGET", "0k/1M")
-                    )
-                
-                # Safety Chart
-                with gr.Group(elem_classes="cyber-glass h-32"):
-                    chart_html = gr.HTML(
-                        value=render_bar_chart([0.85, 0.9, 0.88, 0.95, 0.92, 0.94], "SAFETY INDEX")
-                    )
-                
-                # Status Mini-Gauges
-                with gr.Group(elem_classes="cyber-glass h-24"):
-                    status_html = gr.HTML(
-                        value=render_dual_gauge(99, "MODEL", 100, "ENV")
-                    )
-                
-                # MCP Tools Accordion
-                with gr.Accordion("MCP Tools", open=False, elem_classes="cyber-glass"):
-                    mcp_df = gr.Dataframe(
-                        value=_get_mcp_tools_df(),
-                        headers=["Category", "Tool", "Description"],
-                        interactive=False,
-                        wrap=True,
-                        max_height=200,
-                    )
+            # Right: Terminal + Tools
+            with gr.Column(scale=2, min_width=300, variant="panel"):
+                with gr.Tabs():
+                    with gr.Tab("Terminal"):
+                        # Terminal output
+                        shell_output = gr.Code(
+                            language="shell",
+                            label="Live Output",
+                            interactive=False,
+                            lines=15,
+                        )
+                    
+                    with gr.Tab("MCP Tools"):
+                        # MCP Tools table
+                        mcp_df = gr.Dataframe(
+                            value=_get_mcp_tools_df(),
+                            headers=["Category", "Tool", "Description"],
+                            interactive=False,
+                            wrap=True,
+                        )
+        
+        # Footer
+        gr.Markdown(
+            f"Backend: {_bridge.backend_label} · Tokens: 0 · Cost: $0.00",
+            elem_id="footer"
+        )
 
         # Event Handlers
         
-        # File upload handler
+        # File upload handler - copies files to workspace and updates status
         file_upload.upload(
             fn=handle_file_upload,
             inputs=[file_upload],
             outputs=[upload_status]
         ).then(
+            # Refresh file explorer after upload
             fn=lambda: gr.update(),
             outputs=[file_explorer]
         )
         
-        # Submit message (cyberpunk version with 6 outputs)
+        # Submit message
         msg_input.submit(
             fn=stream_conversation,
             inputs=[msg_input, chatbot, session_state],
-            outputs=[chatbot, log_display, session_state, gauge_html, chart_html, status_html]
+            outputs=[chatbot, shell_output, session_state, metrics_display]
         ).then(
             fn=lambda: "", outputs=[msg_input]
         )
         
-        # Auto-refresh telemetry every 2 seconds
-        def refresh_metrics():
-            metrics = _monitor.get_metrics()
-            return (
-                render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-                render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-                render_dual_gauge(99, "MODEL", 100, "ENV"),
-                render_terminal_logs(metrics["logs"])
-            )
-        
-        timer = gr.Timer(2)
-        timer.tick(
-            refresh_metrics,
-            outputs=[gauge_html, chart_html, status_html, log_display]
+        # Run button
+        run_btn.click(
+            fn=stream_conversation,
+            inputs=[msg_input, chatbot, session_state],
+            outputs=[chatbot, shell_output, session_state, metrics_display]
+        ).then(
+            fn=lambda: "", outputs=[msg_input]
         )
 
     # Gradio 6: Return theme and css for launch()
-    return demo, None, combined_css
+    return demo, theme, combined_css
 
 # --- LAUNCHER ---
 
 if __name__ == "__main__":
-    port = int(os.getenv("GRADIO_SERVER_PORT", "7860"))
+    port = int(os.getenv("GRADIO_SERVER_PORT", "7861"))
     
     # Gradio 6: create_ui returns demo, theme, css
     demo, theme, css = create_ui()
     
-    print(f"🚀 Launching GEMINI-CLI-2 Cyberpunk UI on port {port}")
-    print(f"🎨 Theme: Cyberpunk Glassmorphism")
-    print(f"🔧 Backend: {_bridge.backend_label}")
+    print(f"🚀 Launching Qwen Dev CLI UI on port {port}")
     
     # Gradio 6: theme and css go in launch()
     demo.launch(
@@ -514,5 +472,4 @@ if __name__ == "__main__":
         show_error=True,
         theme=theme,
         css=css,
-        allowed_paths=[str(PROJECT_ROOT)]
     )
