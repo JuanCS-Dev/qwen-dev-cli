@@ -25,7 +25,12 @@ class SessionManager:
             session_dir: Directory for session files (default: .qwen/sessions)
         """
         self.session_dir = session_dir or self.DEFAULT_SESSION_DIR
-        self.session_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.session_dir.mkdir(parents=True, exist_ok=True)
+        except (FileNotFoundError, OSError):
+            # CWD may not exist, fallback to home directory
+            self.session_dir = Path.home() / ".qwen_sessions"
+            self.session_dir.mkdir(parents=True, exist_ok=True)
     
     def create_session(self, cwd: Optional[Path] = None) -> SessionState:
         """Create new session state.

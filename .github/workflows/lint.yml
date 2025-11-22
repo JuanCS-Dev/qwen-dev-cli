@@ -1,0 +1,35 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+    
+    - name: Install linting tools
+      run: |
+        pip install black flake8 mypy isort
+    
+    - name: Run black
+      run: black --check qwen_dev_cli/
+    
+    - name: Run flake8
+      run: flake8 qwen_dev_cli/ --max-line-length=100
+    
+    - name: Run mypy
+      run: mypy qwen_dev_cli/ --ignore-missing-imports
+    
+    - name: Run isort
+      run: isort --check-only qwen_dev_cli/

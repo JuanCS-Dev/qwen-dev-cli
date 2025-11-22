@@ -52,7 +52,7 @@ from .tools.file_mgmt import (
     ReadMultipleFilesTool, InsertLinesTool
 )
 from .tools.search import SearchFilesTool, GetDirectoryTreeTool
-from .tools.exec import BashCommandTool
+from .tools.exec_hardened import BashCommandTool
 from .tools.git_ops import GitStatusTool, GitDiffTool
 from .tools.context import GetContextTool, SaveSessionTool, RestoreBackupTool
 from .tools.terminal import (
@@ -102,7 +102,12 @@ class SessionContext:
     """Persistent context across shell session."""
     
     def __init__(self):
-        self.cwd = os.getcwd()
+        try:
+            self.cwd = os.getcwd()
+        except (FileNotFoundError, OSError):
+            # CWD may not exist (e.g., deleted temp dir)
+            # Fallback to home or /tmp
+            self.cwd = os.path.expanduser("~")
         self.conversation = []
         self.modified_files = set()
         self.read_files = set()
@@ -2209,7 +2214,7 @@ Output ONLY the command, no explanation, no markdown."""
     
     async def _execute_command(self, command: str) -> dict:
         """Execute shell command and return result."""
-        from .tools.exec import BashCommandTool
+        from .tools.exec_hardened import BashCommandTool
         
         bash = BashCommandTool()
         result = await bash.execute(command=command)

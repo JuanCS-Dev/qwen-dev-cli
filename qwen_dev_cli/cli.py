@@ -117,7 +117,7 @@ def generate(
         None, "--context", help="Context files for reference"
     ),
     output: Optional[str] = typer.Option(None, "--output", help="Save to file"),
-    stream: bool = typer.Option(True, "--stream/--no-stream", help="Stream output"),
+    stream: bool = typer.Option(True, "--stream", help="Stream output"),
 ):
     """Generate code based on a prompt."""
     console.print(f"\n[bold blue]✨ Generating:[/bold blue] {prompt}\n")

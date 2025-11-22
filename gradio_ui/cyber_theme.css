@@ -1,0 +1,462 @@
+/* ============================================================================
+   CYBERPUNK GLASSMORPHISM THEME - PIXEL PERFECT VISUAL
+   ============================================================================ */
+
+:root {
+  --cyber-bg-primary: #0A0E14;
+  --cyber-bg-panel: #141922;
+  --cyber-accent-cyan: #00D9FF;
+  --cyber-accent-light: #00F0FF;
+  --cyber-text-primary: #E6E6E6;
+  --cyber-text-secondary: #8A8A8A;
+  --cyber-border: rgba(0, 217, 255, 0.2);
+  --cyber-border-bright: rgba(0, 217, 255, 0.4);
+  --cyber-success: #10B981;
+  --cyber-warning: #F59E0B;
+  --cyber-danger: #EF4444;
+  --cyber-info: #3B82F6;
+}
+
+/* ============================================================================
+   GLOBAL
+   ============================================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background-color: var(--cyber-bg-primary);
+  color: var(--cyber-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Courier New', monospace;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* ============================================================================
+   GLASSMORPHISM BASE
+   ============================================================================ */
+
+.cyber-glass {
+  background: rgba(20, 25, 34, 0.6);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid var(--cyber-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 
+              inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.cyber-glass:hover {
+  border-color: var(--cyber-border-bright);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+              inset 0 2px 4px rgba(255, 255, 255, 0.15),
+              0 0 20px rgba(0, 217, 255, 0.1);
+}
+
+.cyber-glass-bright {
+  background: rgba(20, 25, 34, 0.8);
+  backdrop-filter: blur(16px) saturate(200%);
+  border: 1px solid var(--cyber-border-bright);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+              inset 0 2px 8px rgba(0, 217, 255, 0.1);
+}
+
+/* ============================================================================
+   NEON EFFECTS
+   ============================================================================ */
+
+.cyber-glow {
+  text-shadow: 0 0 8px var(--cyber-accent-cyan),
+               0 0 16px rgba(0, 217, 255, 0.5),
+               0 0 24px rgba(0, 217, 255, 0.3);
+  color: var(--cyber-accent-cyan);
+}
+
+.cyber-glow-bright {
+  text-shadow: 0 0 10px var(--cyber-accent-light),
+               0 0 20px rgba(0, 240, 255, 0.6),
+               0 0 30px rgba(0, 217, 255, 0.4);
+  color: var(--cyber-accent-light);
+}
+
+/* Border glow animado */
+@keyframes border-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.3) inset,
+                0 0 15px rgba(0, 217, 255, 0.1) outset;
+    border-color: var(--cyber-border);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.5) inset,
+                0 0 30px rgba(0, 217, 255, 0.2) outset;
+    border-color: var(--cyber-border-bright);
+  }
+}
+
+.cyber-border-animated {
+  animation: border-glow-pulse 3s ease-in-out infinite;
+}
+
+/* ============================================================================
+   GRADIO OVERRIDES - Chat Interface
+   ============================================================================ */
+
+.gradio-container {
+  background: var(--cyber-bg-primary);
+  max-width: 100%;
+}
+
+/* Chat messages */
+.chatbot-container {
+  background: var(--cyber-bg-panel);
+  border-radius: 6px;
+  border: 1px solid var(--cyber-border);
+}
+
+.message-bubble {
+  background: rgba(20, 25, 34, 0.7);
+  border-radius: 6px;
+  border: 1px solid var(--cyber-border);
+  padding: 12px 16px;
+  margin: 4px 0;
+}
+
+.message-user {
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(0, 217, 255, 0.05));
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  text-shadow: 0 0 2px rgba(0, 217, 255, 0.4);
+}
+
+/* ============================================================================
+   INPUT FIELDS & TEXTBOX
+   ============================================================================ */
+
+.gradio-textbox input,
+.gradio-textbox textarea {
+  background: rgba(20, 25, 34, 0.8);
+  border: 1px solid var(--cyber-border);
+  color: var(--cyber-text-primary);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.gradio-textbox input::placeholder,
+.gradio-textbox textarea::placeholder {
+  color: rgba(138, 138, 138, 0.6);
+  font-style: italic;
+}
+
+.gradio-textbox input:focus,
+.gradio-textbox textarea:focus {
+  border-color: var(--cyber-accent-cyan);
+  background: rgba(20, 25, 34, 0.95);
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.3) inset,
+              0 0 8px rgba(0, 217, 255, 0.2);
+  outline: none;
+}
+
+/* ============================================================================
+   BUTTONS
+   ============================================================================ */
+
+.gradio-button {
+  background: linear-gradient(135deg, var(--cyber-accent-cyan) 0%, #00A8CC 100%);
+  border: 1px solid var(--cyber-accent-cyan);
+  color: var(--cyber-bg-primary);
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.gradio-button:hover {
+  box-shadow: 0 0 25px rgba(0, 217, 255, 0.6),
+              0 0 40px rgba(0, 217, 255, 0.3);
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, var(--cyber-accent-light) 0%, #00D9FF 100%);
+}
+
+.gradio-button:active {
+  transform: translateY(0);
+  box-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
+}
+
+/* ============================================================================
+   CODE BLOCKS & SYNTAX HIGHLIGHTING
+   ============================================================================ */
+
+.gradio-code {
+  background: var(--cyber-bg-primary);
+  border: 1px solid var(--cyber-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.cm-editor {
+  background: var(--cyber-bg-primary) !important;
+  color: var(--cyber-text-primary) !important;
+}
+
+/* CodeMirror Theme */
+.cm-gutters {
+  background: var(--cyber-bg-panel) !important;
+  border-right: 1px solid var(--cyber-border) !important;
+}
+
+.cm-keyword { color: #FF79C6 !important; font-weight: 600; }
+.cm-string { color: #F1FA8C !important; }
+.cm-comment { color: #6272A4 !important; font-style: italic; }
+.cm-function { color: #50FA7B !important; font-weight: 500; }
+.cm-number { color: #BD93F9 !important; }
+.cm-type { color: #8BE9FD !important; }
+.cm-variable { color: var(--cyber-text-primary); }
+.cm-property { color: #50FA7B !important; }
+.cm-atom { color: #FF79C6 !important; }
+
+.cm-cursor {
+  border-left: 2px solid var(--cyber-accent-cyan) !important;
+}
+
+/* ============================================================================
+   FILE EXPLORER
+   ============================================================================ */
+
+.file-explorer-cyber {
+  background: var(--cyber-bg-panel);
+  border: 1px solid var(--cyber-border);
+  border-radius: 6px;
+  color: var(--cyber-text-primary);
+}
+
+.file-explorer-cyber .folder-icon::before {
+  content: "📁";
+  filter: brightness(1.3) hue-rotate(-10deg);
+}
+
+.file-explorer-cyber .file-icon::before {
+  content: "📄";
+  filter: brightness(1.2);
+}
+
+.file-explorer-cyber .item {
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.file-explorer-cyber .item:hover {
+  background: rgba(0, 217, 255, 0.1);
+  border-left: 2px solid var(--cyber-accent-cyan);
+  padding-left: 6px;
+}
+
+/* ============================================================================
+   TERMINAL & LOGS
+   ============================================================================ */
+
+.terminal-log {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--cyber-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.log-info { color: var(--cyber-info); }
+.log-success { color: var(--cyber-success); }
+.log-warning { color: var(--cyber-warning); }
+.log-error { color: var(--cyber-danger); }
+
+/* Cursor pulsante */
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.cursor-blink {
+  animation: cursor-blink 1s infinite;
+  display: inline-block;
+}
+
+/* ============================================================================
+   SCROLLBARS
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(20, 25, 34, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--cyber-accent-cyan), #00A8CC);
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 217, 255, 0.4) inset;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, var(--cyber-accent-light), var(--cyber-accent-cyan));
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.6) inset;
+}
+
+/* Firefox */
+* {
+  scrollbar-color: var(--cyber-accent-cyan) rgba(20, 25, 34, 0.4);
+  scrollbar-width: thin;
+}
+
+/* ============================================================================
+   SECTIONS & GROUPS
+   ============================================================================ */
+
+.section {
+  background: var(--cyber-bg-panel);
+  border: 1px solid var(--cyber-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px 0;
+}
+
+.group-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyber-accent-cyan);
+  text-shadow: 0 0 5px rgba(0, 217, 255, 0.6);
+  margin-bottom: 12px;
+  font-family: 'Courier New', monospace;
+}
+
+/* ============================================================================
+   PANEL HEADERS
+   ============================================================================ */
+
+.panel-header {
+  background: linear-gradient(90deg, 
+              rgba(0, 217, 255, 0.05) 0%, 
+              transparent 100%);
+  border-bottom: 1px solid var(--cyber-border);
+  padding: 12px;
+  border-radius: 8px 8px 0 0;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--cyber-accent-cyan);
+  text-shadow: 0 0 8px rgba(0, 217, 255, 0.6);
+  text-transform: uppercase;
+  font-family: 'Courier New', monospace;
+  margin: 0;
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.8);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+.pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 1024px) {
+  .cyber-glass {
+    border-radius: 6px;
+    padding: 8px;
+  }
+  
+  .panel-title {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 12px;
+  }
+  
+  .terminal-log {
+    font-size: 10px;
+  }
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.border-cyan {
+  border: 1px solid var(--cyber-border-bright);
+}
+
+.bg-panel {
+  background: var(--cyber-bg-panel);
+}
+
+.text-cyan {
+  color: var(--cyber-accent-cyan);
+}
+
+.text-muted {
+  color: var(--cyber-text-secondary);
+}
+
+.opacity-glass {
+  opacity: 0.85;
+}
+
+.shadow-neon {
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+}
+
+.shadow-neon-bright {
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.6);
+}
