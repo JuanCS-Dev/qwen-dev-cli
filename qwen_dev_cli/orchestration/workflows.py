@@ -36,23 +36,24 @@ class Workflow:
 class WorkflowLibrary:
     """Library of predefined workflows."""
     
-    def __init__(self):
-        self._workflows: Dict[str, Workflow] = {}
+    def __init__(self) -> None:
+        """Initialize workflow library with default workflows."""
+        self.workflows: Dict[str, Workflow] = {}
         self._register_defaults()
     
     def get_workflow(self, name: str) -> Optional[Workflow]:
         """Get a workflow by name."""
-        return self._workflows.get(name)
+        return self.workflows.get(name)
     
     def list_workflows(self) -> List[Workflow]:
         """List all available workflows."""
-        return list(self._workflows.values())
+        return list(self.workflows.values())
     
-    def _register_defaults(self):
+    def _register_defaults(self) -> None:
         """Register default workflows."""
         
         # 1. Setup FastAPI Project
-        self._register(Workflow(
+        self.register(Workflow(
             id="setup-fastapi",
             name="setup-fastapi",
             description="Scaffold a new production-ready FastAPI project",
@@ -90,7 +91,7 @@ class WorkflowLibrary:
         ))
         
         # 2. Add Authentication
-        self._register(Workflow(
+        self.register(Workflow(
             id="add-auth",
             name="add-auth",
             description="Add JWT authentication with refresh tokens",
@@ -134,7 +135,7 @@ class WorkflowLibrary:
         ))
         
         # 3. Migrate to FastAPI
-        self._register(Workflow(
+        self.register(Workflow(
             id="migrate-fastapi",
             name="migrate-fastapi",
             description="Plan migration from Flask/Django to FastAPI",
@@ -166,6 +167,6 @@ class WorkflowLibrary:
             ]
         ))
 
-    def _register(self, workflow: Workflow):
-        """Register a workflow."""
-        self._workflows[workflow.name] = workflow
+    def register(self, workflow: Workflow) -> None:
+        """Register a new workflow."""
+        self.workflows[workflow.name] = workflow

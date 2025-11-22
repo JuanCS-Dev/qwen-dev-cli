@@ -571,5 +571,4 @@ Suggest a correction strategy for the next attempt (be brief, 1-2 sentences)."""
             reasoning=f"Step {step_id} failed after {attempts} attempts",
             error=error,
             metadata={"attempts": attempts, "requires_human": True},
-            output={},
         )

@@ -466,7 +466,7 @@ class DevSquad:
         """
         lines = [
             f"Workflow {workflow_result.workflow_id[:8]}",
-            f"Status: {workflow_result.success.value}",
+            f"Status: {workflow_result.status.value}",
             f"Duration: {workflow_result.total_duration_seconds:.1f}s",
             "",
             "Phases:",
@@ -479,7 +479,7 @@ class DevSquad:
                 f"{phase_result.duration_seconds:.1f}s"
             )
         
-        if workflow_result.success == WorkflowStatus.COMPLETED:
+        if workflow_result.status == WorkflowStatus.COMPLETED:
             lines.append("")
             lines.append("Artifacts: " + ", ".join(workflow_result.artifacts.keys()))
         

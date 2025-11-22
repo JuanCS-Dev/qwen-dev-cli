@@ -306,7 +306,7 @@ class PlannerAgent(BaseAgent):
         - "Step 1: Create directory..."
         - "1. Create app/auth"
         """
-        steps = []
+        steps: List[Dict[str, Any]] = []
         lines = text.split("\n")
 
         for i, line in enumerate(lines, 1):
