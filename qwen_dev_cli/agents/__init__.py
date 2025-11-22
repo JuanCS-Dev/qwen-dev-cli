@@ -28,6 +28,8 @@ from qwen_dev_cli.agents.base import (
 )
 from qwen_dev_cli.agents.architect import ArchitectAgent
 from qwen_dev_cli.agents.explorer import ExplorerAgent
+from qwen_dev_cli.agents.planner import PlannerAgent
+from qwen_dev_cli.agents.refactorer import RefactorerAgent
 
 __all__ = [
     "AgentCapability",
@@ -37,4 +39,6 @@ __all__ = [
     "BaseAgent",
     "ArchitectAgent",
     "ExplorerAgent",
+    "PlannerAgent",
+    "RefactorerAgent",
 ]
