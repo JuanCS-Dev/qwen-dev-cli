@@ -26,6 +26,8 @@ from qwen_dev_cli.agents.base import (
     AgentResponse,
     BaseAgent,
 )
+from qwen_dev_cli.agents.architect import ArchitectAgent
+from qwen_dev_cli.agents.explorer import ExplorerAgent
 
 __all__ = [
     "AgentCapability",
@@ -33,4 +35,6 @@ __all__ = [
     "AgentTask",
     "AgentResponse",
     "BaseAgent",
+    "ArchitectAgent",
+    "ExplorerAgent",
 ]
