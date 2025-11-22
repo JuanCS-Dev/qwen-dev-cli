@@ -152,7 +152,14 @@ class ArchitectAgent(BaseAgent):
                     error="Invalid LLM response format",
                 )
             
-            decision = decision_data["decision"]
+            decision = decision_data["decision"].upper()
+            
+            # Normalize variations
+            if decision == "APPROVE":
+                decision = "APPROVED"
+            elif decision == "VETO":
+                decision = "VETOED"
+                
             if decision not in ("APPROVED", "VETOED"):
                 return AgentResponse(
                     success=False,

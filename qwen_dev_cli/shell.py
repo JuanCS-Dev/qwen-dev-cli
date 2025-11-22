@@ -97,6 +97,9 @@ from .core.token_tracker import TokenTracker
 # Phase 8: LSP Integration (Week 3 Day 3)
 from .intelligence.lsp_client import LSPClient
 
+from .core.mcp_client import MCPClient
+from .orchestration.squad import DevSquad
+
 
 class SessionContext:
     """Persistent context across shell session."""
@@ -259,6 +262,10 @@ class InteractiveShell:
         self.registry = ToolRegistry()
         self._register_tools()
         
+        # Day 5: DevSquad Orchestration (Initialized after registry)
+        self.mcp_client = MCPClient(self.registry)
+        self.squad = DevSquad(self.llm, self.mcp_client)
+        
         # Phase 4.3: Async executor for parallel tool execution
         self.async_executor = AsyncExecutor(max_parallel=5)
         
@@ -404,7 +411,6 @@ class InteractiveShell:
             action=lambda: os.system('clear')
         ))
         
-        # Tools commands
         self.palette.add_command(Command(
             id="tools.list",
             title="List Available Tools",
@@ -412,6 +418,25 @@ class InteractiveShell:
             category=CommandCategory.TOOLS,
             keywords=["tools", "list", "available"],
             action=lambda: self._palette_list_tools()
+        ))
+
+        # DevSquad commands
+        self.palette.add_command(Command(
+            id="squad.run",
+            title="Run DevSquad Mission",
+            description="Execute a complex task with agent squad",
+            category=CommandCategory.TOOLS,
+            keywords=["squad", "mission", "agent", "devsquad"],
+            action=lambda: self._palette_run_squad()
+        ))
+
+        self.palette.add_command(Command(
+            id="workflow.list",
+            title="List Workflows",
+            description="Show available workflows",
+            category=CommandCategory.TOOLS,
+            keywords=["workflow", "list", "template"],
+            action=lambda: self._palette_list_workflows()
         ))
     
     def _show_welcome(self):
@@ -1136,6 +1161,55 @@ Context Optimizer:
                 wstats = self.file_watcher.get_stats()
                 self.console.print(f"\n📁 File Watcher:\n  Tracked: {wstats['tracked_count']}\n  Events: {wstats['event_count']}")
             return False, None
+        elif cmd.startswith("/squad "):
+            # DevSquad Mission
+            request = cmd[7:].strip()
+            self.console.print(f"\n[bold blue]🤖 DevSquad Mission:[/bold blue] {request}\n")
+            
+            try:
+                with self.console.status("[bold green]DevSquad Active...[/bold green]"):
+                    result = await self.squad.execute_workflow(request)
+                self.console.print(self.squad.get_phase_summary(result))
+            except Exception as e:
+                self.console.print(f"[bold red]Error:[/bold red] {e}")
+            return False, None
+
+        elif cmd == "/workflow list":
+            # List workflows
+            self._palette_list_workflows()
+            return False, None
+
+        elif cmd.startswith("/workflow run "):
+            # Run workflow
+            workflow_name = cmd[14:].strip()
+            from .orchestration.workflows import WorkflowLibrary
+            lib = WorkflowLibrary()
+            workflow = lib.get_workflow(workflow_name)
+            
+            if not workflow:
+                return False, f"[red]Workflow '{workflow_name}' not found[/red]"
+            
+            self.console.print(f"\n[bold blue]🚀 Starting Workflow:[/bold blue] {workflow.name}")
+            self.console.print(f"[dim]{workflow.description}[/dim]\n")
+            
+            self.console.print("\n[bold green]📋 Execution Plan:[/bold green]")
+            for i, step in enumerate(workflow.steps, 1):
+                self.console.print(f"{i}. [cyan]{step.agent.upper()}[/cyan]: {step.description}")
+            
+            # Execute
+            try:
+                # Construct request from workflow
+                request = f"Execute workflow '{workflow.name}': {workflow.description}\n\nSteps:\n"
+                for step in workflow.steps:
+                    request += f"- {step.name}: {step.description}\n"
+                
+                with self.console.status(f"[bold green]Running Workflow {workflow_name}...[/bold green]"):
+                    result = await self.squad.execute_workflow(request)
+                self.console.print(self.squad.get_phase_summary(result))
+            except Exception as e:
+                self.console.print(f"[bold red]Error:[/bold red] {e}")
+            return False, None
+
         elif cmd.startswith("/explain "):
             command = cmd[9:].strip()
             explanation = explain_command(command)
@@ -2254,6 +2328,43 @@ Output ONLY the command, no explanation, no markdown."""
             self.console.print(f"[dim]{str(error)}[/dim]")
             self.console.print("[yellow]💡 Try rephrasing your request[/yellow]")
     
+    async def _palette_run_squad(self):
+        """Handle squad run from palette."""
+        self.console.print("[bold blue]🤖 DevSquad Mission[/bold blue]")
+        # Use input_session if available, or simple prompt
+        try:
+            request = await self.input_session.prompt_async("Mission Request: ")
+        except:
+            # Fallback if input_session not fully set up in tests or some modes
+            request = self.console.input("Mission Request: ")
+            
+        if not request: return
+
+        try:
+            with self.console.status("[bold green]DevSquad Active...[/bold green]"):
+                result = await self.squad.execute_workflow(request)
+            self.console.print(self.squad.get_phase_summary(result))
+        except Exception as e:
+            self.console.print(f"[bold red]Error:[/bold red] {e}")
+
+    def _palette_list_workflows(self):
+        """Handle workflow list from palette."""
+        from .orchestration.workflows import WorkflowLibrary
+        from rich.table import Table
+        
+        lib = WorkflowLibrary()
+        workflows = lib.list_workflows()
+        
+        table = Table(title="Available Workflows")
+        table.add_column("ID", style="cyan")
+        table.add_column("Name", style="blue")
+        table.add_column("Description", style="white")
+        
+        for w in workflows:
+            table.add_row(w.id, w.name, w.description)
+            
+        self.console.print(table)
+
     def _show_help(self):
         """Show help message (Gemini: visual hierarchy)."""
         help_text = """

@@ -177,7 +177,9 @@ class DevSquad:
             
             # Check if architect vetoed
             arch_output = arch_result.agent_response.data
-            if not arch_output.get("approved", False):
+            decision = str(arch_output.get("decision", "")).upper()
+            
+            if decision not in ["APPROVED", "APPROVE"]:
                 result.status = WorkflowStatus.FAILED
                 result.metadata["veto_reason"] = arch_output.get("reasoning", "Unknown")
                 return self._finalize_workflow(result, workflow_start)

@@ -9,16 +9,28 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from .core.llm import llm_client
+from rich.prompt import Prompt
+from rich.panel import Panel
+from rich.table import Table
+
+from qwen_dev_cli.core.llm import llm_client
 from .core.context import context_builder
-from .core.mcp import mcp_manager
+from qwen_dev_cli.core.mcp_client import MCPClient
 from .core.config import config
+from qwen_dev_cli.tools.registry_helper import get_default_registry
+from qwen_dev_cli.orchestration.squad import DevSquad
 
 app = typer.Typer(
     name="qwen-dev",
     help="AI-Powered Code Assistant with MCP Integration",
     add_completion=False
 )
+
+def get_squad() -> DevSquad:
+    """Initialize DevSquad with default components."""
+    registry = get_default_registry()
+    mcp_client = MCPClient(registry)
+    return DevSquad(llm_client, mcp_client)
 console = Console()
 
 
@@ -567,6 +579,155 @@ def resume(
         console.print(f"[red]Error: {e}[/red]")
         import traceback
         traceback.print_exc()
+
+
+
+# Squad management commands
+squad_app = typer.Typer(
+    name="squad",
+    help="Manage DevSquad agents",
+    add_completion=False
+)
+app.add_typer(squad_app, name="squad")
+
+@squad_app.command("run")
+def squad_run(request: str):
+    """Start a DevSquad mission."""
+    console.print(Panel(f"[bold blue]🚀 Starting DevSquad Mission[/bold blue]\n[white]{request}[/white]"))
+    
+    try:
+        squad = get_squad()
+        
+        async def run():
+            with console.status("[bold green]DevSquad Active...[/bold green]"):
+                result = await squad.execute_workflow(request)
+            console.print(squad.get_phase_summary(result))
+            
+        asyncio.run(run())
+        
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(1)
+
+@squad_app.command("status")
+def squad_status():
+    """Check status of all specialist agents."""
+    from rich.table import Table
+    
+    table = Table(title="DevSquad Agent Status")
+    table.add_column("Agent", style="cyan")
+    table.add_column("Role", style="magenta")
+    table.add_column("Status", style="green")
+    table.add_column("Capabilities", style="yellow")
+    
+    # We can inspect the classes or instantiate to check
+    agents = [
+        ("Architect", "Architecture Analysis", "Active", "READ_ONLY"),
+        ("Explorer", "Context Discovery", "Active", "READ_ONLY, SEARCH"),
+        ("Planner", "Execution Planning", "Active", "DESIGN"),
+        ("Refactorer", "Code Execution", "Active", "FILE_EDIT, BASH, GIT"),
+        ("Reviewer", "Quality Control", "Active", "READ_ONLY, GIT"),
+    ]
+    
+    for agent, role, status, caps in agents:
+        table.add_row(agent, role, status, caps)
+        
+    console.print(table)
+
+
+# Workflow management commands
+workflow_app = typer.Typer(
+    name="workflow",
+    help="Manage and run workflows",
+    add_completion=False
+)
+app.add_typer(workflow_app, name="workflow")
+
+@workflow_app.command("list")
+def list_workflows():
+    """List available workflows."""
+    from .orchestration.workflows import WorkflowLibrary
+    from rich.table import Table
+    
+    lib = WorkflowLibrary()
+    workflows = lib.list_workflows()
+    
+    table = Table(title="Available Workflows")
+    table.add_column("ID", style="cyan")
+    table.add_column("Name", style="blue")
+    table.add_column("Type", style="magenta")
+    table.add_column("Description", style="white")
+    
+    for w in workflows:
+        table.add_row(w.id, w.name, w.type.value, w.description)
+        
+    console.print(table)
+
+@workflow_app.command("run")
+def workflow_run(name: str):
+    """Execute a predefined workflow."""
+    from .orchestration.workflows import WorkflowLibrary
+    from rich.panel import Panel
+    from rich.table import Table
+    
+    library = WorkflowLibrary()
+    workflow = library.get_workflow(name)
+    
+    if not workflow:
+        console.print(f"[bold red]Error:[/bold red] Workflow '{name}' not found.")
+        console.print("Run [bold]qwen-dev workflow list[/bold] to see available workflows.")
+        raise typer.Exit(1)
+    
+    console.print(Panel(
+        f"[bold blue]Starting Workflow: {workflow.name}[/bold blue]\n"
+        f"[dim]{workflow.description}[/dim]"
+    ))
+    
+    # Prompt for parameters
+    params = {}
+    if workflow.parameters:
+        console.print("\n[yellow]Configuration Required:[/yellow]")
+        for param_name, param_desc in workflow.parameters.items():
+            value = typer.prompt(f"{param_name} ({param_desc})")
+            params[param_name] = value
+            
+    # Show plan
+    table = Table(title="Execution Plan")
+    table.add_column("Step", style="cyan")
+    table.add_column("Description", style="white")
+    
+    for i, step in enumerate(workflow.steps, 1):
+        table.add_row(f"{i}. {step.name}", step.description)
+        
+    console.print(table)
+    
+    if not typer.confirm("\nProceed with execution?"):
+        console.print("[yellow]Aborted.[/yellow]")
+        raise typer.Exit()
+        
+    # Execute
+    try:
+        squad = get_squad()
+        
+        # Construct request from workflow
+        request = f"Execute workflow '{workflow.name}': {workflow.description}\n\nSteps:\n"
+        for step in workflow.steps:
+            request += f"- {step.name}: {step.description}\n"
+        if params:
+            request += "\nParameters:\n"
+            for k, v in params.items():
+                request += f"- {k}: {v}\n"
+        
+        async def run():
+            with console.status(f"[bold green]Running Workflow {name}...[/bold green]"):
+                result = await squad.execute_workflow(request)
+            console.print(squad.get_phase_summary(result))
+            
+        asyncio.run(run())
+        
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        raise typer.Exit(1)
 
 
 def main():
