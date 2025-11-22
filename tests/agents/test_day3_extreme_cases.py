@@ -15,27 +15,31 @@ import random
 class TestExtremeInputSizes:
     """Tests com tamanhos extremos de input"""
     
-    def test_planner_handles_empty_description(self):
+    @pytest.mark.asyncio
+    async def test_planner_handles_empty_description(self):
         """Planner com descrição vazia"""
         agent = PlannerAgent()
         context = TaskContext(task_id="empty", description="", working_dir=Path("/tmp"))
-        result = agent.execute(context)
-        assert result.status in [TaskStatus.SUCCESS, TaskStatus.FAILED]
+        result = await agent.execute(context)
+        # AgentResponse has .success, not .status
+        assert isinstance(result.success, bool)
     
-    def test_planner_handles_single_char_description(self):
+    @pytest.mark.asyncio
+    async def test_planner_handles_single_char_description(self):
         """Planner com descrição de 1 caractere"""
         agent = PlannerAgent()
         context = TaskContext(task_id="one", description="x", working_dir=Path("/tmp"))
-        result = agent.execute(context)
-        assert result.status in [TaskStatus.SUCCESS, TaskStatus.FAILED]
+        result = await agent.execute(context)
+        assert isinstance(result.success, bool)
     
-    def test_planner_handles_max_description(self):
+    @pytest.mark.asyncio
+    async def test_planner_handles_max_description(self):
         """Planner com descrição máxima"""
         agent = PlannerAgent()
         desc = "x" * 100000
         context = TaskContext(task_id="max", description=desc, working_dir=Path("/tmp"))
-        result = agent.execute(context)
-        assert result.status in [TaskStatus.SUCCESS, TaskStatus.FAILED]
+        result = await agent.execute(context)
+        assert isinstance(result.success, bool)
     
     def test_refactorer_handles_empty_description(self):
         """Refactorer com descrição vazia"""

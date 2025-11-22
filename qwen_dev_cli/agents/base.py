@@ -36,6 +36,8 @@ class AgentRole(str, Enum):
     PLANNER = "planner"  # Execution planning, DESIGN only
     REFACTORER = "refactorer"  # Code execution, FULL ACCESS
     REVIEWER = "reviewer"  # Quality validation, READ_ONLY + GIT
+    SECURITY = "security"  # Vulnerability scanning, READ_ONLY + BASH_EXEC
+    PERFORMANCE = "performance"  # Performance analysis, READ_ONLY + BASH_EXEC
 
 
 class AgentCapability(str, Enum):
@@ -55,6 +57,8 @@ class AgentCapability(str, Enum):
 class TaskStatus(str, Enum):
     """Task execution status."""
     PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
     SUCCESS = "success"
     FAILED = "failed"
 
@@ -73,7 +77,7 @@ class AgentTask(BaseModel):
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     request: str = Field(..., min_length=1, description="Task description")
     context: Dict[str, Any] = Field(default_factory=dict)
-    session_id: str = Field(..., description="Session identifier")
+    session_id: str = Field(default="default", description="Session identifier")
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"frozen": True}  # Immutable after creation
@@ -103,7 +107,7 @@ class AgentResponse(BaseModel):
 
     success: bool
     data: Dict[str, Any] = Field(default_factory=dict)
-    reasoning: str = Field(..., min_length=1)
+    reasoning: str = Field(default="", description="Agent reasoning")
     error: Optional[str] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
