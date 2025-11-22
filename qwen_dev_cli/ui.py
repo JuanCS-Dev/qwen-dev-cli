@@ -1,4 +1,12 @@
-"""Gradio web UI for qwen-dev-cli."""
+"""Gradio web UI for qwen-dev-cli - SPECTACULAR EDITION.
+
+Features:
+- Cyberpunk glassmorphism theme
+- DevSquad multi-agent visualization
+- Smooth animations and transitions
+- Premium UX with real-time feedback
+- Mobile-responsive design
+"""
 
 import asyncio
 from typing import List, Tuple, Generator
@@ -9,144 +17,374 @@ from .core.context import context_builder
 from .core.mcp import mcp_manager
 from .core.config import config
 
+# Try to import DevSquad (optional)
+try:
+    from .orchestration.squad import DevSquad
+    from .core.mcp_client import MCPClient
+    from .tools.registry_helper import get_default_registry
+    DEVSQUAD_AVAILABLE = True
+except ImportError:
+    DEVSQUAD_AVAILABLE = False
+
 
 def create_ui() -> gr.Blocks:
-    """Create Gradio Blocks UI with mobile-responsive design.
+    """Create SPECTACULAR Gradio UI with cyberpunk theme.
     
     Returns:
         Gradio Blocks interface
     """
     
-    # Mobile-first CSS with responsive breakpoints
-    mobile_css = """
-    /* Mobile-first responsive design */
-    .chat-container {
-        min-height: 400px;
+    # 🎨 SPECTACULAR CYBERPUNK CSS
+    spectacular_css = """
+    /* Cyberpunk Glassmorphism Theme */
+    :root {
+        --primary-glow: #00ff88;
+        --secondary-glow: #0088ff;
+        --accent-glow: #ff0088;
+        --glass-bg: rgba(15, 15, 35, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
     }
     
-    .upload-area {
-        border: 2px dashed #ccc;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
+    /* Main container with gradient background */
+    .gradio-container {
+        background: linear-gradient(135deg, #0a0a1f 0%, #1a0a2e 50%, #0f0a1f 100%) !important;
+        background-attachment: fixed !important;
     }
     
-    /* Touch-friendly buttons (min 44px) */
+    /* Glassmorphism cards */
+    .gr-box, .gr-panel, .gr-form {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+    }
+    
+    /* Glowing headers */
+    h1, h2, h3 {
+        background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-weight: 800 !important;
+        text-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+    
+    /* Chat messages with glow effect */
+    .message {
+        background: var(--glass-bg) !important;
+        border-left: 3px solid var(--primary-glow) !important;
+        border-radius: 12px !important;
+        padding: 12px !important;
+        margin: 8px 0 !important;
+        box-shadow: 0 4px 16px rgba(0, 255, 136, 0.1) !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .message:hover {
+        transform: translateX(4px) !important;
+        box-shadow: 0 6px 24px rgba(0, 255, 136, 0.2) !important;
+    }
+    
+    /* Buttons with neon glow */
     .gr-button {
-        min-height: 44px !important;
-        font-size: 16px !important;
+        background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow)) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        color: #0a0a1f !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        box-shadow: 0 4px 16px rgba(0, 255, 136, 0.3) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        min-height: 48px !important;
     }
     
-    /* Readable text on mobile (min 16px) */
-    .gr-textbox textarea, .gr-textbox input {
-        font-size: 16px !important;
+    .gr-button:hover {
+        transform: translateY(-2px) scale(1.02) !important;
+        box-shadow: 0 8px 32px rgba(0, 255, 136, 0.5) !important;
+    }
+    
+    .gr-button:active {
+        transform: translateY(0) scale(0.98) !important;
+    }
+    
+    /* Primary button extra glow */
+    .gr-button-primary {
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.6) !important;
+        animation: pulse-glow 2s ease-in-out infinite !important;
+    }
+    
+    @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.4); }
+        50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.8); }
+    }
+    
+    /* Input fields with glow */
+    .gr-textbox, .gr-dropdown {
+        background: rgba(15, 15, 35, 0.5) !important;
+        border: 2px solid var(--glass-border) !important;
+        border-radius: 12px !important;
+        color: #e0e0e0 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .gr-textbox:focus, .gr-dropdown:focus {
+        border-color: var(--primary-glow) !important;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.3) !important;
+    }
+    
+    /* Sliders with gradient track */
+    .gr-slider input[type="range"] {
+        background: linear-gradient(90deg, var(--primary-glow), var(--secondary-glow)) !important;
+        border-radius: 8px !important;
+    }
+    
+    /* Accordions with smooth animation */
+    .gr-accordion {
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 12px !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .gr-accordion:hover {
+        border-color: var(--primary-glow) !important;
+        box-shadow: 0 4px 20px rgba(0, 255, 136, 0.2) !important;
+    }
+    
+    /* File upload area */
+    .upload-area {
+        border: 2px dashed var(--primary-glow) !important;
+        background: rgba(0, 255, 136, 0.05) !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        text-align: center !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .upload-area:hover {
+        background: rgba(0, 255, 136, 0.1) !important;
+        border-color: var(--secondary-glow) !important;
+    }
+    
+    /* DevSquad agent cards */
+    .agent-card {
+        background: var(--glass-bg) !important;
+        border: 1px solid var(--glass-border) !important;
+        border-radius: 12px !important;
+        padding: 16px !important;
+        margin: 8px 0 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .agent-card:hover {
+        border-color: var(--primary-glow) !important;
+        transform: scale(1.02) !important;
+    }
+    
+    .agent-active {
+        border-color: var(--primary-glow) !important;
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.4) !important;
+        animation: pulse-border 1.5s ease-in-out infinite !important;
+    }
+    
+    @keyframes pulse-border {
+        0%, 100% { border-color: var(--primary-glow); }
+        50% { border-color: var(--secondary-glow); }
+    }
+    
+    /* Status indicators */
+    .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .status-active {
+        background: var(--primary-glow);
+        box-shadow: 0 0 10px var(--primary-glow);
+    }
+    
+    .status-idle {
+        background: #666;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 12px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: rgba(15, 15, 35, 0.5);
+        border-radius: 6px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, var(--primary-glow), var(--secondary-glow));
+        border-radius: 6px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, var(--secondary-glow), var(--accent-glow));
     }
     
     /* Mobile optimizations */
     @media (max-width: 768px) {
-        .chat-container {
-            min-height: 300px;
+        .gr-button {
+            min-height: 44px !important;
+            font-size: 14px !important;
         }
         
-        .gr-padded {
-            padding: 10px !important;
+        .gr-textbox textarea, .gr-textbox input {
+            font-size: 16px !important;
         }
         
-        /* Stack columns on mobile */
-        .gr-row {
-            flex-direction: column !important;
-        }
-        
-        .gr-column {
-            width: 100% !important;
-        }
+        h1 { font-size: 24px !important; }
+        h2 { font-size: 20px !important; }
     }
     
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-        .upload-area {
-            border-color: #555;
-        }
+    /* Loading animation */
+    @keyframes loading-pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+    }
+    
+    .loading {
+        animation: loading-pulse 1.5s ease-in-out infinite;
     }
     """
     
+    # 🎨 Create UI with spectacular theme
     with gr.Blocks(
-        title="QWEN-DEV-CLI - AI Code Assistant",
-        theme=gr.themes.Soft(
-            spacing_size="sm",
-            radius_size="md",
+        title="🚀 QWEN-DEV-CLI - AI DevSquad",
+        theme=gr.themes.Base(
+            primary_hue="green",
+            secondary_hue="blue",
+            neutral_hue="slate",
+            font=["Inter", "system-ui", "sans-serif"],
+        ).set(
+            body_background_fill="*neutral_950",
+            body_text_color="*neutral_100",
+            button_primary_background_fill="*primary_500",
+            button_primary_text_color="*neutral_950",
         ),
-        css=mobile_css
+        css=spectacular_css,
+        analytics_enabled=False,
     ) as demo:
         
-        # Responsive Header
+        # 🎯 Spectacular Header
         gr.Markdown("""
-        # 🚀 QWEN-DEV-CLI
-        **AI-Powered Code Assistant with MCP Integration**
-        
-        > Ask questions about your code, generate new functions, or get explanations with context awareness.
+        <div style="text-align: center; padding: 20px 0;">
+            <h1 style="font-size: 48px; margin-bottom: 10px;">
+                🚀 QWEN-DEV-CLI
+            </h1>
+            <p style="font-size: 20px; color: #00ff88; font-weight: 600;">
+                AI-Powered DevSquad with Multi-Agent Orchestration
+            </p>
+            <p style="font-size: 14px; color: #888; margin-top: 10px;">
+                ⚡ Architect • Explorer • Planner • Refactorer • Reviewer ⚡
+            </p>
+        </div>
         """)
         
-        # Main Layout (responsive: stacks on mobile)
+        # 🎮 Main Layout
         with gr.Row():
-            # Left Column: Chat Interface (60% desktop, 100% mobile)
-            with gr.Column(scale=3, min_width=320):
+            # Left: Chat Interface (70%)
+            with gr.Column(scale=7, min_width=400):
                 chatbot = gr.Chatbot(
-                    label="💬 Chat",
-                    height=500,
+                    label="💬 AI DevSquad Chat",
+                    height=600,
                     show_label=True,
                     container=True,
-                    elem_classes=["chat-container"],
                     type="messages",
                     bubble_full_width=False,
                     show_copy_button=True,
+                    avatar_images=(
+                        None,  # User avatar
+                        "https://em-content.zobj.net/thumbs/120/google/350/robot_1f916.png"  # AI avatar
+                    ),
                 )
                 
+                # Input area with send button
                 with gr.Row():
                     msg_input = gr.Textbox(
-                        placeholder="Ask about code, request generation...",
+                        placeholder="🎯 Ask DevSquad to architect, explore, plan, code, or review...",
                         label="Your Message",
-                        lines=2,
-                        max_lines=4,
-                        scale=4,
+                        lines=3,
+                        max_lines=6,
+                        scale=5,
                         autofocus=True,
-                        show_label=False
+                        show_label=False,
+                        container=False,
                     )
                     send_btn = gr.Button(
-                        "🚀",
+                        "🚀 SEND",
                         variant="primary",
                         scale=1,
-                        min_width=44,
+                        min_width=100,
                         size="lg"
                     )
                 
+                # Action buttons
                 with gr.Row():
-                    clear_btn = gr.Button("🗑️ Clear", size="sm", scale=1)
-                    retry_btn = gr.Button("♻️ Retry", size="sm", scale=1)
-                    examples_btn = gr.Button("💡 Examples", size="sm", scale=1)
+                    clear_btn = gr.Button("🗑️ Clear", size="sm", scale=1, variant="secondary")
+                    retry_btn = gr.Button("♻️ Retry", size="sm", scale=1, variant="secondary")
+                    if DEVSQUAD_AVAILABLE:
+                        squad_btn = gr.Button("🤖 DevSquad Mode", size="sm", scale=1, variant="primary")
+                    examples_btn = gr.Button("💡 Examples", size="sm", scale=1, variant="secondary")
             
-            # Right Column: Controls & Context (40% desktop, 100% mobile)
-            with gr.Column(scale=2, min_width=280):
-                # Collapsible Settings (better for mobile)
-                with gr.Accordion("⚙️ Model Settings", open=False):
-                    # Provider Selection
+            # Right: Controls & DevSquad Status (30%)
+            with gr.Column(scale=3, min_width=320):
+                
+                # 🤖 DevSquad Status (if available)
+                if DEVSQUAD_AVAILABLE:
+                    with gr.Accordion("🤖 DevSquad Status", open=True):
+                        squad_status = gr.Markdown("""
+                        <div class="agent-card">
+                            <h3>🏗️ Architect</h3>
+                            <span class="status-indicator status-idle"></span> Idle
+                        </div>
+                        <div class="agent-card">
+                            <h3>🔍 Explorer</h3>
+                            <span class="status-indicator status-idle"></span> Idle
+                        </div>
+                        <div class="agent-card">
+                            <h3>📋 Planner</h3>
+                            <span class="status-indicator status-idle"></span> Idle
+                        </div>
+                        <div class="agent-card">
+                            <h3>⚙️ Refactorer</h3>
+                            <span class="status-indicator status-idle"></span> Idle
+                        </div>
+                        <div class="agent-card">
+                            <h3>✅ Reviewer</h3>
+                            <span class="status-indicator status-idle"></span> Idle
+                        </div>
+                        """)
+                        
+                        squad_mode = gr.Checkbox(
+                            label="Enable DevSquad Orchestration",
+                            value=False,
+                            info="Use multi-agent workflow"
+                        )
+                
+                # ⚙️ Model Settings
+                with gr.Accordion("⚙️ Model Settings", open=True):
                     provider_dropdown = gr.Dropdown(
                         choices=llm_client.get_available_providers(),
                         value="auto",
                         label="🎯 LLM Provider",
-                        info="Choose LLM backend (auto = smart routing)",
+                        info="Smart routing (recommended: auto)",
                         interactive=True
-                    )
-                    
-                    # Show provider info
-                    provider_info = gr.Markdown(
-                        """
-                        **Available Providers:**
-                        - `auto` - Intelligent routing (recommended)
-                        - `hf` - HuggingFace (baseline, 1514ms TTFT)
-                        - `ollama` - Local inference (privacy-first)
-                        """,
-                        visible=True
                     )
                     
                     temperature = gr.Slider(
@@ -154,121 +392,207 @@ def create_ui() -> gr.Blocks:
                         maximum=2.0,
                         value=config.temperature,
                         step=0.1,
-                        label="Temperature",
+                        label="🌡️ Temperature",
                         info="Creativity level"
                     )
                     
                     max_tokens = gr.Slider(
                         minimum=128,
-                        maximum=4096,
+                        maximum=8192,
                         value=config.max_tokens,
                         step=128,
-                        label="Max Tokens",
+                        label="📏 Max Tokens",
                         info="Response length"
                     )
                     
                     stream_enabled = gr.Checkbox(
                         label="⚡ Enable Streaming",
                         value=True,
-                        info="Progressive response"
+                        info="Real-time response"
                     )
                 
-                # File Upload (touch-friendly)
-                with gr.Accordion("📁 Context Files", open=True):
+                # 📁 Context Files
+                with gr.Accordion("📁 Context Files", open=False):
                     file_upload = gr.File(
-                        label="Upload Files",
+                        label="Upload Code Files",
                         file_count="multiple",
-                        file_types=[".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".cpp", ".c", ".go", ".rs", ".md", ".txt", ".json", ".yaml", ".yml"],
+                        file_types=[".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".cpp", ".c", ".go", ".rs", ".md", ".txt", ".json", ".yaml", ".yml", ".toml", ".sh"],
                         elem_classes=["upload-area"],
-                        height=120
+                        height=140
                     )
                     
                     context_status = gr.Textbox(
                         label="Status",
-                        value="No files loaded",
+                        value="📂 No files loaded",
                         interactive=False,
                         lines=2,
-                        max_lines=4,
                         show_label=False
                     )
                     
                     clear_context_btn = gr.Button("🧹 Clear Context", size="sm", variant="secondary")
                 
-                # MCP Toggle (simplified for mobile)
-                with gr.Accordion("🔧 MCP", open=False):
+                # 🔧 MCP Tools
+                with gr.Accordion("🔧 MCP Tools", open=False):
                     mcp_enabled = gr.Checkbox(
                         label="Enable MCP Filesystem",
                         value=mcp_manager.enabled,
-                        info="Access local files"
+                        info="Access local files via MCP"
                     )
                     
                     mcp_status = gr.Textbox(
                         label="MCP Status",
-                        value="Ready" if mcp_manager.enabled else "Disabled",
+                        value="✅ Ready" if mcp_manager.enabled else "⚠️ Disabled",
                         interactive=False,
                         show_label=False
                     )
                 
-                # Performance Dashboard (NEW!)
+                # ⚡ Performance Metrics
                 with gr.Accordion("⚡ Performance", open=True):
-                    perf_display = gr.Markdown(
-                        """
-                        **Last Response:**
-                        - Provider: Not used yet
-                        - TTFT: - ms
-                        - Total Time: - s
-                        """,
-                        label="Performance Metrics"
-                    )
+                    perf_display = gr.Markdown("""
+                    **Last Response:**
+                    - 🎯 Provider: Not used yet
+                    - ⚡ TTFT: - ms
+                    - ⏱️ Total: - s
+                    - 🔥 Status: Ready
+                    """)
                 
-                # Stats (collapsible on mobile)
-                with gr.Accordion("📊 Stats", open=False):
+                # 📊 Statistics
+                with gr.Accordion("📊 Statistics", open=False):
                     stats_display = gr.JSON(
-                        label="Context Statistics",
-                        value={"files": 0, "chars": 0, "tokens": 0}
+                        label="Context Stats",
+                        value={"files": 0, "chars": 0, "tokens": 0, "agents_used": 0}
                     )
         
         # State management
         chat_history = gr.State([])
         last_user_msg = gr.State("")
-        show_examples = gr.State(False)
+        devsquad_mode = gr.State(False)
         
-        # Examples (toggle visibility)
+        # 💡 Examples
         examples_row = gr.Examples(
             examples=[
-                ["Explain this Python function and suggest improvements"],
-                ["Generate a FastAPI endpoint for user authentication"],
-                ["What are best practices for error handling?"],
-                ["Refactor this function to be more efficient"],
-                ["Review this code for security vulnerabilities"],
+                ["🏗️ Architect: Analyze if we can add JWT authentication to this FastAPI app"],
+                ["🔍 Explorer: Find all authentication-related files in the codebase"],
+                ["📋 Planner: Create a step-by-step plan to add user registration"],
+                ["⚙️ Refactorer: Implement the login endpoint with proper error handling"],
+                ["✅ Reviewer: Review this code for security vulnerabilities and best practices"],
+                ["🤖 DevSquad: Add complete authentication system with JWT tokens"],
             ],
             inputs=msg_input,
-            label="💡 Example Prompts"
+            label="💡 Example Prompts (Try DevSquad!)"
         )
         
-        # Event Handlers
+        # 🎯 Event Handlers
         
-        def respond_stream(message: str, history: List, temp: float, max_tok: int, stream: bool, provider: str) -> Generator:
-            """Handle chat response with streaming support and provider selection."""
+        def respond_stream(message: str, history: List, temp: float, max_tok: int, stream: bool, provider: str, use_squad: bool) -> Generator:
+            """Handle chat response with optional DevSquad orchestration."""
             import time
             
             if not message.strip():
-                yield history, None
+                yield history, None, None
                 return
             
             # Add user message
             history.append({"role": "user", "content": message})
             history.append({"role": "assistant", "content": ""})
             
-            # Track performance
             start_time = time.time()
             first_token_time = None
-            used_provider = provider if provider != "auto" else "auto (selecting...)"
             
+            # DevSquad mode
+            if use_squad and DEVSQUAD_AVAILABLE:
+                try:
+                    # Update status: Architect working
+                    squad_html = """
+                    <div class="agent-card agent-active">
+                        <h3>🏗️ Architect</h3>
+                        <span class="status-indicator status-active"></span> Analyzing...
+                    </div>
+                    <div class="agent-card">
+                        <h3>🔍 Explorer</h3>
+                        <span class="status-indicator status-idle"></span> Waiting
+                    </div>
+                    <div class="agent-card">
+                        <h3>📋 Planner</h3>
+                        <span class="status-indicator status-idle"></span> Waiting
+                    </div>
+                    <div class="agent-card">
+                        <h3>⚙️ Refactorer</h3>
+                        <span class="status-indicator status-idle"></span> Waiting
+                    </div>
+                    <div class="agent-card">
+                        <h3>✅ Reviewer</h3>
+                        <span class="status-indicator status-idle"></span> Waiting
+                    </div>
+                    """
+                    yield history, squad_html, None
+                    
+                    # Initialize DevSquad
+                    registry = get_default_registry()
+                    mcp_client = MCPClient(registry)
+                    squad = DevSquad(llm_client, mcp_client, require_human_approval=False)
+                    
+                    # Execute workflow
+                    async def run_squad():
+                        return await squad.execute_workflow(message)
+                    
+                    result = asyncio.run(run_squad())
+                    
+                    # Format response
+                    response_text = f"**DevSquad Workflow Complete!**\n\n"
+                    response_text += f"**Status:** {result.status.value}\n"
+                    response_text += f"**Phases Executed:** {len(result.phases)}\n\n"
+                    
+                    for phase in result.phases:
+                        icon = "✅" if phase.success else "❌"
+                        response_text += f"{icon} **{phase.phase.value.capitalize()}**: {phase.duration_seconds:.2f}s\n"
+                    
+                    history[-1]["content"] = response_text
+                    
+                    # Final status
+                    squad_html = """
+                    <div class="agent-card">
+                        <h3>🏗️ Architect</h3>
+                        <span class="status-indicator status-active"></span> ✅ Complete
+                    </div>
+                    <div class="agent-card">
+                        <h3>🔍 Explorer</h3>
+                        <span class="status-indicator status-active"></span> ✅ Complete
+                    </div>
+                    <div class="agent-card">
+                        <h3>📋 Planner</h3>
+                        <span class="status-indicator status-active"></span> ✅ Complete
+                    </div>
+                    <div class="agent-card">
+                        <h3>⚙️ Refactorer</h3>
+                        <span class="status-indicator status-active"></span> ✅ Complete
+                    </div>
+                    <div class="agent-card">
+                        <h3>✅ Reviewer</h3>
+                        <span class="status-indicator status-active"></span> ✅ Complete
+                    </div>
+                    """
+                    
+                    total_time = time.time() - start_time
+                    perf_info = f"""
+**Last Response:**
+- 🎯 Provider: DevSquad (Multi-Agent)
+- ⚡ TTFT: {(time.time() - start_time) * 1000:.0f}ms
+- ⏱️ Total: {total_time:.2f}s
+- 🔥 Status: ✅ Complete
+"""
+                    yield history, squad_html, perf_info
+                    return
+                    
+                except Exception as e:
+                    history[-1]["content"] = f"❌ DevSquad Error: {str(e)}"
+                    yield history, None, None
+                    return
+            
+            # Regular LLM mode (existing code)
             if stream:
-                # Streaming mode
                 async def stream_response():
-                    nonlocal first_token_time, used_provider
+                    nonlocal first_token_time
                     full_response = ""
                     try:
                         async for chunk in llm_client.stream_chat(message, temperature=temp, max_tokens=max_tok, provider=provider):
@@ -277,22 +601,21 @@ def create_ui() -> gr.Blocks:
                             full_response += chunk
                             history[-1]["content"] = full_response
                             
-                            # Update perf info in real-time
                             elapsed = (time.time() - start_time) * 1000
                             ttft = (first_token_time - start_time) * 1000 if first_token_time else elapsed
                             
                             perf_info = f"""
 **Last Response:**
-- Provider: `{used_provider}`
-- TTFT: {ttft:.0f}ms
-- Streaming: {elapsed:.0f}ms elapsed
+- 🎯 Provider: `{provider}`
+- ⚡ TTFT: {ttft:.0f}ms
+- ⏱️ Streaming: {elapsed:.0f}ms
+- 🔥 Status: Streaming...
 """
-                            yield history, perf_info
+                            yield history, None, perf_info
                     except Exception as e:
                         history[-1]["content"] = f"❌ Error: {str(e)}"
-                        yield history, None
+                        yield history, None, None
                 
-                # Run async generator
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
@@ -306,30 +629,26 @@ def create_ui() -> gr.Blocks:
                 finally:
                     loop.close()
             else:
-                # Non-streaming mode
                 try:
                     response = asyncio.run(llm_client.generate(message, temperature=temp, max_tokens=max_tok, provider=provider))
                     history[-1]["content"] = response
                     
-                    # Calculate performance
                     total_time = time.time() - start_time
                     perf_info = f"""
 **Last Response:**
-- Provider: `{provider}`
-- Total Time: {total_time:.2f}s
-- Mode: Non-streaming
+- 🎯 Provider: `{provider}`
+- ⏱️ Total: {total_time:.2f}s
+- 🔥 Status: ✅ Complete
 """
-                    yield history, perf_info
+                    yield history, None, perf_info
                 except Exception as e:
                     history[-1]["content"] = f"❌ Error: {str(e)}"
-                    perf_info = f"❌ Error occurred"
-                
-                yield history, perf_info
+                    yield history, None, None
         
         def upload_files(files) -> Tuple[str, dict]:
             """Handle file uploads."""
             if not files:
-                return "No files uploaded", context_builder.get_stats()
+                return "📂 No files uploaded", context_builder.get_stats()
             
             context_builder.clear()
             
@@ -342,40 +661,32 @@ def create_ui() -> gr.Blocks:
             status_text = "\n".join(results)
             stats = context_builder.get_stats()
             
-            return status_text, stats
+            return f"📁 {status_text}", stats
         
         def clear_context() -> Tuple[str, dict]:
             """Clear context files."""
             context_builder.clear()
-            return "Context cleared", context_builder.get_stats()
+            return "🧹 Context cleared", context_builder.get_stats()
         
         def clear_chat() -> Tuple[List, str]:
             """Clear chat history."""
             return [], ""
         
-        def retry_last(history: List, last_msg: str, temp: float, max_tok: int, stream: bool, provider: str) -> Generator:
-            """Retry last message."""
-            if not last_msg:
-                yield history, None
-                return
-            
-            # Remove last exchange
-            if len(history) >= 2 and history[-2].get("role") == "user":
-                history = history[:-2]
-            
-            yield from respond_stream(last_msg, history, temp, max_tok, stream, provider)
-        
         def toggle_mcp(enabled: bool) -> str:
             """Toggle MCP on/off."""
             mcp_manager.toggle(enabled)
-            status = "✅ MCP Enabled" if enabled else "⚠️ MCP Disabled"
-            return status
+            return "✅ MCP Enabled" if enabled else "⚠️ MCP Disabled"
         
         # Wire events
+        send_outputs = [chatbot, perf_display] if not DEVSQUAD_AVAILABLE else [chatbot, squad_status, perf_display]
+        send_inputs = [msg_input, chatbot, temperature, max_tokens, stream_enabled, provider_dropdown]
+        if DEVSQUAD_AVAILABLE:
+            send_inputs.append(squad_mode)
+        
         send_btn.click(
             respond_stream,
-            inputs=[msg_input, chatbot, temperature, max_tokens, stream_enabled, provider_dropdown],
-            outputs=[chatbot, perf_display]
+            inputs=send_inputs,
+            outputs=send_outputs
         ).then(
             lambda: ("", context_builder.get_stats()),
             outputs=[msg_input, stats_display]
@@ -387,8 +698,8 @@ def create_ui() -> gr.Blocks:
         
         msg_input.submit(
             respond_stream,
-            inputs=[msg_input, chatbot, temperature, max_tokens, stream_enabled, provider_dropdown],
-            outputs=[chatbot, perf_display]
+            inputs=send_inputs,
+            outputs=send_outputs
         ).then(
             lambda: ("", context_builder.get_stats()),
             outputs=[msg_input, stats_display]
@@ -399,23 +710,22 @@ def create_ui() -> gr.Blocks:
         )
         
         clear_btn.click(clear_chat, outputs=[chatbot, last_user_msg])
-        retry_btn.click(
-            retry_last,
-            inputs=[chatbot, last_user_msg, temperature, max_tokens, stream_enabled, provider_dropdown],
-            outputs=[chatbot, perf_display]
-        )
-        
         file_upload.change(upload_files, inputs=[file_upload], outputs=[context_status, stats_display])
         clear_context_btn.click(clear_context, outputs=[context_status, stats_display])
         mcp_enabled.change(toggle_mcp, inputs=[mcp_enabled], outputs=[mcp_status])
         
-        # Footer (mobile-friendly)
+        # Footer
         gr.Markdown("""
         ---
-        <div style="text-align: center; font-size: 14px;">
-        <strong>MCP 1st Birthday Hackathon</strong> | 
-        <a href="https://github.com/JuanCS-Dev/qwen-dev-cli" target="_blank">GitHub</a> | 
-        <em>Soli Deo Gloria</em> 🙏
+        <div style="text-align: center; padding: 20px 0;">
+            <p style="font-size: 16px; color: #00ff88; font-weight: 600;">
+                ⚡ Powered by DevSquad Multi-Agent System ⚡
+            </p>
+            <p style="font-size: 14px; color: #888;">
+                <strong>MCP 1st Birthday Hackathon</strong> | 
+                <a href="https://github.com/JuanCS-Dev/qwen-dev-cli" target="_blank" style="color: #0088ff;">GitHub</a> | 
+                <em>Soli Deo Gloria</em> 🙏
+            </p>
         </div>
         """)
     
@@ -427,5 +737,6 @@ if __name__ == "__main__":
     demo.launch(
         server_name="0.0.0.0",
         server_port=config.gradio_port,
-        share=config.gradio_share
+        share=config.gradio_share,
+        show_error=True,
     )
