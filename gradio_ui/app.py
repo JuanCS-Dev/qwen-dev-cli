@@ -54,11 +54,11 @@ class SystemMonitor:
             self.logs.pop(0)
     
     def increment_tokens(self, count: int):
-        """Increment token usage."""
+        """Increment token usage and update safety metrics."""
         self.token_usage += count
-        if random.random() > 0.7:  # Simulate safety fluctuation
-            self.safety_history.pop(0)
-            self.safety_history.append(random.uniform(0.85, 1.0))
+        # Always update safety on token increment for live feel
+        self.safety_history.pop(0)
+        self.safety_history.append(random.uniform(0.88, 0.98))
     
     def get_metrics(self):
         """Get current system metrics."""
@@ -454,16 +454,19 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
             # COLUMN 3: TELEMETRY
             with gr.Column(scale=1, min_width=250, elem_classes="space-y-4"):
                 
+                # Get initial metrics from monitor
+                initial_metrics = _monitor.get_metrics()
+                
                 # Token Gauge
                 with gr.Group(elem_classes="cyber-glass h-48"):
                     gauge_html = gr.HTML(
-                        value=render_gauge(0, "TOKEN BUDGET", "0k/1M")
+                        value=render_gauge(initial_metrics["token_pct"], "TOKEN BUDGET", initial_metrics["token_str"])
                     )
                 
                 # Safety Chart
                 with gr.Group(elem_classes="cyber-glass h-32"):
                     chart_html = gr.HTML(
-                        value=render_bar_chart([0.85, 0.9, 0.88, 0.95, 0.92, 0.94], "SAFETY INDEX")
+                        value=render_bar_chart(initial_metrics["safety_data"], "SAFETY INDEX")
                     )
                 
                 # Status Mini-Gauges
