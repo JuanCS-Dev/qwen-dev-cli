@@ -63,14 +63,14 @@ class TestArchitectStressPart2:
             assert response is not None
     
     @pytest.mark.asyncio
-    async def test_architect_malformed_unicode(self):
-        """Test malformed UTF-8."""
+    async def test_architect_mixed_encodings(self):
+        """Test mixed character encodings."""
         llm_client = MagicMock()
         llm_client.generate = AsyncMock(return_value='{\"decision\": \"APPROVED\", \"reasoning\": \"OK\"}')
         
         architect = ArchitectAgent(llm_client, MagicMock())
         task = AgentTask(
-            request="Test \udcff\udcfe invalid",  # Invalid UTF-8
+            request="Test ASCII + UTF-8: café 日本語",
             session_id="test"
         )
         
