@@ -472,6 +472,9 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
                         value=render_dual_gauge(99, "MODEL", 100, "ENV")
                     )
                 
+                # Refresh Button (replaces Timer to avoid queue/join errors)
+                refresh_btn = gr.Button("🔄 Refresh Metrics", size="sm", variant="secondary")
+                
                 # MCP Tools Accordion
                 with gr.Accordion("MCP Tools", open=False, elem_classes="cyber-glass"):
                     mcp_df = gr.Dataframe(
@@ -503,7 +506,7 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
             fn=lambda: "", outputs=[msg_input]
         )
         
-        # Auto-refresh telemetry every 5 seconds (avoid DDoS)
+        # Manual refresh for metrics (Timer causes queue/join errors in Gradio 6)
         def refresh_metrics():
             metrics = _monitor.get_metrics()
             return (
@@ -513,8 +516,8 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
                 render_terminal_logs(metrics["logs"])
             )
         
-        timer = gr.Timer(5)  # Increased to 5s to reduce re-render spam
-        timer.tick(
+        # Wire refresh button (avoids ERR_CONNECTION_REFUSED from gr.Timer)
+        refresh_btn.click(
             refresh_metrics,
             outputs=[gauge_html, chart_html, status_html, log_display]
         )
