@@ -63,3 +63,33 @@ class Plugin:
     async def shutdown(self) -> None:
         """Cleanup."""
         pass
+
+
+# Module-level singleton for compatibility with shell_fast.py
+# This allows shell_fast.py to access: tools_module.tool_registry
+_tool_registry = None
+
+def __getattr__(name):
+    """Module-level lazy loading."""
+    global _tool_registry
+    
+    if name == 'tool_registry':
+        if _tool_registry is None:
+            # Create and initialize plugin synchronously
+            plugin = Plugin()
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If in async context, can't run_until_complete
+                    raise RuntimeError("Cannot initialize in running loop")
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+            
+            loop.run_until_complete(plugin.initialize())
+            _tool_registry = plugin.registry
+        
+        return _tool_registry
+    
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
