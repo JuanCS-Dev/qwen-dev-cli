@@ -78,6 +78,7 @@ from qwen_dev_cli.agents.explorer import ExplorerAgent
 from qwen_dev_cli.agents.planner import PlannerAgent
 from qwen_dev_cli.agents.refactorer import RefactorerAgent
 from qwen_dev_cli.agents.reviewer import ReviewerAgent
+from qwen_dev_cli.agents.refactorer import RefactorerAgent
 from qwen_dev_cli.agents.testing import TestingAgent
 from qwen_dev_cli.agents.performance import PerformanceAgent
 from qwen_dev_cli.agents.security import SecurityAgent
@@ -410,6 +411,14 @@ class MasterpieceREPL:
             
             console.print("[dim]  → ReviewerAgent registered[/dim]")
             
+            # Register RefactorerAgent
+            refactorer_adapter = asyncio.run(make_agent_adapter(RefactorerAgent, IntentType.REFACTOR))
+            self.coordinator.register_agent(
+                IntentType.REFACTOR,
+                AgentWrapper(refactorer_adapter)
+            )
+            console.print("[dim]  → RefactorerAgent registered[/dim]")
+            
         except Exception as e:
             console.print(f"[yellow]⚠️  Agent registration failed: {e}[/yellow]")
 
@@ -483,6 +492,12 @@ class MasterpieceREPL:
                 "description": "Review agent - code review",
                 "category": CommandCategory.AGENT,
                 "handler": lambda msg: asyncio.run(self._invoke_agent("reviewer", msg))
+            },
+            "/refactor": {
+                "icon": "♻️",
+                "description": "Refactor agent - improve code",
+                "category": CommandCategory.AGENT,
+                "handler": lambda msg: asyncio.run(self._invoke_agent("refactorer", msg))
             },
             "/docs": {
                 "icon": "📚",
