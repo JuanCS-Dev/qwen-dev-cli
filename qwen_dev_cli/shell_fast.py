@@ -154,7 +154,7 @@ class FastShell:
             
             # Prepare System Prompt with Tools & Context
             if current_turn == 1:
-                tools_desc = "\n".join([f"- {t.name}: {t.description}" for t in self._tools.get_all_tools()])
+                tools_desc = "\n".join([f"- {t.name}: {t.description}" for t in self._tools.get_all().values()])
                 system_prompt = f"""You are Neuroshell, an elite coding assistant.
                 
 CONTEXT:
@@ -321,7 +321,7 @@ INSTRUCTIONS:
             tools_module = await self.lazy.load('tools')
             self._tools = tools_module.tool_registry
             
-        tools = self._tools.get_all_tools()
+        tools = self._tools.get_all().values()
         
         # Render as table using Rich
         from rich.table import Table
