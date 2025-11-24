@@ -220,10 +220,32 @@ class GeminiProvider:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(None, _stream)
             
+            chunks_received = 0
             for chunk in response:
-                if chunk.text:
-                    yield chunk.text
+                # Check if chunk has text before accessing
+                try:
+                    if hasattr(chunk, 'text') and chunk.text:
+                        yield chunk.text
+                        chunks_received += 1
+                    elif hasattr(chunk, 'parts') and chunk.parts:
+                        # Fallback: try to get text from parts
+                        for part in chunk.parts:
+                            if hasattr(part, 'text') and part.text:
+                                yield part.text
+                                chunks_received += 1
+                except Exception as chunk_error:
+                    logger.warning(f"Error accessing chunk.text: {chunk_error}")
+                    # Check finish_reason if available
+                    if hasattr(chunk, 'finish_reason'):
+                        logger.warning(f"Chunk finish_reason: {chunk.finish_reason}")
+                    continue
+                
                 await asyncio.sleep(0)  # Yield control
+            
+            # If no chunks received, yield fallback message
+            if chunks_received == 0:
+                logger.warning("Gemini returned no text chunks (finish_reason=1, likely blocked)")
+                yield "[Gemini returned empty response - possibly blocked by safety filters]"
                     
         except Exception as e:
             logger.error(f"Gemini streaming error: {e}")
