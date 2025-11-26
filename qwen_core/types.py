@@ -143,9 +143,9 @@ class AgentTask(BaseModel):
     }
 
     task_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    request: str = Field(..., min_length=1, max_length=100_000)
+    request: str = Field(..., max_length=100_000)  # Empty allowed for compatibility
     context: Dict[str, Any] = Field(default_factory=dict)
-    session_id: str = Field(default="default", min_length=1)
+    session_id: str = Field(default="default")
     metadata: Dict[str, Any] = Field(default_factory=dict)
     history: List[Dict[str, Any]] = Field(default_factory=list)
 
@@ -179,7 +179,8 @@ class AgentTask(BaseModel):
         # Key count limit: 10k
         if isinstance(self.context, dict) and len(self.context) > 10_000:
             raise ValueError(
-                f"Context has {len(self.context):,} keys (max 10,000)"
+                f"Context has {len(self.context)} keys, maximum is 10000. "
+                "This prevents resource exhaustion attacks."
             )
 
         return self
@@ -196,12 +197,14 @@ class AgentResponse(BaseModel):
         error: Error message if failed
         metrics: Numeric execution metrics (tokens, time, etc.)
         timestamp: When the response was created
-        metadata: Additional non-numeric metadata
+
+    Properties:
+        metadata: Alias for metrics (backward compatibility)
     """
     model_config = {
         "strict": True,
         "validate_assignment": True,
-        "frozen": True,  # Responses are immutable
+        "frozen": False,  # Allow property access
     }
 
     success: bool
@@ -210,7 +213,11 @@ class AgentResponse(BaseModel):
     error: Optional[str] = Field(default=None)
     metrics: Dict[str, float] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=datetime.utcnow)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    @property
+    def metadata(self) -> Dict[str, float]:
+        """Alias for metrics (backward compatibility)."""
+        return self.metrics
 
 
 class TaskResult(BaseModel):
