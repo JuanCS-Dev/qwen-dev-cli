@@ -100,39 +100,9 @@ from .intelligence.lsp_client import LSPClient
 from .core.mcp_client import MCPClient
 from .orchestration.squad import DevSquad
 
-
-class SessionContext:
-    """Persistent context across shell session."""
-    
-    def __init__(self):
-        try:
-            self.cwd = os.getcwd()
-        except (FileNotFoundError, OSError):
-            # CWD may not exist (e.g., deleted temp dir)
-            # Fallback to home or /tmp
-            self.cwd = os.path.expanduser("~")
-        self.conversation = []
-        self.modified_files = set()
-        self.read_files = set()
-        self.tool_calls = []
-        self.history = []
-        # Week 2 Integration: Preview settings
-        self.preview_enabled = True
-    
-    def track_tool_call(self, tool_name: str, args: Dict[str, Any], result: Any):
-        """Track tool usage."""
-        self.tool_calls.append({
-            "tool": tool_name,
-            "args": args,
-            "result": result,
-            "success": getattr(result, 'success', True)
-        })
-        
-        # Track file operations
-        if tool_name == "write_file" or tool_name == "edit_file":
-            self.modified_files.add(args.get("path", ""))
-        elif tool_name == "read_file":
-            self.read_files.add(args.get("path", ""))
+# Phase 2.2: Import from modular shell package
+from .shell.context import SessionContext
+from .shell.safety import get_safety_level as _get_safety_level_fn
 
 
 class InteractiveShell:
@@ -2301,40 +2271,10 @@ Output ONLY the command, no explanation, no markdown."""
     def _get_safety_level(self, command: str) -> int:
         """
         Get safety level (Claude pattern: tiered confirmations).
-        
-        Level 0: Safe (auto-execute with default yes)
-        Level 1: Confirm once (standard operations)
-        Level 2: Dangerous (double confirmation)
+
+        Delegated to shell.safety module.
         """
-        if not command:
-            return 1
-            
-        LEVEL_0_SAFE = {'ls', 'pwd', 'echo', 'cat', 'head', 'tail', 'grep', 'find', 'df', 'du', 'ps', 'top'}
-        LEVEL_2_DANGEROUS = {'rm', 'rmdir', 'dd', 'mkfs', 'fdisk', 'format', ':(){:|:&};:'}
-        
-        # Check for dangerous commands anywhere in the command string (handles chains)
-        import re
-        tokens = re.split(r'[;&|]', command)
-        
-        has_dangerous = False
-        for token in tokens:
-            token = token.strip()
-            if not token:
-                continue
-            cmd = token.split()[0]
-            if cmd in LEVEL_2_DANGEROUS:
-                has_dangerous = True
-                break
-        
-        if has_dangerous:
-            return 2
-        
-        # Check if first command is safe (only if all commands are safe)
-        first_cmd = command.split()[0] if command else ""
-        if first_cmd in LEVEL_0_SAFE:
-            return 0
-        
-        return 1  # Default: confirm once
+        return _get_safety_level_fn(command)
     
     async def _execute_command(self, command: str) -> dict:
         """Execute shell command and return result."""
