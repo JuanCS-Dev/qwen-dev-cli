@@ -64,6 +64,12 @@ __all__ = [
     'SessionSnapshot',
     'ContextTracker',
     'ResolvedReference',
+
+    # Memory System (Claude Code Parity)
+    'MemoryManager',
+    'MemoryEntry',
+    'ProjectMemory',
+    'get_memory_manager',
 ]
 
 
@@ -138,6 +144,11 @@ def __getattr__(name: str):
     # Context Tracker
     if name in ('ContextTracker', 'ResolvedReference'):
         from .context_tracker import ContextTracker, ResolvedReference
+        return locals()[name]
+
+    # Memory System (Claude Code Parity)
+    if name in ('MemoryManager', 'MemoryEntry', 'ProjectMemory', 'get_memory_manager'):
+        from .memory import MemoryManager, MemoryEntry, ProjectMemory, get_memory_manager
         return locals()[name]
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

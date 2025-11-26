@@ -221,10 +221,11 @@ class WriteFileTool(ValidatedTool):
 
 class EditFileTool(ValidatedTool):
     """Modify existing file using search/replace.
-    
+
     Boris Cherny: Type-safe editing with validation.
+    Claude Code parity: Supports replace_all for bulk replacements.
     """
-    
+
     def __init__(self, hook_executor=None, config_loader=None):
         super().__init__()
         self.category = ToolCategory.FILE_WRITE
@@ -246,6 +247,12 @@ class EditFileTool(ValidatedTool):
                 "type": "boolean",
                 "description": "Create backup before editing",
                 "required": False
+            },
+            "replace_all": {
+                "type": "boolean",
+                "description": "Replace ALL occurrences instead of just first (Claude Code parity)",
+                "required": False,
+                "default": False
             }
         }
     
@@ -256,22 +263,38 @@ class EditFileTool(ValidatedTool):
             'edits': TypeCheck(list, 'edits')
         }
     
-    async def _execute_validated(self, path: str, edits: list[dict], create_backup: bool = True, 
-                     preview: bool = True, console=None) -> ToolResult:
-        """Edit file with search/replace operations."""
+    async def _execute_validated(
+        self,
+        path: str,
+        edits: list[dict],
+        create_backup: bool = True,
+        replace_all: bool = False,
+        preview: bool = True,
+        console=None
+    ) -> ToolResult:
+        """Edit file with search/replace operations.
+
+        Args:
+            path: File path to edit
+            edits: List of {search, replace} operations
+            create_backup: Whether to create backup before editing
+            replace_all: If True, replace ALL occurrences (Claude Code parity)
+            preview: Whether to show preview before applying
+            console: Console for preview display
+        """
         try:
             file_path = Path(path)
-            
+
             if not file_path.exists():
                 return ToolResult(
                     success=False,
                     error=f"File not found: {path}"
                 )
-            
+
             # Read current content
             original_content = file_path.read_text()
             modified_content = original_content
-            
+
             # Create backup
             backup_path = None
             if create_backup:
@@ -280,16 +303,23 @@ class EditFileTool(ValidatedTool):
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 backup_path = backup_dir / f"{file_path.name}.{timestamp}.bak"
                 backup_path.write_text(original_content)
-            
+
             # Apply edits
             changes = 0
             for edit in edits:
                 search = edit.get('search', '')
                 replace = edit.get('replace', '')
-                
+
                 if search in modified_content:
-                    modified_content = modified_content.replace(search, replace, 1)
-                    changes += 1
+                    if replace_all:
+                        # Claude Code parity: Replace ALL occurrences
+                        occurrence_count = modified_content.count(search)
+                        modified_content = modified_content.replace(search, replace)
+                        changes += occurrence_count
+                    else:
+                        # Default: Replace only first occurrence
+                        modified_content = modified_content.replace(search, replace, 1)
+                        changes += 1
                 else:
                     return ToolResult(
                         success=False,
