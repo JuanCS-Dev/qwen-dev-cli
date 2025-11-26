@@ -434,9 +434,9 @@ class GitCommitTool(Tool):
 
         signature = """
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with Juan-Dev-Code
 
-Co-Authored-By: Claude <noreply@anthropic.com>"""
+Co-Authored-By: Juan-Dev-Code <noreply@juancs.dev>"""
 
         return message + signature
 
@@ -766,8 +766,8 @@ class GitPRCreateTool(Tool):
             return ToolResult(success=False, error=str(e))
 
     def _build_pr_body(self, body: str) -> str:
-        """Build PR body with Claude Code signature."""
-        signature = "\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+        """Build PR body with Juan-Dev-Code signature."""
+        signature = "\n\n🤖 Generated with Juan-Dev-Code"
 
         if not body:
             return f"## Summary\n\n_No description provided._\n{signature}"

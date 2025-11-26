@@ -234,7 +234,7 @@ class TestGitCommitTool:
         # With signature
         msg = tool._build_commit_message("Test commit", add_signature=True)
         assert "Test commit" in msg
-        assert "Claude Code" in msg
+        assert "Juan-Dev-Code" in msg
         assert "Co-Authored-By" in msg
 
         # Without signature
@@ -267,7 +267,7 @@ class TestGitPRCreateTool:
 
         body = tool._build_pr_body("## Summary\n\nTest PR")
         assert "Test PR" in body
-        assert "Claude Code" in body
+        assert "Juan-Dev-Code" in body
 
 
 # =============================================================================

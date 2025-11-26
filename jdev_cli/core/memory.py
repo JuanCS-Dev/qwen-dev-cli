@@ -1,13 +1,15 @@
-"""Memory System - CLAUDE.md/MEMORY.md persistent project memory.
+"""Memory System - JUAN.md/MEMORY.md persistent project memory.
 
-Claude Code parity: Implements persistent memory system for project context.
+Juan-Dev-Code memory system for project context.
 
 The memory system provides:
-1. Project-level memory (CLAUDE.md at project root)
+1. Project-level memory (JUAN.md at project root)
 2. User-level memory (~/.config/jdev-cli/MEMORY.md)
 3. Session memory (temporary, in-memory)
 
 Memory is automatically loaded at startup and updated during sessions.
+
+Supports legacy CLAUDE.md for backwards compatibility.
 
 Author: Juan CS
 Date: 2025-11-26
@@ -114,12 +116,19 @@ class MemoryManager:
         manager.add_session_entry("User prefers TypeScript over JavaScript")
     """
 
-    # Standard file names (Claude Code convention)
-    PROJECT_MEMORY_FILE = "CLAUDE.md"
+    # Standard file names (Juan-Dev-Code convention)
+    PROJECT_MEMORY_FILE = "JUAN.md"
     USER_MEMORY_FILE = "MEMORY.md"
 
-    # Alternative names supported
-    ALT_PROJECT_NAMES = ["CLAUDE.md", "MEMORY.md", ".claude/MEMORY.md", ".jdev/MEMORY.md"]
+    # Alternative names supported (includes CLAUDE.md for backwards compatibility)
+    ALT_PROJECT_NAMES = [
+        "JUAN.md",           # Primary (Juan-Dev-Code)
+        ".juan/MEMORY.md",   # Hidden directory
+        ".jdev/MEMORY.md",   # Alternative
+        "CLAUDE.md",         # Backwards compatibility
+        ".claude/MEMORY.md", # Claude Code legacy
+        "MEMORY.md",         # Generic fallback
+    ]
 
     def __init__(
         self,
@@ -171,8 +180,8 @@ class MemoryManager:
         return self._loaded
 
     def _load_project_memory(self) -> bool:
-        """Load project-level memory from CLAUDE.md."""
-        # Try standard and alternative paths
+        """Load project-level memory from JUAN.md (or CLAUDE.md for compatibility)."""
+        # Try standard and alternative paths (JUAN.md first)
         for filename in self.ALT_PROJECT_NAMES:
             memory_path = self._project_root / filename
 
@@ -417,10 +426,10 @@ class MemoryManager:
     # =========================================================================
 
     def save_project_memory(self, content: str) -> bool:
-        """Save content to project CLAUDE.md.
+        """Save content to project JUAN.md.
 
         Args:
-            content: New content for CLAUDE.md
+            content: New content for JUAN.md
 
         Returns:
             True if saved successfully
@@ -438,7 +447,7 @@ class MemoryManager:
             return False
 
     def append_to_project_memory(self, content: str) -> bool:
-        """Append content to project CLAUDE.md.
+        """Append content to project JUAN.md.
 
         Args:
             content: Content to append
@@ -546,11 +555,11 @@ def reset_memory_manager() -> None:
 class MemoryReadTool:
     """Tool to read project/user memory.
 
-    Claude Code parity: Read CLAUDE.md/MEMORY.md content.
+    Read JUAN.md/MEMORY.md content (supports CLAUDE.md for compatibility).
     """
 
     name = "memory_read"
-    description = "Read project CLAUDE.md or user MEMORY.md"
+    description = "Read project JUAN.md or user MEMORY.md"
     category = "context"
 
     def __init__(self):
@@ -594,11 +603,11 @@ class MemoryReadTool:
 class MemoryWriteTool:
     """Tool to write to project memory.
 
-    Claude Code parity: Write to CLAUDE.md.
+    Write to JUAN.md (project memory file).
     """
 
     name = "memory_write"
-    description = "Write to project CLAUDE.md"
+    description = "Write to project JUAN.md"
     category = "context"
 
     def __init__(self):

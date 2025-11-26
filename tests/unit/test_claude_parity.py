@@ -49,14 +49,14 @@ class TestMemorySystem:
             assert not manager.has_project_memory
 
     def test_memory_manager_load_with_file(self):
-        """Test loading when CLAUDE.md exists."""
+        """Test loading when JUAN.md exists."""
         from jdev_cli.core.memory import MemoryManager
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create CLAUDE.md
-            memory_file = tmpdir / "CLAUDE.md"
+            # Create JUAN.md (primary) or CLAUDE.md (compatibility)
+            memory_file = tmpdir / "JUAN.md"
             memory_file.write_text("""# Project Memory
 
 ## Instructions
