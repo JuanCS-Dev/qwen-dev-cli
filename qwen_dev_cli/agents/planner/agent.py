@@ -50,13 +50,18 @@ from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Set, Tupl
 from enum import Enum
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from .base import (
+# Import from parent agents package
+from ..base import (
     AgentCapability,
     AgentResponse,
     AgentRole,
     AgentTask,
     BaseAgent,
 )
+
+# Import from local modules (types already defined in types.py)
+# NOTE: We keep the local definitions for now to avoid breaking changes
+# In future iterations, these should be imported from .types
 
 # ============================================================================
 # ENHANCED DATA MODELS - Enterprise Grade
