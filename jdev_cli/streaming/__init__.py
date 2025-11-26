@@ -1,6 +1,6 @@
 """Reactive TUI and async streaming components."""
 
-from .executor import AsyncCommandExecutor, ExecutionResult
+from .executor import AsyncCommandExecutor, StreamingExecutionResult
 from .renderer import (
     ReactiveRenderer,
     ConcurrentRenderer,
@@ -16,7 +16,7 @@ from .streams import (
 
 __all__ = [
     'AsyncCommandExecutor',
-    'ExecutionResult',
+    'StreamingExecutionResult',
     'ReactiveRenderer',
     'ConcurrentRenderer',
     'RenderEvent',

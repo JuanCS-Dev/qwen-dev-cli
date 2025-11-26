@@ -16,7 +16,7 @@ from hypothesis import given, strategies as st, settings, assume, example
 from jdev_tui.core.safe_executor import (
     SafeCommandExecutor,
     AllowedCommand,
-    ExecutionResult,
+    SafeExecutionResult,
     CommandCategory,
 )
 
@@ -337,7 +337,7 @@ class TestExecutionResultProperties:
     @settings(max_examples=50)
     def test_execution_result_creation(self, success, exit_code, stdout, stderr, command):
         """Property: ExecutionResult handles various inputs."""
-        result = ExecutionResult(
+        result = SafeExecutionResult(
             success=success,
             exit_code=exit_code,
             stdout=stdout,

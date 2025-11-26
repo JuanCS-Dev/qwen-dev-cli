@@ -31,7 +31,7 @@ from dataclasses import dataclass
 
 from jdev_tui.core.safe_executor import (
     SafeCommandExecutor,
-    ExecutionResult,
+    SafeExecutionResult,
     AllowedCommand,
     CommandCategory,
     get_safe_executor,

@@ -16,7 +16,7 @@ from jdev_cli.integration import (
     SafetyValidator,
     SessionManager,
     ShellBridge,
-    ExecutionResult,
+    ToolExecutionResult,
 )
 from jdev_cli.core.parser import ResponseParser
 

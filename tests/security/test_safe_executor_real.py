@@ -5,7 +5,7 @@ Based on ACTUAL implementation in jdev_tui/core/safe_executor.py
 Tests real behavior, not imaginary features.
 
 Implementation details (READ FROM FILE):
-- execute() is async, returns ExecutionResult
+- execute() is async, returns SafeExecutionResult
 - is_command_allowed() returns Tuple[bool, str]
 - Whitelist: pytest, ruff, git, ls, du, pwd, whoami, etc
 - Dangerous patterns: rm, sudo, pipes |, &&, ||, ;, $(), backticks
@@ -18,7 +18,7 @@ import asyncio
 from pathlib import Path
 from jdev_tui.core.safe_executor import (
     SafeCommandExecutor,
-    ExecutionResult,
+    SafeExecutionResult,
     AllowedCommand,
     CommandCategory,
     get_safe_executor,

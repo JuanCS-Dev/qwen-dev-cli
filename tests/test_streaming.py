@@ -4,7 +4,7 @@ import pytest
 import asyncio
 from jdev_cli.streaming import (
     AsyncCommandExecutor,
-    ExecutionResult,
+    StreamingExecutionResult,
     ReactiveRenderer,
     RenderEvent,
     RenderEventType,

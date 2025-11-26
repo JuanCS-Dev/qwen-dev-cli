@@ -16,7 +16,7 @@ from typing import List
 
 from jdev_tui.core.safe_executor import (
     SafeCommandExecutor,
-    ExecutionResult,
+    SafeExecutionResult,
     AllowedCommand,
     CommandCategory,
     get_safe_executor,
@@ -266,12 +266,12 @@ class TestSafeCommandExecutorHelpers:
         assert expected_categories.issubset(set(by_category.keys()))
 
 
-class TestExecutionResultDataclass:
-    """Tests for ExecutionResult dataclass."""
+class TestSafeExecutionResultDataclass:
+    """Tests for SafeExecutionResult dataclass."""
 
     def test_success_result_creation(self) -> None:
         """Test creating a successful result."""
-        result = ExecutionResult(
+        result = SafeExecutionResult(
             success=True,
             exit_code=0,
             stdout="output",
@@ -286,7 +286,7 @@ class TestExecutionResultDataclass:
 
     def test_failure_result_creation(self) -> None:
         """Test creating a failure result."""
-        result = ExecutionResult(
+        result = SafeExecutionResult(
             success=False,
             exit_code=1,
             stdout="",

@@ -3217,7 +3217,7 @@
     },
     "jdev_governance/justica/__init__.py": {
       "path": "jdev_governance/justica/__init__.py",
-      "hash": "6af8663866eea1b9",
+      "hash": "4a27128d2e1badc9",
       "symbols": [],
       "imports": [
         "constitution",
@@ -3228,7 +3228,7 @@
         "audit",
         "agent"
       ],
-      "last_modified": 1764168812.5666444
+      "last_modified": 1764171154.5194364
     },
     "jdev_governance/sofia/socratic.py": {
       "path": "jdev_governance/sofia/socratic.py",
@@ -4364,7 +4364,7 @@
     },
     "jdev_governance/sofia/__init__.py": {
       "path": "jdev_governance/sofia/__init__.py",
-      "hash": "9b31ec310942db49",
+      "hash": "f662419a0ddbad0d",
       "symbols": [
         {
           "name": "quick_start_sofia",
@@ -4410,7 +4410,7 @@
         "discernment",
         "agent"
       ],
-      "last_modified": 1764168812.5679674
+      "last_modified": 1764171160.593428
     },
     "jdev_core/protocols.py": {
       "path": "jdev_core/protocols.py",
@@ -8109,7 +8109,7 @@
     },
     "jdev_tui/core/safe_executor.py": {
       "path": "jdev_tui/core/safe_executor.py",
-      "hash": "d62ab411b0d78c5f",
+      "hash": "45d33c288c793189",
       "symbols": [
         {
           "name": "CommandCategory",
@@ -8130,11 +8130,11 @@
           "parent": null
         },
         {
-          "name": "ExecutionResult",
+          "name": "SafeExecutionResult",
           "type": "class",
           "file_path": "jdev_tui/core/safe_executor.py",
           "line_number": 61,
-          "docstring": "Result of command execution.\n\nAttributes:\n    success: Whether command completed successfully\n    exit_code: Process exit code\n    stdout: Standard output\n    stderr: Standard error\n    command: The command that was executed\n    error_message: Human-readable error if failed",
+          "docstring": "Result of safe command execution.\n\nAttributes:\n    success: Whether command completed successfully\n    exit_code: Process exit code\n    stdout: Standard output\n    stderr: Standard error\n    command: The command that was executed (string form)\n    error_message: Human-readable error if failed",
           "signature": null,
           "parent": null
         },
@@ -8230,7 +8230,7 @@
         "pathlib",
         "typing"
       ],
-      "last_modified": 1764168812.571781
+      "last_modified": 1764171127.239469
     },
     "jdev_tui/core/governance.py": {
       "path": "jdev_tui/core/governance.py",
@@ -18138,7 +18138,7 @@
     },
     "tests/test_streaming.py": {
       "path": "tests/test_streaming.py",
-      "hash": "cb0543aabfe7b3a9",
+      "hash": "3785c9dd7c69f23c",
       "symbols": [
         {
           "name": "callback",
@@ -18164,7 +18164,7 @@
         "asyncio",
         "jdev_cli.streaming"
       ],
-      "last_modified": 1764168907.8012295
+      "last_modified": 1764172165.2487016
     },
     "tests/test_executor_nextgen.py": {
       "path": "tests/test_executor_nextgen.py",
@@ -18767,7 +18767,7 @@
     },
     "tests/test_phase2_integration.py": {
       "path": "tests/test_phase2_integration.py",
-      "hash": "26f857775c2b679a",
+      "hash": "8ab16500d70d337a",
       "symbols": [
         {
           "name": "TestSafetyValidator",
@@ -18931,7 +18931,7 @@
         "jdev_cli.integration",
         "jdev_cli.core.parser"
       ],
-      "last_modified": 1764168907.8015883
+      "last_modified": 1764172144.8168328
     },
     "tests/benchmark_llm.py": {
       "path": "tests/benchmark_llm.py",
@@ -41351,7 +41351,7 @@
     },
     "tests/unit/core/test_safe_executor_coverage.py": {
       "path": "tests/unit/core/test_safe_executor_coverage.py",
-      "hash": "1ee1f9ec82d0be6a",
+      "hash": "bdeafed7fbb1fbcc",
       "symbols": [
         {
           "name": "TestCommandParsingEdgeCases",
@@ -41800,7 +41800,7 @@
         "jdev_tui.core.safe_executor",
         "jdev_tui.core.safe_executor"
       ],
-      "last_modified": 1764168907.7874956
+      "last_modified": 1764172232.2812667
     },
     "tests/unit/core/test_agentic_prompt.py": {
       "path": "tests/unit/core/test_agentic_prompt.py",
@@ -42233,7 +42233,7 @@
     },
     "tests/unit/core/test_safe_executor.py": {
       "path": "tests/unit/core/test_safe_executor.py",
-      "hash": "bfc6e18e282adb5e",
+      "hash": "d051706e5f3470a1",
       "symbols": [
         {
           "name": "TestSafeCommandExecutorValidation",
@@ -42263,11 +42263,11 @@
           "parent": null
         },
         {
-          "name": "TestExecutionResultDataclass",
+          "name": "TestSafeExecutionResultDataclass",
           "type": "class",
           "file_path": "tests/unit/core/test_safe_executor.py",
           "line_number": 269,
-          "docstring": "Tests for ExecutionResult dataclass.",
+          "docstring": "Tests for SafeExecutionResult dataclass.",
           "signature": null,
           "parent": null
         },
@@ -42404,7 +42404,7 @@
           "line_number": 272,
           "docstring": "Test creating a successful result.",
           "signature": "test_success_result_creation(self)",
-          "parent": "TestExecutionResultDataclass"
+          "parent": "TestSafeExecutionResultDataclass"
         },
         {
           "name": "test_failure_result_creation",
@@ -42413,7 +42413,7 @@
           "line_number": 287,
           "docstring": "Test creating a failure result.",
           "signature": "test_failure_result_creation(self)",
-          "parent": "TestExecutionResultDataclass"
+          "parent": "TestSafeExecutionResultDataclass"
         },
         {
           "name": "test_singleton_returns_same_instance",
@@ -42458,11 +42458,11 @@
         "typing",
         "jdev_tui.core.safe_executor"
       ],
-      "last_modified": 1764168907.7877824
+      "last_modified": 1764171791.2789643
     },
     "tests/unit/core/test_safe_executor_hypothesis.py": {
       "path": "tests/unit/core/test_safe_executor_hypothesis.py",
-      "hash": "4ac8902eff00109c",
+      "hash": "38a73af945870171",
       "symbols": [
         {
           "name": "TestPropertyBasedValidation",
@@ -42704,7 +42704,7 @@
         "hypothesis",
         "jdev_tui.core.safe_executor"
       ],
-      "last_modified": 1764168907.7878835
+      "last_modified": 1764172246.0991762
     },
     "tests/unit/core/test_history_manager.py": {
       "path": "tests/unit/core/test_history_manager.py",
@@ -50837,7 +50837,7 @@
     },
     "tests/security/test_safe_executor_real.py": {
       "path": "tests/security/test_safe_executor_real.py",
-      "hash": "cd1a231ae9a45613",
+      "hash": "8cbc136b639c99b0",
       "symbols": [
         {
           "name": "TestDangerousPatternDetection",
@@ -51134,7 +51134,7 @@
         "pathlib",
         "jdev_tui.core.safe_executor"
       ],
-      "last_modified": 1764168907.7941513
+      "last_modified": 1764172264.1510577
     },
     "tests/orchestration/test_workflows.py": {
       "path": "tests/orchestration/test_workflows.py",
@@ -57222,7 +57222,7 @@
     },
     "jdev_cli/main.py": {
       "path": "jdev_cli/main.py",
-      "hash": "0362c5d9ad0e4e63",
+      "hash": "216fdc720fcc6ae2",
       "symbols": [
         {
           "name": "version_callback",
@@ -57255,7 +57255,7 @@
           "name": "ui",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 193,
+          "line_number": 192,
           "docstring": "Start the Gradio web UI.",
           "signature": "ui(port, share)",
           "parent": null
@@ -57264,7 +57264,7 @@
           "name": "serve",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 214,
+          "line_number": 213,
           "docstring": "Start as MCP server.",
           "signature": "serve(host, port)",
           "parent": null
@@ -57273,7 +57273,7 @@
           "name": "shell",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 234,
+          "line_number": 233,
           "docstring": "Start legacy interactive shell.",
           "signature": "shell(mode)",
           "parent": null
@@ -57282,7 +57282,7 @@
           "name": "chat",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 265,
+          "line_number": 264,
           "docstring": "Send a single message (one-shot mode).",
           "signature": "chat(message, no_context, output_file, json_output)",
           "parent": null
@@ -57291,7 +57291,7 @@
           "name": "status",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 279,
+          "line_number": 278,
           "docstring": "Show system status.",
           "signature": "status()",
           "parent": null
@@ -57300,7 +57300,7 @@
           "name": "agents",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 318,
+          "line_number": 317,
           "docstring": "List available agents.",
           "signature": "agents()",
           "parent": null
@@ -57309,7 +57309,7 @@
           "name": "tools",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 344,
+          "line_number": 345,
           "docstring": "List available tools.",
           "signature": "tools()",
           "parent": null
@@ -57318,7 +57318,7 @@
           "name": "cli_main",
           "type": "function",
           "file_path": "jdev_cli/main.py",
-          "line_number": 357,
+          "line_number": 358,
           "docstring": "CLI entry point.",
           "signature": "cli_main()",
           "parent": null
@@ -57334,20 +57334,20 @@
         "typer",
         "rich.console",
         "json",
-        "jdev_tui.app",
-        "jdev_tui.core.bridge",
+        "jdev_cli.ui_launcher",
+        "jdev_cli.ui_launcher",
         "jdev_cli.ui",
         "jdev_cli.cli_mcp",
-        "jdev_tui.core.bridge",
-        "jdev_tui.core.bridge",
+        "jdev_cli.ui_launcher",
+        "jdev_cli.ui_launcher",
         "rich.table",
-        "jdev_tui.core.bridge",
+        "jdev_cli.ui_launcher",
         "jdev_cli.shell_fast",
         "jdev_cli.shell_fast",
         "jdev_cli.shell_simple",
         "jdev_cli.shell_main"
       ],
-      "last_modified": 1764168812.6081243
+      "last_modified": 1764171444.474638
     },
     "jdev_cli/cli.py": {
       "path": "jdev_cli/cli.py",
@@ -57570,6 +57570,49 @@
         "rich.markdown"
       ],
       "last_modified": 1764168812.6082258
+    },
+    "jdev_cli/ui_launcher.py": {
+      "path": "jdev_cli/ui_launcher.py",
+      "hash": "51116d075450beb2",
+      "symbols": [
+        {
+          "name": "launch_tui",
+          "type": "function",
+          "file_path": "jdev_cli/ui_launcher.py",
+          "line_number": 26,
+          "docstring": "Launch the Textual TUI application.\n\nLazy import to avoid circular dependency.",
+          "signature": "launch_tui()",
+          "parent": null
+        },
+        {
+          "name": "get_bridge",
+          "type": "function",
+          "file_path": "jdev_cli/ui_launcher.py",
+          "line_number": 37,
+          "docstring": "Get the TUI bridge instance.\n\nLazy import to avoid circular dependency.\n\nReturns:\n    Bridge instance for CLI-TUI communication",
+          "signature": "get_bridge()",
+          "parent": null
+        },
+        {
+          "name": "get_agent_registry",
+          "type": "function",
+          "file_path": "jdev_cli/ui_launcher.py",
+          "line_number": 50,
+          "docstring": "Get the agent registry from TUI.\n\nLazy import to avoid circular dependency.\n\nReturns:\n    Dictionary of registered agents",
+          "signature": "get_agent_registry()",
+          "parent": null
+        }
+      ],
+      "imports": [
+        "__future__",
+        "typing",
+        "jdev_tui.app",
+        "jdev_tui.core.bridge",
+        "jdev_tui.app",
+        "jdev_tui.core.bridge",
+        "jdev_tui.core.bridge"
+      ],
+      "last_modified": 1764171410.970765
     },
     "jdev_cli/permissions.py": {
       "path": "jdev_cli/permissions.py",
@@ -58217,7 +58260,7 @@
     },
     "jdev_cli/shell_main.py": {
       "path": "jdev_cli/shell_main.py",
-      "hash": "85fa728f5d26e025",
+      "hash": "6541ba6ba4c96dfd",
       "symbols": [
         {
           "name": "_get_prompt_toolkit",
@@ -58509,7 +58552,7 @@
         "orchestration.workflows",
         "time"
       ],
-      "last_modified": 1764169156.5747118
+      "last_modified": 1764171176.6184037
     },
     "jdev_cli/__main__.py": {
       "path": "jdev_cli/__main__.py",
@@ -58624,14 +58667,14 @@
     },
     "jdev_cli/integration/shell_bridge.py": {
       "path": "jdev_cli/integration/shell_bridge.py",
-      "hash": "40bfa38863348f80",
+      "hash": "d79cd98dd2c1418d",
       "symbols": [
         {
-          "name": "ExecutionResult",
+          "name": "ToolExecutionResult",
           "type": "class",
           "file_path": "jdev_cli/integration/shell_bridge.py",
           "line_number": 31,
-          "docstring": "Result of tool execution.",
+          "docstring": "Result of tool execution (distinct from command ExecutionResult).",
           "signature": null,
           "parent": null
         },
@@ -58715,7 +58758,7 @@
         "tools.context",
         "tools.terminal"
       ],
-      "last_modified": 1764168812.601315
+      "last_modified": 1764171001.4994948
     },
     "jdev_cli/integration/sandbox.py": {
       "path": "jdev_cli/integration/sandbox.py",
@@ -58835,14 +58878,14 @@
     },
     "jdev_cli/integration/__init__.py": {
       "path": "jdev_cli/integration/__init__.py",
-      "hash": "74b39e3b9f5d5834",
+      "hash": "923dde5ec59176a5",
       "symbols": [],
       "imports": [
         "safety",
         "session",
         "shell_bridge"
       ],
-      "last_modified": 1764168812.601527
+      "last_modified": 1764171670.531609
     },
     "jdev_cli/integration/session.py": {
       "path": "jdev_cli/integration/session.py",
@@ -60050,7 +60093,7 @@
     },
     "jdev_cli/agents/justica_agent.py": {
       "path": "jdev_cli/agents/justica_agent.py",
-      "hash": "55e5e1f4e2b67984",
+      "hash": "b3defb033c6167b7",
       "symbols": [
         {
           "name": "GovernanceMetrics",
@@ -60191,7 +60234,7 @@
         "jdev_governance.justica",
         "jdev_governance.justica"
       ],
-      "last_modified": 1764169198.1864367
+      "last_modified": 1764171190.9953794
     },
     "jdev_cli/agents/llm_adapter.py": {
       "path": "jdev_cli/agents/llm_adapter.py",
@@ -60270,7 +60313,7 @@
     },
     "jdev_cli/agents/sofia_agent.py": {
       "path": "jdev_cli/agents/sofia_agent.py",
-      "hash": "48fae06b9dc8ed3d",
+      "hash": "80686d01f6ef277a",
       "symbols": [
         {
           "name": "CounselMetrics",
@@ -60546,7 +60589,7 @@
         "jdev_governance.sofia",
         "jdev_cli.agents.base"
       ],
-      "last_modified": 1764168812.6029594
+      "last_modified": 1764171205.0373535
     },
     "jdev_cli/agents/base.py": {
       "path": "jdev_cli/agents/base.py",
@@ -63402,14 +63445,14 @@
     },
     "jdev_cli/streaming/executor.py": {
       "path": "jdev_cli/streaming/executor.py",
-      "hash": "f8bead4ee083d1f6",
+      "hash": "f3937dc2c6ce9fd2",
       "symbols": [
         {
-          "name": "ExecutionResult",
+          "name": "StreamingExecutionResult",
           "type": "class",
           "file_path": "jdev_cli/streaming/executor.py",
           "line_number": 16,
-          "docstring": "Command execution result.",
+          "docstring": "Command execution result for streaming executor.",
           "signature": null,
           "parent": null
         },
@@ -63443,7 +63486,7 @@
         "streams",
         "time"
       ],
-      "last_modified": 1764168812.6051347
+      "last_modified": 1764171030.5715086
     },
     "jdev_cli/streaming/streams.py": {
       "path": "jdev_cli/streaming/streams.py",
@@ -63635,14 +63678,14 @@
     },
     "jdev_cli/streaming/__init__.py": {
       "path": "jdev_cli/streaming/__init__.py",
-      "hash": "121f3de582a8f689",
+      "hash": "700c776442c8243c",
       "symbols": [],
       "imports": [
         "executor",
         "renderer",
         "streams"
       ],
-      "last_modified": 1764168812.605348
+      "last_modified": 1764171665.020637
     },
     "jdev_cli/hooks/executor.py": {
       "path": "jdev_cli/hooks/executor.py",
@@ -81715,6 +81758,45 @@
       ],
       "last_modified": 1764168812.6212614
     },
+    "jdev_cli/plugins/__init__.py": {
+      "path": "jdev_cli/plugins/__init__.py",
+      "hash": "27a2efe486813310",
+      "symbols": [
+        {
+          "name": "Plugin",
+          "type": "class",
+          "file_path": "jdev_cli/plugins/__init__.py",
+          "line_number": 32,
+          "docstring": "Base plugin protocol.\n\nAll plugins must implement this interface.\n\nAttributes:\n    name: Unique plugin identifier\n    version: Plugin version string",
+          "signature": null,
+          "parent": null
+        },
+        {
+          "name": "activate",
+          "type": "method",
+          "file_path": "jdev_cli/plugins/__init__.py",
+          "line_number": 45,
+          "docstring": "Activate the plugin.",
+          "signature": "activate(self)",
+          "parent": "Plugin"
+        },
+        {
+          "name": "deactivate",
+          "type": "method",
+          "file_path": "jdev_cli/plugins/__init__.py",
+          "line_number": 49,
+          "docstring": "Deactivate the plugin.",
+          "signature": "deactivate(self)",
+          "parent": "Plugin"
+        }
+      ],
+      "imports": [
+        "__future__",
+        "typing",
+        "plugin_manager"
+      ],
+      "last_modified": 1764171472.6445253
+    },
     "jdev_cli/refactoring/engine.py": {
       "path": "jdev_cli/refactoring/engine.py",
       "hash": "a578dcd5e6adc41d",
@@ -85783,56 +85865,6 @@
       ],
       "last_modified": 1764168812.6241164
     },
-    "jdev_cli/core/llm_backup.py": {
-      "path": "jdev_cli/core/llm_backup.py",
-      "hash": "b58c10360ee8c381",
-      "symbols": [
-        {
-          "name": "LLMClient",
-          "type": "class",
-          "file_path": "jdev_cli/core/llm_backup.py",
-          "line_number": 9,
-          "docstring": "Unified LLM client supporting HuggingFace and Ollama.",
-          "signature": null,
-          "parent": null
-        },
-        {
-          "name": "__init__",
-          "type": "method",
-          "file_path": "jdev_cli/core/llm_backup.py",
-          "line_number": 12,
-          "docstring": "Initialize LLM client.",
-          "signature": "__init__(self)",
-          "parent": "LLMClient"
-        },
-        {
-          "name": "validate",
-          "type": "method",
-          "file_path": "jdev_cli/core/llm_backup.py",
-          "line_number": 172,
-          "docstring": "Validate LLM client is ready.\n\nReturns:\n    Tuple of (is_valid, error_message)",
-          "signature": "validate(self)",
-          "parent": "LLMClient"
-        },
-        {
-          "name": "_generate",
-          "type": "method",
-          "file_path": "jdev_cli/core/llm_backup.py",
-          "line_number": 97,
-          "docstring": null,
-          "signature": "_generate()",
-          "parent": "LLMClient"
-        }
-      ],
-      "imports": [
-        "asyncio",
-        "typing",
-        "huggingface_hub",
-        "config",
-        "ollama"
-      ],
-      "last_modified": 1764168812.6242092
-    },
     "jdev_cli/core/single_shot.py": {
       "path": "jdev_cli/core/single_shot.py",
       "hash": "2efc07b9a0e056ce",
@@ -85928,7 +85960,7 @@
     },
     "jdev_cli/core/async_executor.py": {
       "path": "jdev_cli/core/async_executor.py",
-      "hash": "c80306ac9b0a3e25",
+      "hash": "4e4cf6b711700855",
       "symbols": [
         {
           "name": "ToolCall",
@@ -85940,11 +85972,11 @@
           "parent": null
         },
         {
-          "name": "ExecutionResult",
+          "name": "ParallelExecutionResult",
           "type": "class",
           "file_path": "jdev_cli/core/async_executor.py",
           "line_number": 29,
-          "docstring": "Result of parallel execution.",
+          "docstring": "Result of parallel tool execution.",
           "signature": null,
           "parent": null
         },
@@ -85992,7 +86024,7 @@
         "logging",
         "time"
       ],
-      "last_modified": 1764168812.624384
+      "last_modified": 1764171056.7965105
     },
     "jdev_cli/core/lazy_loader.py": {
       "path": "jdev_cli/core/lazy_loader.py",
@@ -86175,7 +86207,7 @@
     },
     "jdev_cli/core/python_sandbox.py": {
       "path": "jdev_cli/core/python_sandbox.py",
-      "hash": "a803cf4241f53765",
+      "hash": "c5e4d58acadfde93",
       "symbols": [
         {
           "name": "SandboxLevel",
@@ -86205,7 +86237,7 @@
           "parent": null
         },
         {
-          "name": "ExecutionResult",
+          "name": "SandboxResult",
           "type": "class",
           "file_path": "jdev_cli/core/python_sandbox.py",
           "line_number": 107,
@@ -86301,7 +86333,7 @@
           "line_number": 118,
           "docstring": "Create a failed result.",
           "signature": "failure(cls, error, violations)",
-          "parent": "ExecutionResult"
+          "parent": "SandboxResult"
         },
         {
           "name": "__init__",
@@ -86470,7 +86502,7 @@
           "type": "method",
           "file_path": "jdev_cli/core/python_sandbox.py",
           "line_number": 410,
-          "docstring": "Execute Python code in sandbox.\n\nArgs:\n    code: Python code to execute\n    globals_dict: Additional global variables\n    locals_dict: Additional local variables\n\nReturns:\n    ExecutionResult with output and status",
+          "docstring": "Execute Python code in sandbox.\n\nArgs:\n    code: Python code to execute\n    globals_dict: Additional global variables\n    locals_dict: Additional local variables\n\nReturns:\n    SandboxResult with output and status",
           "signature": "execute(self, code, globals_dict, locals_dict)",
           "parent": "PythonSandbox"
         },
@@ -86537,7 +86569,7 @@
         "builtins",
         "resource"
       ],
-      "last_modified": 1764168812.6246324
+      "last_modified": 1764171101.5154917
     },
     "jdev_cli/core/conversation.py": {
       "path": "jdev_cli/core/conversation.py",
@@ -90109,7 +90141,7 @@
     },
     "jdev_cli/core/sandbox.py": {
       "path": "jdev_cli/core/sandbox.py",
-      "hash": "ced9769de1033807",
+      "hash": "cb9c9d435c930b79",
       "symbols": [
         {
           "name": "ExecutionMode",
@@ -90139,19 +90171,10 @@
           "parent": null
         },
         {
-          "name": "ExecutionResult",
-          "type": "class",
-          "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 100,
-          "docstring": "Result of command execution.",
-          "signature": null,
-          "parent": null
-        },
-        {
           "name": "SecureExecutor",
           "type": "class",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 126,
+          "line_number": 103,
           "docstring": "Sandboxed command execution with security controls.\n\nCRITICAL SECURITY MEASURES:\n1. NEVER use shell=True\n2. ALWAYS pass commands as argument lists\n3. ALWAYS apply resource limits\n4. ALWAYS validate inputs before execution\n5. ALWAYS sanitize environment variables\n\nUsage:\n    executor = SecureExecutor()\n    result = await executor.execute([\"ls\", \"-la\", \"/tmp\"])\n    if result.success:\n        print(result.stdout)",
           "signature": null,
           "parent": null
@@ -90160,7 +90183,7 @@
           "name": "isolated_execution",
           "type": "function",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 582,
+          "line_number": 559,
           "docstring": "Context manager for isolated command execution.\n\nUsage:\n    with isolated_execution() as executor:\n        result = executor.execute_sync([\"python\", \"script.py\"])",
           "signature": "isolated_execution(temp_dir, limits)",
           "parent": null
@@ -90169,7 +90192,7 @@
           "name": "execute_safe_sync",
           "type": "function",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 623,
+          "line_number": 600,
           "docstring": "Execute command synchronously with standard security settings.",
           "signature": "execute_safe_sync(args, cwd, timeout)",
           "parent": null
@@ -90202,19 +90225,10 @@
           "parent": "ResourceLimits"
         },
         {
-          "name": "failure",
-          "type": "method",
-          "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 114,
-          "docstring": "Create a failed execution result.",
-          "signature": "failure(cls, error, command)",
-          "parent": "ExecutionResult"
-        },
-        {
           "name": "__init__",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 192,
+          "line_number": 169,
           "docstring": "Initialize SecureExecutor.\n\nArgs:\n    mode: Execution security mode\n    limits: Resource limits to apply\n    allowed_commands: Additional commands to allow\n    working_directory: Default working directory\n    inherit_env: If True, inherit (sanitized) environment",
           "signature": "__init__(self, mode, limits, allowed_commands, working_directory, inherit_env)",
           "parent": "SecureExecutor"
@@ -90223,7 +90237,7 @@
           "name": "_get_command_name",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 217,
+          "line_number": 194,
           "docstring": "Extract command name from argument list.",
           "signature": "_get_command_name(self, args)",
           "parent": "SecureExecutor"
@@ -90232,7 +90246,7 @@
           "name": "_is_command_allowed",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 225,
+          "line_number": 202,
           "docstring": "Check if command is allowed.",
           "signature": "_is_command_allowed(self, cmd_name)",
           "parent": "SecureExecutor"
@@ -90241,7 +90255,7 @@
           "name": "_needs_confirmation",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 236,
+          "line_number": 213,
           "docstring": "Check if command needs user confirmation.",
           "signature": "_needs_confirmation(self, cmd_name)",
           "parent": "SecureExecutor"
@@ -90250,7 +90264,7 @@
           "name": "_sanitize_environment",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 242,
+          "line_number": 219,
           "docstring": "Create sanitized environment for subprocess.",
           "signature": "_sanitize_environment(self)",
           "parent": "SecureExecutor"
@@ -90259,7 +90273,7 @@
           "name": "_apply_resource_limits",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 264,
+          "line_number": 241,
           "docstring": "Apply resource limits using setrlimit (Unix only).",
           "signature": "_apply_resource_limits(self)",
           "parent": "SecureExecutor"
@@ -90268,7 +90282,7 @@
           "name": "_preexec_fn",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 303,
+          "line_number": 280,
           "docstring": "Pre-execution function for subprocess (Unix only).",
           "signature": "_preexec_fn(self)",
           "parent": "SecureExecutor"
@@ -90277,7 +90291,7 @@
           "name": "validate_command",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 314,
+          "line_number": 291,
           "docstring": "Validate command before execution.\n\nArgs:\n    args: Command as argument list\n\nReturns:\n    ValidationResult with validation status",
           "signature": "validate_command(self, args)",
           "parent": "SecureExecutor"
@@ -90286,7 +90300,7 @@
           "name": "execute_sync",
           "type": "method",
           "file_path": "jdev_cli/core/sandbox.py",
-          "line_number": 489,
+          "line_number": 466,
           "docstring": "Synchronous version of execute.\n\nUsage:\n    result = executor.execute_sync([\"ls\", \"-la\"])",
           "signature": "execute_sync(self, args, cwd, env, timeout, capture_output, stdin)",
           "parent": "SecureExecutor"
@@ -90309,10 +90323,11 @@
         "contextlib",
         "logging",
         "input_validator",
+        "jdev_cli.core.execution",
         "time",
         "time"
       ],
-      "last_modified": 1764168812.6272664
+      "last_modified": 1764170969.842465
     },
     "jdev_cli/core/cache.py": {
       "path": "jdev_cli/core/cache.py",
