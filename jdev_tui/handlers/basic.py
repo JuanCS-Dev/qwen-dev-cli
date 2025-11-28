@@ -74,8 +74,13 @@ class BasicCommandHandler:
 
     async def _handle_clear(self, args: str, view: "ResponseView") -> None:
         """Handle /clear command."""
+        # Clear UI
         view.clear_all()
         view.add_banner()
+        
+        # Clear LLM Context (Fix for "dirty context" issues)
+        self.bridge.history.clear_context()
+        view.add_system_message("🧹 **Session & Context Cleared**")
 
     async def _handle_quit(self, args: str, view: "ResponseView") -> None:
         """Handle /quit and /exit commands."""

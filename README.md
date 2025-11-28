@@ -51,7 +51,7 @@ PROMETHEUS is not just a bot; it's a complete ecosystem covering all Hackathon t
 3.  **SHELL (Textual TUI)**:
     *   **Interface**: A Matrix-style TUI built with `Textual`.
     *   **Features**: Real-time streaming, syntax highlighting, and keyboard-first navigation.
-    *   *[📸 ASSET NEEDED: Shell Screenshot showing the Matrix-style TUI]*
+    *   ![Prometheus Terminal](assets/images/prometheus_terminal_screenshot.png)
 
 4.  **AGENT (Blaxel + Gemini)**:
     *   **Brain**: Serverless agents on Blaxel.

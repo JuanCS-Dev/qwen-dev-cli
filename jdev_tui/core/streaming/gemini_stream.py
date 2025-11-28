@@ -188,7 +188,8 @@ class GeminiSDKStreamer(BaseStreamer):
         Uses caching to avoid recreating model for same system prompt.
         """
         # Add anti-repetition instructions (use module-level constant)
-        full_system_prompt = system_prompt + GEMINI_OUTPUT_RULES if system_prompt else ""
+        # full_system_prompt = system_prompt + GEMINI_OUTPUT_RULES if system_prompt else ""
+        full_system_prompt = system_prompt
 
         # Check if we need to create new model (system prompt changed)
         if self._model is None or self._cached_system_prompt != full_system_prompt:
@@ -216,9 +217,6 @@ class GeminiSDKStreamer(BaseStreamer):
             yield "❌ SDK not initialized"
             return
 
-        from jdev_tui.core.streaming.soft_buffer import SoftBuffer
-        soft_buffer = SoftBuffer()
-
         # Get model with proper system instruction
         model = self._get_model_with_system_instruction(system_prompt)
 
@@ -238,11 +236,9 @@ class GeminiSDKStreamer(BaseStreamer):
             )
 
         try:
-            # 1. Start Request (Threaded)
             response = await loop.run_in_executor(None, _generate)
             response_iterator = iter(response)
 
-            # 2. Iterate Chunks (Threaded to prevent UI freeze)
             def _next_chunk():
                 try:
                     return next(response_iterator)
@@ -252,27 +248,18 @@ class GeminiSDKStreamer(BaseStreamer):
                     return e
 
             while True:
-                # Offload the blocking next() call
                 chunk = await loop.run_in_executor(None, _next_chunk)
-                
+
                 if chunk is None:
                     break
                 if isinstance(chunk, Exception):
                     raise chunk
 
-                # 3. Process Chunk
                 async for text in self._process_chunk(chunk):
-                    # Apply Soft Buffering
-                    safe_text = soft_buffer.feed(text)
-                    if safe_text:
-                        yield safe_text
-                
-                await asyncio.sleep(0)  # Yield control for UI
-            
-            # Flush remaining buffer
-            remaining = soft_buffer.flush()
-            if remaining:
-                yield remaining
+                    if text:
+                        yield text
+
+                await asyncio.sleep(0)
 
         except Exception as e:
             logger.error(f"SDK streaming error: {e}")
@@ -306,25 +293,24 @@ class GeminiSDKStreamer(BaseStreamer):
         return contents
 
     async def _process_chunk(self, chunk: Any) -> AsyncIterator[str]:
-        """Process a single response chunk."""
-        # Check for function calls and text in candidates
+        """Process a single response chunk. Deduplicated."""
+        yielded = False
+
         if hasattr(chunk, 'candidates') and chunk.candidates:
             for candidate in chunk.candidates:
                 if hasattr(candidate, 'content') and candidate.content:
                     for part in candidate.content.parts:
-                        # Handle function call
                         if hasattr(part, 'function_call') and part.function_call:
                             fc = part.function_call
-                            name = fc.name
                             args = dict(fc.args) if hasattr(fc.args, 'items') else {}
-                            yield f"[TOOL_CALL:{name}:{json.dumps(args)}]"
-
-                        # Handle text
+                            yield f"[TOOL_CALL:{fc.name}:{json.dumps(args)}]"
+                            yielded = True
                         elif hasattr(part, 'text') and part.text:
                             yield part.text
+                            yielded = True
 
-        # Fallback: direct text access
-        elif hasattr(chunk, 'text') and chunk.text:
+        # Fallback ONLY if nothing yielded from candidates
+        if not yielded and hasattr(chunk, 'text') and chunk.text:
             yield chunk.text
 
 
