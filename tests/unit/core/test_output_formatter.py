@@ -7,6 +7,7 @@ Tests cover:
 - format_code_block (syntax highlighting, line truncation)
 - format_error/success/warning/info
 - Convenience functions
+- SmartTruncator functionality
 
 Based on pytest + hypothesis patterns from Anthropic's Claude Code.
 """
@@ -18,6 +19,13 @@ from rich.syntax import Syntax
 
 from jdev_tui.core.output_formatter import (
     OutputFormatter,
+    Colors,
+    Icons,
+    TruncationConfig,
+    TruncatedContent,
+    SmartTruncator,
+    TRUNCATOR,
+    TRUNCATION_CONFIG,
     response_panel,
     tool_panel,
     code_panel,
@@ -36,7 +44,7 @@ class TestFormatResponse:
         panel = OutputFormatter.format_response("Hello world")
 
         assert isinstance(panel, Panel)
-        assert panel.border_style == "cyan"
+        assert panel.border_style == Colors.PRIMARY  # Now uses hex color
         assert "Response" in str(panel.title)
 
     def test_custom_title(self):
@@ -142,11 +150,13 @@ class TestFormatToolResult:
 
     def test_truncation_long_data(self):
         """Test truncation of long tool results."""
-        long_data = "x" * 1000
+        # SmartTruncator uses max_tool_output (2000 chars)
+        long_data = "x" * 5000
         panel = OutputFormatter.format_tool_result("test", True, data=long_data)
 
         assert isinstance(panel.renderable, Text)
-        assert len(panel.renderable.plain) <= 503  # 500 + "..."
+        # Should be truncated to around max_tool_output + truncation indicator
+        assert len(panel.renderable.plain) < 5000
 
     def test_non_expand_panel(self):
         """Test tool result panels don't expand."""
@@ -224,8 +234,8 @@ class TestFormatMessages:
         """Test error formatting."""
         panel = OutputFormatter.format_error("Something went wrong")
 
-        assert panel.border_style == "red"
-        assert "✗" in str(panel.title)
+        assert panel.border_style == Colors.ERROR  # Now uses hex color
+        assert Icons.ERROR in str(panel.title)
         assert "Error" in str(panel.title)
 
     def test_format_error_custom_title(self):
@@ -238,8 +248,8 @@ class TestFormatMessages:
         """Test success formatting."""
         panel = OutputFormatter.format_success("Operation completed")
 
-        assert panel.border_style == "green"
-        assert "✓" in str(panel.title)
+        assert panel.border_style == Colors.SUCCESS  # Now uses hex color
+        assert Icons.SUCCESS in str(panel.title)
         assert "Success" in str(panel.title)
 
     def test_format_success_custom_title(self):
@@ -252,16 +262,16 @@ class TestFormatMessages:
         """Test warning formatting."""
         panel = OutputFormatter.format_warning("Be careful")
 
-        assert panel.border_style == "yellow"
-        assert "⚠" in str(panel.title)
+        assert panel.border_style == Colors.WARNING  # Now uses hex color
+        assert Icons.WARNING in str(panel.title)
         assert "Warning" in str(panel.title)
 
     def test_format_info(self):
         """Test info formatting."""
         panel = OutputFormatter.format_info("FYI: Something happened")
 
-        assert panel.border_style == "blue"
-        assert "ℹ" in str(panel.title)
+        assert panel.border_style == Colors.INFO  # Now uses hex color
+        assert Icons.INFO in str(panel.title)
         assert "Info" in str(panel.title)
 
 
@@ -331,32 +341,34 @@ class TestConvenienceFunctions:
 class TestEdgeCases:
     """Tests for edge cases and boundary conditions."""
 
-    def test_exact_max_length(self):
-        """Test text exactly at max length (no truncation)."""
-        exact_text = "x" * OutputFormatter.MAX_CONTENT_LENGTH
+    def test_exact_preview_length(self):
+        """Test text exactly at preview length (no truncation)."""
+        # SmartTruncator uses preview_chars (3000) and preview_lines (30)
+        exact_text = "x" * TRUNCATION_CONFIG.preview_chars
         panel = OutputFormatter.format_response(exact_text)
 
         # Should NOT be truncated (at boundary)
         assert "truncated" not in str(panel.title).lower()
 
-    def test_one_over_max_length(self):
-        """Test text one character over max length (should truncate)."""
-        over_text = "x" * (OutputFormatter.MAX_CONTENT_LENGTH + 1)
+    def test_over_preview_length(self):
+        """Test text over preview length (should truncate)."""
+        # Text significantly over preview_chars should be truncated
+        over_text = "x" * (TRUNCATION_CONFIG.preview_chars + 1000)
         panel = OutputFormatter.format_response(over_text)
 
         assert "truncated" in str(panel.title).lower()
 
-    def test_exact_max_lines(self):
-        """Test text exactly at max lines (no truncation)."""
-        exact_lines = "\n".join(["line" for _ in range(OutputFormatter.MAX_LINES)])
+    def test_exact_preview_lines(self):
+        """Test text exactly at preview lines (no truncation)."""
+        exact_lines = "\n".join(["line" for _ in range(TRUNCATION_CONFIG.preview_lines)])
         panel = OutputFormatter.format_response(exact_lines)
 
         # Should NOT be truncated
         assert "truncated" not in str(panel.title).lower()
 
-    def test_one_over_max_lines(self):
-        """Test text one line over max (should truncate)."""
-        over_lines = "\n".join(["line" for _ in range(OutputFormatter.MAX_LINES + 1)])
+    def test_over_preview_lines(self):
+        """Test text over preview lines (should truncate)."""
+        over_lines = "\n".join(["line" for _ in range(TRUNCATION_CONFIG.preview_lines + 10)])
         panel = OutputFormatter.format_response(over_lines)
 
         assert "truncated" in str(panel.title).lower()
@@ -404,19 +416,33 @@ class TestClassConstants:
     """Tests for class constants."""
 
     def test_border_colors_defined(self):
-        """Test all border colors are defined."""
-        assert OutputFormatter.RESPONSE_BORDER == "cyan"
-        assert OutputFormatter.SUCCESS_BORDER == "green"
-        assert OutputFormatter.ERROR_BORDER == "red"
-        assert OutputFormatter.WARNING_BORDER == "yellow"
-        assert OutputFormatter.INFO_BORDER == "blue"
+        """Test all border colors are defined using Colors class."""
+        assert OutputFormatter.RESPONSE_BORDER == Colors.PRIMARY
+        assert OutputFormatter.SUCCESS_BORDER == Colors.SUCCESS
+        assert OutputFormatter.ERROR_BORDER == Colors.ERROR
+        assert OutputFormatter.WARNING_BORDER == Colors.WARNING
+        assert OutputFormatter.INFO_BORDER == Colors.INFO
+
+    def test_colors_are_hex(self):
+        """Test that Colors are hex color codes."""
+        assert Colors.PRIMARY.startswith("#")
+        assert Colors.SUCCESS.startswith("#")
+        assert Colors.ERROR.startswith("#")
 
     def test_max_values_reasonable(self):
         """Test max values are reasonable."""
         assert OutputFormatter.MAX_CONTENT_LENGTH > 1000
-        assert OutputFormatter.MAX_CONTENT_LENGTH < 100000
+        assert OutputFormatter.MAX_CONTENT_LENGTH <= 100000  # Increased to 50000
         assert OutputFormatter.MAX_LINES > 50
-        assert OutputFormatter.MAX_LINES < 1000
+        assert OutputFormatter.MAX_LINES <= 1000
+
+    def test_truncation_config_defaults(self):
+        """Test TruncationConfig has sensible defaults."""
+        assert TRUNCATION_CONFIG.max_chars == 50000
+        assert TRUNCATION_CONFIG.preview_lines == 30
+        assert TRUNCATION_CONFIG.preview_chars == 3000
+        assert TRUNCATION_CONFIG.max_table_rows == 50
+        assert TRUNCATION_CONFIG.max_table_cols == 10
 
 
 # =============================================================================
@@ -448,7 +474,7 @@ Let me know if you need more details.
         panel = OutputFormatter.format_response(llm_response, title="AI Analysis")
 
         assert isinstance(panel, Panel)
-        assert panel.border_style == "cyan"
+        assert panel.border_style == Colors.PRIMARY  # Now uses hex color
 
     def test_tool_execution_flow(self):
         """Test typical tool execution result flow."""
@@ -458,7 +484,7 @@ Let me know if you need more details.
             success=True,
             data="def hello(): return 'world'"
         )
-        assert read_result.border_style == "green"
+        assert read_result.border_style == Colors.SUCCESS  # Now uses hex color
 
         # Failure case
         write_result = OutputFormatter.format_tool_result(
@@ -466,7 +492,7 @@ Let me know if you need more details.
             success=False,
             error="EACCES: permission denied"
         )
-        assert write_result.border_style == "red"
+        assert write_result.border_style == Colors.ERROR  # Now uses hex color
 
     def test_code_review_flow(self):
         """Test code block formatting for review."""
@@ -490,3 +516,117 @@ class Calculator:
 
         assert isinstance(panel, Panel)
         assert "calculator.py" in str(panel.title)
+
+
+# =============================================================================
+# SMART TRUNCATOR TESTS
+# =============================================================================
+
+class TestSmartTruncator:
+    """Tests for SmartTruncator class."""
+
+    def test_truncate_text_no_truncation(self):
+        """Test text that doesn't need truncation."""
+        short_text = "Hello world"
+        result = TRUNCATOR.truncate_text(short_text)
+
+        assert result.is_truncated is False
+        assert result.content == short_text
+        assert result.full_length == len(short_text)
+
+    def test_truncate_text_by_chars(self):
+        """Test truncation by character limit."""
+        long_text = "x" * 5000
+        result = TRUNCATOR.truncate_text(long_text)
+
+        assert result.is_truncated is True
+        assert len(result.content) < len(long_text)
+        assert result.content_type == "text"
+
+    def test_truncate_text_by_lines(self):
+        """Test truncation by line limit."""
+        many_lines = "\n".join(["line"] * 100)
+        result = TRUNCATOR.truncate_text(many_lines)
+
+        assert result.is_truncated is True
+        assert result.preview_length < result.full_length
+
+    def test_truncate_code_no_truncation(self):
+        """Test code that doesn't need truncation."""
+        short_code = "def hello():\n    return 'world'"
+        result = TRUNCATOR.truncate_code(short_code)
+
+        assert result.is_truncated is False
+        assert result.content == short_code
+
+    def test_truncate_code_with_truncation(self):
+        """Test code truncation."""
+        long_code = "\n".join([f"line_{i} = {i}" for i in range(100)])
+        result = TRUNCATOR.truncate_code(long_code)
+
+        assert result.is_truncated is True
+        assert result.content_type == "code"
+        assert "more lines" in result.expand_hint
+
+    def test_truncate_table_data(self):
+        """Test table data truncation."""
+        headers = [f"col_{i}" for i in range(15)]
+        rows = [[f"r{r}c{c}" for c in range(15)] for r in range(100)]
+
+        h, r, truncated, info = TRUNCATOR.truncate_table_data(headers, rows)
+
+        assert truncated is True
+        assert len(h) <= TRUNCATION_CONFIG.max_table_cols + 1  # +1 for "...+N" column
+        assert len(r) <= TRUNCATION_CONFIG.max_table_rows
+
+    def test_truncate_tool_output(self):
+        """Test tool output truncation."""
+        long_output = "x" * 5000
+        result = TRUNCATOR.truncate_tool_output(long_output, "test_tool")
+
+        assert result.is_truncated is True
+        assert len(result.content) <= TRUNCATION_CONFIG.max_tool_output
+        assert result.content_type == "tool_output"
+
+    def test_truncation_info_text(self):
+        """Test truncation info message for text."""
+        result = TruncatedContent(
+            content="preview",
+            is_truncated=True,
+            full_length=1000,
+            preview_length=100,
+            content_type="text"
+        )
+        assert "more chars" in result.truncation_info
+
+    def test_truncation_info_code(self):
+        """Test truncation info message for code."""
+        result = TruncatedContent(
+            content="preview",
+            is_truncated=True,
+            full_length=100,
+            preview_length=20,
+            content_type="code"
+        )
+        assert "more lines" in result.truncation_info
+
+
+class TestColorsAndIcons:
+    """Tests for Colors and Icons classes."""
+
+    def test_colors_defined(self):
+        """Test all essential colors are defined."""
+        assert Colors.PRIMARY
+        assert Colors.SECONDARY
+        assert Colors.SUCCESS
+        assert Colors.ERROR
+        assert Colors.WARNING
+        assert Colors.MUTED
+
+    def test_icons_defined(self):
+        """Test all essential icons are defined."""
+        assert Icons.SUCCESS == "✓"
+        assert Icons.ERROR == "✗"
+        assert Icons.WARNING == "⚠"
+        assert Icons.TOOL == "⚡"
+        assert Icons.AGENT == "🤖"

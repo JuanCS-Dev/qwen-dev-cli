@@ -75,6 +75,17 @@ class PresentedError:
     technical_details: Optional[str] = None
     example_fix: Optional[str] = None
     category: ErrorCategory = ErrorCategory.UNKNOWN
+    location: Optional[str] = None  # File:line location of error
+    traceback: Optional[str] = None  # Full traceback string
+    # Vibe coder support fields
+    simple_explanation: Optional[str] = None
+    code_example: Optional[str] = None
+    steps: List[str] = field(default_factory=list)
+    how_to_fix: Optional[str] = None
+    help_available: bool = True
+    further_help: Optional[str] = "Need more help? Ask for a detailed explanation."
+    learn_more: Optional[str] = None
+    resources: List[str] = field(default_factory=list)
 
 
 # Error pattern matchers and explanations
@@ -221,6 +232,8 @@ class ErrorPresenter:
 
     Usage:
         presenter = ErrorPresenter(audience=AudienceLevel.BEGINNER)
+        # or
+        presenter = ErrorPresenter(mode="developer")
 
         try:
             # some code
@@ -235,6 +248,8 @@ class ErrorPresenter:
         show_technical: bool = True,
         show_suggestions: bool = True,
         show_examples: bool = True,
+        mode: Optional[str] = None,  # "beginner", "developer", "intermediate"
+        default_mode: Optional[str] = None,  # Alias for mode (test compat)
     ):
         """
         Initialize ErrorPresenter.
@@ -244,8 +259,20 @@ class ErrorPresenter:
             show_technical: Show technical details (for dev mode)
             show_suggestions: Show fix suggestions
             show_examples: Show code examples
+            mode: Shorthand for audience level (overrides audience if set)
+            default_mode: Alias for mode (test compatibility)
         """
-        self.audience = audience
+        # Handle mode/default_mode parameter (for test compatibility)
+        effective_mode = mode or default_mode
+        if effective_mode:
+            mode_map = {
+                "beginner": AudienceLevel.BEGINNER,
+                "developer": AudienceLevel.DEVELOPER,
+                "intermediate": AudienceLevel.INTERMEDIATE,
+            }
+            self.audience = mode_map.get(effective_mode.lower(), AudienceLevel.INTERMEDIATE)
+        else:
+            self.audience = audience
         self.show_technical = show_technical
         self.show_suggestions = show_suggestions
         self.show_examples = show_examples
@@ -290,6 +317,8 @@ class ErrorPresenter:
         self,
         error: Union[Exception, str],
         context: Optional[Dict[str, Any]] = None,
+        mode: Optional[str] = None,
+        include_traceback: bool = False,
     ) -> PresentedError:
         """
         Present an error in user-friendly format.
@@ -297,6 +326,8 @@ class ErrorPresenter:
         Args:
             error: Exception or error message
             context: Additional context (file path, command, etc.)
+            mode: Override audience mode for this call
+            include_traceback: Force include traceback
 
         Returns:
             PresentedError ready for display
@@ -305,10 +336,43 @@ class ErrorPresenter:
         error_str = str(error)
         explanation = self.get_explanation(error)
 
-        if explanation:
-            return self._present_known_error(error, explanation, context)
-        else:
-            return self._present_unknown_error(error, context)
+        # Temporarily override audience if mode specified
+        original_audience = self.audience
+        if mode:
+            mode_map = {
+                "beginner": AudienceLevel.BEGINNER,
+                "developer": AudienceLevel.DEVELOPER,
+                "intermediate": AudienceLevel.INTERMEDIATE,
+            }
+            self.audience = mode_map.get(mode.lower(), self.audience)
+
+        try:
+            if explanation:
+                result = self._present_known_error(error, explanation, context)
+            else:
+                result = self._present_unknown_error(error, context)
+
+            # Add location info from error if available
+            if isinstance(error, Exception):
+                if hasattr(error, 'filename') and hasattr(error, 'lineno'):
+                    result.location = f"{error.filename}:{error.lineno}"
+                elif hasattr(error, '__traceback__') and error.__traceback__:
+                    import traceback as tb_module
+                    frames = tb_module.extract_tb(error.__traceback__)
+                    if frames:
+                        last_frame = frames[-1]
+                        result.location = f"{last_frame.filename}:{last_frame.lineno}"
+
+                # Add full traceback if requested or in developer mode
+                if include_traceback or self.audience == AudienceLevel.DEVELOPER:
+                    import traceback as tb_module
+                    result.traceback = "".join(tb_module.format_exception(
+                        type(error), error, error.__traceback__
+                    ))
+
+            return result
+        finally:
+            self.audience = original_audience
 
     def _present_known_error(
         self,
@@ -345,6 +409,15 @@ class ErrorPresenter:
         # Example fix
         example_fix = explanation.example_fix if self.show_examples else None
 
+        # Build steps from suggestions
+        steps = [f"Step {i+1}: {s}" for i, s in enumerate(suggestions[:4])]
+
+        # Generate simple explanation for beginners
+        simple_explanation = self._generate_simple_explanation(error, explanation)
+
+        # How to fix summary
+        how_to_fix = suggestions[0] if suggestions else None
+
         return PresentedError(
             title=explanation.title,
             message=message,
@@ -352,6 +425,12 @@ class ErrorPresenter:
             technical_details=technical_details,
             example_fix=example_fix,
             category=explanation.category,
+            simple_explanation=simple_explanation,
+            code_example=example_fix,
+            steps=steps,
+            how_to_fix=how_to_fix,
+            learn_more=explanation.documentation_url,
+            resources=[explanation.documentation_url] if explanation.documentation_url else [],
         )
 
     def _present_unknown_error(
@@ -364,6 +443,7 @@ class ErrorPresenter:
 
         if self.audience == AudienceLevel.BEGINNER:
             message = f"Something went wrong: {error_str}"
+            simple_explanation = self._generate_simple_explanation(error, None)
             suggestions = [
                 "Try running the command again",
                 "Check that all required files exist",
@@ -372,6 +452,7 @@ class ErrorPresenter:
             ]
         else:
             message = error_str
+            simple_explanation = error_str
             suggestions = [
                 "Check the error message for clues",
                 "Search for this error online",
@@ -385,13 +466,64 @@ class ErrorPresenter:
                 type(error), error, error.__traceback__
             ))
 
+        steps = [f"Step {i+1}: {s}" for i, s in enumerate(suggestions[:4])]
+
         return PresentedError(
             title="Error Occurred",
             message=message,
             suggestions=suggestions,
             technical_details=technical_details,
             category=ErrorCategory.UNKNOWN,
+            simple_explanation=simple_explanation,
+            steps=steps,
+            how_to_fix=suggestions[0] if suggestions else None,
         )
+
+    def _generate_simple_explanation(
+        self,
+        error: Union[Exception, str],
+        explanation: Optional[ErrorExplanation],
+    ) -> str:
+        """Generate a beginner-friendly explanation of the error."""
+        error_str = str(error)
+        error_type = type(error).__name__ if isinstance(error, Exception) else "Error"
+
+        # Specific explanations for common errors
+        simple_explanations = {
+            "SyntaxError": "There's a typo or missing character in your code. Python couldn't understand what you wrote. Check for missing parentheses, brackets, or colons.",
+            "NameError": "You're trying to use a variable or function that doesn't exist. This usually means a typo, or you forgot to define something before using it.",
+            "TypeError": "You're trying to do something with the wrong type of data. For example, adding a number to text won't work directly.",
+            "ImportError": "Python can't find the module you're trying to import. You might need to install it with pip, or check the spelling.",
+            "ModuleNotFoundError": "The package you need isn't installed. Try running: pip install <package_name>",
+            "AttributeError": "You're trying to access something that doesn't exist on this object. Maybe the variable is empty (None) or the method name is wrong.",
+            "ValueError": "The value you provided isn't valid for this operation. Check that your data is in the right format.",
+            "KeyError": "You're looking for something in a dictionary that doesn't exist. Double-check the key name.",
+            "IndexError": "You're trying to access an item at a position that doesn't exist. Remember: lists start at 0, not 1!",
+            "IndentationError": "Python uses spaces to understand code blocks. Make sure your indentation is consistent - don't mix tabs and spaces.",
+            "FileNotFoundError": "The file you're looking for doesn't exist at that location. Check the path and filename spelling.",
+            "PermissionError": "You don't have permission to access this file or folder. Try running with different permissions.",
+            "ZeroDivisionError": "You can't divide by zero! Check your math.",
+            "RuntimeError": "Something unexpected happened while running your code.",
+        }
+
+        if error_type in simple_explanations:
+            base_explanation = simple_explanations[error_type]
+        elif explanation:
+            base_explanation = explanation.simple_explanation
+        else:
+            base_explanation = f"An error occurred: {error_str}"
+
+        # Add specific context from the error message
+        if "prnt" in error_str.lower() and "print" not in error_str.lower():
+            base_explanation += " Did you mean 'print'?"
+        elif "pands" in error_str.lower():
+            base_explanation += " Did you mean 'pandas'?"
+        elif "missing" in error_str.lower() and ")" in error_str:
+            base_explanation += " You're probably missing a closing parenthesis."
+        elif "unexpected indent" in error_str.lower():
+            base_explanation = "Your code has inconsistent indentation. Python needs consistent spacing at the start of lines."
+
+        return base_explanation
 
     def format_for_terminal(
         self,

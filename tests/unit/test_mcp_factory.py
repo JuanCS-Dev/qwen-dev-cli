@@ -79,7 +79,7 @@ class TestCreateMCPClient:
         # Should be same object, not a copy
         assert mcp.registry is custom_registry
 
-    @patch('jdev_cli.core.mcp.setup_default_tools')
+    @patch('jdev_cli.tools.registry_setup.setup_default_tools')
     def test_create_calls_setup_default_tools_when_auto_setup(self, mock_setup):
         """create_mcp_client() should call setup_default_tools() for auto-setup."""
         mock_registry = ToolRegistry()
@@ -141,14 +141,15 @@ class TestMCPClientEnhanced:
     @pytest.mark.asyncio
     async def test_call_tool_with_valid_tool(self):
         """call_tool() should execute tool successfully."""
+        import asyncio
         registry = ToolRegistry()
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        mock_tool._execute_validated = MagicMock(return_value=ToolResult(
-            success=True,
-            data={"result": "success"}
-        ))
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return ToolResult(success=True, data={"result": "success"})
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -213,10 +214,10 @@ class TestMCPClientEnhanced:
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        mock_tool._execute_validated = MagicMock(return_value=ToolResult(
-            success=False,
-            error="Operation failed"
-        ))
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return ToolResult(success=False, error="Operation failed")
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -231,10 +232,10 @@ class TestMCPClientEnhanced:
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        mock_tool._execute_validated = MagicMock(return_value=ToolResult(
-            success=True,
-            data={"key": "value"}
-        ))
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return ToolResult(success=True, data={"key": "value"})
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -249,10 +250,10 @@ class TestMCPClientEnhanced:
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        mock_tool._execute_validated = MagicMock(return_value=ToolResult(
-            success=True,
-            data="string result"
-        ))
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return ToolResult(success=True, data="string result")
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -267,10 +268,13 @@ class TestMCPClientEnhanced:
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        
+
         mock_result = Mock()
         mock_result.to_dict = Mock(return_value={"serialized": "data"})
-        mock_tool._execute_validated = MagicMock(return_value=mock_result)
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return mock_result
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -286,7 +290,10 @@ class TestMCPClientEnhanced:
         mock_tool = Mock()
         mock_tool.name = 'test_tool'
         mock_tool.validate_params = Mock(return_value=(True, None))
-        mock_tool._execute_validated = MagicMock(return_value=42)
+        # Use async function for _execute_validated to work with asyncio.wait_for
+        async def mock_execute(**kwargs):
+            return 42
+        mock_tool._execute_validated = mock_execute
         registry.register(mock_tool)
 
         mcp = MCPClient(registry)
@@ -413,16 +420,14 @@ class TestEdgeCases:
         assert isinstance(mcp, MCPClient)
         assert len(mcp.registry.tools) > 0
 
-    @patch('jdev_cli.core.mcp.logger')
-    def test_error_logging_on_tool_not_found(self, mock_logger):
-        """Tool not found error should be properly logged/raised."""
+    @pytest.mark.asyncio
+    async def test_error_on_tool_not_found(self):
+        """Tool not found error should raise proper ValueError."""
         registry = ToolRegistry()
         mcp = MCPClient(registry)
 
-        with pytest.raises(ValueError):
-            # This is sync call, but call_tool is async
-            # Testing that error is constructed correctly
-            pass
+        with pytest.raises(ValueError, match="Tool 'nonexistent' not found"):
+            await mcp.call_tool('nonexistent', {})
 
     def test_mcp_client_repr_or_str(self):
         """MCPClient should have reasonable string representation."""

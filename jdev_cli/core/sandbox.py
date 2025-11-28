@@ -190,6 +190,8 @@ class SecureExecutor:
         self.working_directory = working_directory or os.getcwd()
         self.inherit_env = inherit_env
         self.validator = InputValidator(strict_mode=True)
+        # Alias execute to execute_sync for test compatibility
+        self._execute_async = None  # Will be set later
 
     def _get_command_name(self, args: List[str]) -> str:
         """Extract command name from argument list."""
@@ -324,7 +326,46 @@ class SecureExecutor:
 
         return ValidationResult.success(args)
 
-    async def execute(
+    def execute(
+        self,
+        args: Union[str, List[str]],
+        cwd: Optional[str] = None,
+        env: Optional[Dict[str, str]] = None,
+        timeout: Optional[float] = None,
+        capture_output: bool = True,
+        stdin: Optional[str] = None,
+        max_output_bytes: Optional[int] = None,
+        inherit_env: Optional[bool] = None,
+    ) -> ExecutionResult:
+        """
+        Execute command securely (synchronous).
+
+        CRITICAL: This method NEVER uses shell=True.
+        Commands are always executed as argument lists.
+
+        Args:
+            args: Command as list of arguments (NEVER a string for shell)
+            cwd: Working directory
+            env: Additional environment variables
+            timeout: Timeout in seconds (overrides limits.wall_time)
+            capture_output: If True, capture stdout/stderr
+            stdin: Optional stdin input
+            max_output_bytes: Maximum output size (truncates if exceeded)
+            inherit_env: Override instance inherit_env setting
+
+        Returns:
+            ExecutionResult with execution status and output
+        """
+        return self.execute_sync(
+            args=args,
+            cwd=cwd,
+            env=env,
+            timeout=timeout,
+            capture_output=capture_output,
+            stdin=stdin
+        )
+
+    async def execute_async(
         self,
         args: Union[str, List[str]],
         cwd: Optional[str] = None,
@@ -334,7 +375,7 @@ class SecureExecutor:
         stdin: Optional[str] = None,
     ) -> ExecutionResult:
         """
-        Execute command securely.
+        Execute command securely (asynchronous).
 
         CRITICAL: This method NEVER uses shell=True.
         Commands are always executed as argument lists.
@@ -592,9 +633,9 @@ async def execute_safe(
     cwd: Optional[str] = None,
     timeout: float = 30.0
 ) -> ExecutionResult:
-    """Execute command with standard security settings."""
+    """Execute command with standard security settings (async)."""
     executor = SecureExecutor(mode=ExecutionMode.STANDARD)
-    return await executor.execute(args, cwd=cwd, timeout=timeout)
+    return await executor.execute_async(args, cwd=cwd, timeout=timeout)
 
 
 def execute_safe_sync(

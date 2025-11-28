@@ -55,6 +55,7 @@ class BlockDetector:
     """
 
     # Patterns para detecção de início de bloco
+    # NOTA: Padrões devem ser flexíveis para aceitar variações do LLM
     PATTERNS = {
         BlockType.CODE_FENCE: re.compile(r'^(`{3,}|~{3,})(\w*)\s*$'),
         BlockType.TABLE: re.compile(r'^\|.*\|'),
@@ -62,9 +63,18 @@ class BlockDetector:
         BlockType.HEADING: re.compile(r'^(#{1,6})\s+(.*)'),
         BlockType.BLOCKQUOTE: re.compile(r'^>\s*'),
         BlockType.HORIZONTAL_RULE: re.compile(r'^([-*_]){3,}\s*$'),
-        # Claude Code Web style patterns
-        BlockType.TOOL_CALL: re.compile(r'^[•●]\s+(Read|Write|Bash|Update Todos|Edit|Glob|Grep|Task|WebFetch|WebSearch)\b'),
-        BlockType.STATUS_BADGE: re.compile(r'^[🔴🟡🟢⚪🟠]\s*\w+'),
+        # Claude Code Web style patterns - flexível para aceitar **bold** ou não
+        BlockType.TOOL_CALL: re.compile(
+            r'(?:^[•●]\s*\**\s*'  # Claude style: Bullet + optional bold markers
+            r'(?:Read|Write|Bash|Update Todos|Edit|Glob|Grep|Task|WebFetch|WebSearch|TodoWrite|AskUserQuestion)'
+            r'\**\s*'
+            r'(?:\s|`|/|$))'
+            r'|'  # OR
+            r'(?:^\[TOOL_CALL:)',  # Gemini Native style
+            re.IGNORECASE
+        ),
+        # Status badges - aceita emoji seguido de texto
+        BlockType.STATUS_BADGE: re.compile(r'^[🔴🟡🟢⚪🟠✅❌⚠️]\s*.+'),
         # Diff block detection (unified diff format)
         BlockType.DIFF_BLOCK: re.compile(r'^(diff --git|@@\s*-\d+.*\+\d+.*@@|[+-]{3}\s+[ab]/)'),
     }
@@ -74,10 +84,14 @@ class BlockDetector:
         'TABLE_SEPARATOR': re.compile(r'^\|[\s\-:|]+\|'),
         'LIST_BULLET': re.compile(r'^[-*+]\s+(?!\[[ xX]\])'),
         'LIST_NUMBERED': re.compile(r'^\d+\.\s+'),
-        # Tool output patterns
-        'TOOL_OUTPUT': re.compile(r'^[└├│┌┐]\s*'),
+        # Tool output patterns (└ resultado)
+        'TOOL_OUTPUT': re.compile(r'^[└├│┌┐┗┃]\s*'),
         'DIFF_LINE': re.compile(r'^[+-]\s'),
         'SHOW_MORE': re.compile(r'^Show full diff \(\d+ more lines\)'),
+        # Strikethrough items (~~completed~~)
+        'STRIKETHROUGH': re.compile(r'~~.+~~'),
+        # Checkbox items (☐ or □ or [ ])
+        'CHECKBOX_EMPTY': re.compile(r'^[☐□]\s+'),
     }
 
     # Pattern para fechar code fence
@@ -227,6 +241,22 @@ class BlockDetector:
             return False
 
         current_type = self.current_block.block_type
+        stripped = line.strip()
+
+        # TOOL_CALL continua com linhas de output (└ resultado) ou indentadas
+        if current_type == BlockType.TOOL_CALL:
+            # Linhas que fazem parte do output de uma tool
+            if self.EXTRA_PATTERNS['TOOL_OUTPUT'].match(stripped):
+                return True
+            # Linhas indentadas com espaços (continuação)
+            if line.startswith('  ') and not line.strip().startswith('•'):
+                return True
+            # Strikethrough items (~~completed~~) são parte de Update Todos
+            if self.EXTRA_PATTERNS['STRIKETHROUGH'].search(stripped):
+                return True
+            # Checkbox items
+            if self.EXTRA_PATTERNS['CHECKBOX_EMPTY'].match(stripped):
+                return True
 
         # Table continua com mais rows
         if current_type == BlockType.TABLE and new_type == BlockType.TABLE:

@@ -100,3 +100,25 @@ htmlcov/
 
 # Hypothesis test cache
 .hypothesis/
+
+# Project Specific Ignored Directories
+.qwen_atomic_backups/
+.qwen_backups/
+.claude/
+.cursor/
+.trash/
+test_data/
+test_screenshots/
+uploads/
+
+# Large/Binary Files
+*.tar.gz
+*.log
+maestro.log
+streaming-fix-package.tar.gz
+
+# Temporary Scripts
+mega_test_e2e.sh
+create-streaming-package.sh
+deploy.sh
+run_mega_test.py

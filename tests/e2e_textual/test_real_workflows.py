@@ -55,8 +55,8 @@ if __name__ == "__main__":
             read_result = await read_tool._execute_validated(path=str(test_file))
             assert read_result.success, f"Read failed: {read_result.error}"
 
-            # data is the content directly (string)
-            content = read_result.data
+            # data is a dict with "content" key
+            content = read_result.data["content"]
             assert isinstance(content, str)
             assert "def hello" in content
             assert "Hello, {name}" in content
@@ -117,8 +117,8 @@ if __name__ == "__main__":
 
             # Verify the edit
             read_result = await read_tool._execute_validated(path=str(test_file))
-            assert "int" in read_result.data
-            assert "-> int:" in read_result.data
+            assert "int" in read_result.data["content"]
+            assert "-> int:" in read_result.data["content"]
             result.logs.append("✓ Edit verified")
 
             result.metadata["changes"] = edit_result.metadata.get("changes", 1)
@@ -162,8 +162,8 @@ class TestSearchOperations:
             )
             assert search_result.success, f"Search failed: {search_result.error}"
 
-            # data is a list of matches
-            matches = search_result.data
+            # data is a dict with "matches" key
+            matches = search_result.data.get("matches", [])
             assert isinstance(matches, list)
             result.logs.append(f"✓ Found {len(matches)} function definitions")
 
@@ -211,7 +211,7 @@ class TestSearchOperations:
             )
             assert search_result.success
 
-            matches = search_result.data if search_result.data else []
+            matches = search_result.data.get("matches", []) if search_result.data else []
             result.logs.append(f"✓ Found {len(matches)} BUG markers")
 
             for match in matches[:3]:
@@ -509,7 +509,7 @@ class TestCombinedWorkflow:
             )
 
             if search_result.success and search_result.data:
-                matches = search_result.data
+                matches = search_result.data.get("matches", [])
                 result.logs.append(f"  Found {len(matches)} issues")
 
                 if matches:
@@ -519,7 +519,7 @@ class TestCombinedWorkflow:
 
                     read_result = await read_tool._execute_validated(path=first_file)
                     if read_result.success:
-                        content = read_result.data
+                        content = read_result.data["content"]
                         result.logs.append(f"  Read {len(content)} chars")
 
                         # Step 3: Fix an issue
@@ -546,7 +546,7 @@ class TestCombinedWorkflow:
                 result.logs.append("  No issues found (clean code!)")
                 result.metadata["fixed"] = False
 
-            result.metadata["issues_found"] = len(search_result.data) if search_result.data else 0
+            result.metadata["issues_found"] = len(search_result.data.get("matches", [])) if search_result.data else 0
 
         except Exception as e:
             result.status = "failed"

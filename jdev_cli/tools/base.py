@@ -15,6 +15,7 @@ class ToolCategory(Enum):
     EXECUTION = "execution"
     GIT = "git"
     CONTEXT = "context"
+    SYSTEM = "system"
 
 
 @dataclass

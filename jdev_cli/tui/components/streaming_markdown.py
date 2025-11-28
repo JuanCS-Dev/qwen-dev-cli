@@ -148,68 +148,228 @@ class BlockWidgetFactory:
 
     def _render_tool_call(self, block: BlockInfo) -> RenderableType:
         """
-        Renderiza tool call estilo Claude Code Web.
+        Renderiza tool call estilo Claude Code Web ou Gemini Native.
 
-        Formato: • Read path/to/file
-                 • Write path/to/file
-                 • Bash command
+        Formato Gemini: [TOOL_CALL:name:{args}]
+        Formato Claude: • Read /path/to/file
         """
         import re
-        text = Text()
+        from rich.table import Table
+
         content = block.content.strip()
+        
+        # Gemini Native Format
+        if content.startswith('[TOOL_CALL:'):
+            try:
+                # [TOOL_CALL:name:{...}]
+                # Remove prefix and suffix
+                inner = content[11:]
+                if inner.endswith(']'):
+                    inner = inner[:-1]
+                
+                if ':' in inner:
+                    tool_name, args = inner.split(':', 1)
+                else:
+                    tool_name = inner
+                    args = "{}"
+                
+                # Ícones por tool
+                tool_icons = {
+                    "code_execution": ("🐍", "bright_green"),
+                    "google_search_retrieval": ("🔍", "bright_blue"),
+                }
+                
+                icon, color = tool_icons.get(tool_name, ("🛠️", "bright_cyan"))
+                
+                result = Text()
+                result.append(f"{icon} ", style="bold")
+                result.append(tool_name, style=f"bold {color}")
+                result.append(" ", style="dim")
+                result.append(args, style="italic #888888")
+                return result
+            except Exception:
+                return Text(block.content)
 
-        # Parse tool name e argumentos
-        match = re.match(r'^[•●]\s+(\w+)\s*(.*)', content)
+        lines = content.split('\n')
+        if not lines:
+            return Text(block.content)
+
+        # Parse primeira linha (tool call)
+        first_line = lines[0].strip()
+        # Remove ** bold markers se presentes
+        first_line = re.sub(r'\*\*', '', first_line)
+
+        match = re.match(r'^[•●]\s*(\w+(?:\s+\w+)?)\s*(.*)', first_line)
+        if not match:
+            return Text(block.content)
+
+        tool_name = match.group(1).strip()
+        args = match.group(2).strip()
+
+        # Ícones por tool (estilo Claude Code)
+        tool_icons = {
+            "Read": ("📖", "bright_cyan"),
+            "Write": ("✏️", "bright_green"),
+            "Edit": ("📝", "bright_yellow"),
+            "Bash": ("💻", "bright_magenta"),
+            "Glob": ("🔍", "bright_blue"),
+            "Grep": ("🔎", "bright_blue"),
+            "Task": ("📋", "bright_white"),
+            "WebFetch": ("🌐", "bright_cyan"),
+            "WebSearch": ("🔍", "bright_cyan"),
+            "Update Todos": ("✅", "bright_green"),
+            "TodoWrite": ("✅", "bright_green"),
+            "AskUserQuestion": ("❓", "bright_yellow"),
+        }
+
+        icon, color = tool_icons.get(tool_name, ("•", "white"))
+
+        # Build output
+        result = Text()
+        result.append(f"{icon} ", style="bold")
+        result.append(tool_name, style=f"bold {color}")
+        if args:
+            # Remove backticks para paths
+            args_clean = args.strip('`')
+            result.append(" ", style="dim")
+            result.append(args_clean, style="italic #888888")
+        result.append("\n")
+
+        # Render output lines (└ resultado, ~~strikethrough~~, etc.)
+        for line in lines[1:]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+
+            # Tool output line (└ resultado)
+            if stripped.startswith('└') or stripped.startswith('├'):
+                output_text = stripped[1:].strip()
+                result.append("  └ ", style="dim #666666")
+
+                # Check for strikethrough (~~text~~)
+                if '~~' in output_text:
+                    # Render strikethrough items
+                    parts = re.split(r'(~~[^~]+~~)', output_text)
+                    for part in parts:
+                        if part.startswith('~~') and part.endswith('~~'):
+                            result.append(part[2:-2], style="strike dim #888888")
+                        else:
+                            result.append(part, style="dim #aaaaaa")
+                # Check for checkbox (☐ or □)
+                elif stripped.startswith('└ ☐') or stripped.startswith('└ □'):
+                    checkbox_text = output_text.lstrip('☐□ ')
+                    result.append("☐ ", style="bold bright_yellow")
+                    result.append(checkbox_text, style="bright_white")
+                else:
+                    result.append(output_text, style="dim #aaaaaa")
+                result.append("\n")
+
+            # Indented continuation (  some text)
+            elif line.startswith('  '):
+                result.append("  ", style="")
+                # Handle strikethrough in indented lines too
+                if '~~' in stripped:
+                    parts = re.split(r'(~~[^~]+~~)', stripped)
+                    for part in parts:
+                        if part.startswith('~~') and part.endswith('~~'):
+                            result.append(part[2:-2], style="strike dim #888888")
+                        else:
+                            result.append(part, style="dim #aaaaaa")
+                elif stripped.startswith('☐') or stripped.startswith('□'):
+                    checkbox_text = stripped.lstrip('☐□ ')
+                    result.append("☐ ", style="bold bright_yellow")
+                    result.append(checkbox_text, style="bright_white")
+                else:
+                    result.append(stripped, style="dim #aaaaaa")
+                result.append("\n")
+
+        # Remove trailing newline
+        if result.plain.endswith('\n'):
+            result = Text(result.plain.rstrip('\n'))
+            # Re-apply styles - simplified version
+            result = self._apply_tool_styles(block.content, tool_name, icon, color)
+
+        return result
+
+    def _apply_tool_styles(self, content: str, tool_name: str, icon: str, color: str) -> Text:
+        """Helper to apply consistent styling to tool output."""
+        import re
+        lines = content.strip().split('\n')
+        result = Text()
+
+        # First line
+        first_line = re.sub(r'\*\*', '', lines[0].strip())
+        match = re.match(r'^[•●]\s*(\w+(?:\s+\w+)?)\s*(.*)', first_line)
         if match:
-            tool_name = match.group(1)
-            args = match.group(2).strip()
-
-            # Ícones por tool (estilo Claude Code)
-            tool_icons = {
-                "Read": ("📖", "bright_cyan"),
-                "Write": ("✏️", "bright_green"),
-                "Edit": ("📝", "bright_yellow"),
-                "Bash": ("💻", "bright_magenta"),
-                "Glob": ("🔍", "bright_blue"),
-                "Grep": ("🔎", "bright_blue"),
-                "Task": ("📋", "bright_white"),
-                "WebFetch": ("🌐", "bright_cyan"),
-                "WebSearch": ("🔍", "bright_cyan"),
-                "Update Todos": ("✅", "bright_green"),
-            }
-
-            icon, color = tool_icons.get(tool_name, ("•", "white"))
-
-            text.append(f"{icon} ", style="bold")
-            text.append(tool_name, style=f"bold {color}")
+            args = match.group(2).strip().strip('`')
+            result.append(f"{icon} ", style="bold")
+            result.append(tool_name, style=f"bold {color}")
             if args:
-                text.append(" ", style="dim")
-                text.append(args, style="dim italic")
-        else:
-            text.append(content, style="white")
+                result.append(" ", style="dim")
+                result.append(args, style="italic #888888")
 
-        return Panel(text, border_style="dim cyan", padding=(0, 1))
+        # Output lines
+        for line in lines[1:]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            result.append("\n")
+            if stripped.startswith('└') or stripped.startswith('├'):
+                output_text = stripped[1:].strip()
+                result.append("  └ ", style="dim #666666")
+                if '~~' in output_text:
+                    parts = re.split(r'(~~[^~]+~~)', output_text)
+                    for part in parts:
+                        if part.startswith('~~') and part.endswith('~~'):
+                            result.append(part[2:-2], style="strike dim #888888")
+                        else:
+                            result.append(part, style="dim #aaaaaa")
+                elif output_text.startswith('☐') or output_text.startswith('□'):
+                    checkbox_text = output_text.lstrip('☐□ ')
+                    result.append("☐ ", style="bold bright_yellow")
+                    result.append(checkbox_text, style="bright_white")
+                else:
+                    result.append(output_text, style="dim #aaaaaa")
+            elif line.startswith('  '):
+                result.append("  ", style="")
+                if '~~' in stripped:
+                    parts = re.split(r'(~~[^~]+~~)', stripped)
+                    for part in parts:
+                        if part.startswith('~~') and part.endswith('~~'):
+                            result.append(part[2:-2], style="strike dim #888888")
+                        else:
+                            result.append(part, style="dim #aaaaaa")
+                elif stripped.startswith('☐') or stripped.startswith('□'):
+                    checkbox_text = stripped.lstrip('☐□ ')
+                    result.append("☐ ", style="bold bright_yellow")
+                    result.append(checkbox_text, style="bright_white")
+                else:
+                    result.append(stripped, style="dim #aaaaaa")
+
+        return result
 
     def _render_status_badge(self, block: BlockInfo) -> RenderableType:
         """
         Renderiza status badge estilo Claude Code.
 
-        Formato: 🔴 BLOCKER, 🟡 WARNING, 🟢 OK
+        Formato: 🔴 BLOCKER, 🟡 WARNING, 🟢 OK, ✅ SUCCESS, ❌ ERROR
         """
-        import re
         text = Text()
         content = block.content.strip()
 
         # Parse emoji e status
         badge_styles = {
-            "🔴": ("bold red", "CRITICAL"),
-            "🟠": ("bold bright_red", "HIGH"),
-            "🟡": ("bold yellow", "WARNING"),
-            "🟢": ("bold green", "OK"),
-            "⚪": ("dim white", "INFO"),
+            "🔴": ("bold red", "background: red"),
+            "🟠": ("bold bright_red", "background: orange"),
+            "🟡": ("bold yellow", "background: yellow"),
+            "🟢": ("bold green", "background: green"),
+            "⚪": ("dim white", "background: white"),
+            "✅": ("bold bright_green", "background: green"),
+            "❌": ("bold bright_red", "background: red"),
+            "⚠️": ("bold bright_yellow", "background: yellow"),
         }
 
-        for emoji, (style, _label) in badge_styles.items():
+        for emoji, (style, _bg) in badge_styles.items():
             if content.startswith(emoji):
                 status_text = content[len(emoji):].strip()
                 text.append(f"{emoji} ", style="bold")

@@ -14,7 +14,7 @@ Autor: JuanCS Dev
 Data: 2025-11-25
 """
 
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 import asyncio
 import threading
 
@@ -34,6 +34,9 @@ from jdev_cli.tui.components.streaming_markdown import (
     RenderMode,
     PerformanceMetrics,
 )
+
+# Import colors for brand consistency
+from jdev_tui.core.output_formatter import Colors
 
 
 class StreamingResponseWidget(Static):
@@ -122,6 +125,10 @@ class StreamingResponseWidget(Static):
         # Flag para cleanup seguro
         self._is_finalizing = False
 
+        # Deduplication: track last N lines to detect LLM repetitions
+        self._last_lines: List[str] = []
+        self._max_line_history = 10
+
     def on_mount(self) -> None:
         """Chamado quando widget é montado."""
         self.is_streaming = True
@@ -137,16 +144,76 @@ class StreamingResponseWidget(Static):
         Esta é a interface principal. É chamada de forma síncrona
         pelo ResponseView.append_chunk().
 
+        Implements throttling to maintain 60fps (16.67ms between renders).
+
         Args:
             chunk: Texto a adicionar ao stream
         """
+        import time
+        import re
+
+        # Sanitizar Rich markup que o LLM pode ter gerado erroneamente
+        # Remove [bold], [italic], [dim], [/], [#hexcode], [color name] tags
+        chunk = re.sub(
+            r'\[/?(?:bold|italic|dim|underline|strike|blink|reverse|#[0-9a-fA-F]{6}|'
+            r'red|green|blue|yellow|magenta|cyan|white|black|'
+            r'bright_\w+|rgb\([^)]+\)|on\s+\w+)[^\]]*\]',
+            '',
+            chunk
+        )
+
+        # DEDUPLICATION: Remove LLM-generated duplicate lines
+        # Split chunk into lines and filter duplicates
+        if '\n' in chunk:
+            lines = chunk.split('\n')
+            filtered_lines = []
+
+            for line in lines:
+                line_stripped = line.strip()
+
+                # Skip empty lines
+                if not line_stripped:
+                    filtered_lines.append(line)
+                    continue
+
+                # Check if this line is a duplicate of recent lines
+                is_duplicate = False
+                for prev_line in self._last_lines[-5:]:  # Check last 5 lines
+                    if line_stripped == prev_line.strip():
+                        is_duplicate = True
+                        break
+
+                if not is_duplicate:
+                    filtered_lines.append(line)
+                    # Track this line for future dedup
+                    self._last_lines.append(line_stripped)
+                    # Keep only last N lines
+                    if len(self._last_lines) > self._max_line_history:
+                        self._last_lines.pop(0)
+
+            chunk = '\n'.join(filtered_lines)
+
         self._content += chunk
 
         # Processa com block detector (incremental)
         self._block_detector.process_chunk(chunk)
 
-        # Atualiza display
-        self._update_display()
+        # Throttling: only update if enough time has passed (60fps = 16.67ms)
+        current_time = time.time()
+        if not hasattr(self, '_last_update_time'):
+            self._last_update_time = 0
+            self._pending_update = False
+
+        time_since_last = current_time - self._last_update_time
+
+        # Update immediately if >16ms since last update, or chunk ends with newline
+        if time_since_last >= 0.016 or chunk.endswith('\n'):
+            self._update_display()
+            self._last_update_time = current_time
+            self._pending_update = False
+        else:
+            # Mark that we have pending content
+            self._pending_update = True
 
     def _update_display(self) -> None:
         """Atualiza o display com conteúdo atual."""
@@ -180,10 +247,10 @@ class StreamingResponseWidget(Static):
         """Renderiza como plain text."""
         text = Text(self._content)
 
-        # Cursor pulsante (thread-safe)
+        # Cursor pulsante (thread-safe) - Orange brand color
         if self.is_streaming and not self._is_finalizing:
             cursor = self.CURSOR_FRAMES[self._get_cursor_index()]
-            text.append(cursor, style="bold bright_cyan")
+            text.append(cursor, style=f"bold {Colors.PRIMARY}")
 
         return text
 
@@ -209,20 +276,29 @@ class StreamingResponseWidget(Static):
             rendered = self._widget_factory.render_block(block)
             renderables.append(rendered)
 
-        # Cursor no final (thread-safe)
+        # Cursor no final (thread-safe) - Orange brand color
         if self.is_streaming and not self._is_finalizing:
             cursor_text = Text()
-            cursor_text.append(self.CURSOR_FRAMES[self._get_cursor_index()], style="bold bright_cyan")
+            cursor_text.append(self.CURSOR_FRAMES[self._get_cursor_index()], style=f"bold {Colors.PRIMARY}")
             renderables.append(cursor_text)
 
         return Group(*renderables) if renderables else Text("")
 
     async def _animate_cursor(self) -> None:
-        """Anima o cursor durante streaming."""
+        """
+        Anima o cursor durante streaming.
+
+        Also flushes any pending updates from throttling.
+        """
         while self.is_streaming and not self._is_finalizing:
             self._advance_cursor()  # Thread-safe
+
+            # Flush pending updates if any (from throttling)
+            if getattr(self, '_pending_update', False):
+                self._pending_update = False
+
             self._update_display()
-            await asyncio.sleep(0.08)  # 80ms per frame
+            await asyncio.sleep(0.08)  # 80ms per frame (~12.5fps for cursor)
 
     async def finalize(self) -> None:
         """

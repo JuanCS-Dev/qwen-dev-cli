@@ -48,6 +48,14 @@ dev = [
 fast = [
     "uvloop>=0.18.0",
 ]
+# Hackathon Day 30 - Deploy dependencies
+hackathon = [
+    "modal>=0.64.0",
+    "google-generativeai>=0.8.0",
+]
+gemini = [
+    "google-generativeai>=0.8.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/JuanCS-Dev/juan-dev-code"
@@ -58,9 +66,14 @@ Issues = "https://github.com/JuanCS-Dev/juan-dev-code/issues"
 # Main unified entry point
 juancs = "jdev_cli.main:cli_main"
 jcs = "jdev_cli.main:cli_main"
+j_dev-code = "jdev_cli.main:cli_main"
 
 # TUI (Textual-based)
 juancs-tui = "jdev_tui.app:main"
+
+# Hackathon Day 30 - Deploy entry points
+juancs-gradio = "gradio_ui.app:create_ui"
+juancs-agent = "blaxel_agent:cli_main"
 
 [tool.black]
 line-length = 100
@@ -86,5 +99,5 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short"
 
 [tool.setuptools.packages.find]
-include = ["jdev_cli*", "jdev_tui*", "jdev_core*", "jdev_governance*", "gradio_ui*"]
+include = ["jdev_cli*", "jdev_tui*", "jdev_core*", "jdev_governance*", "gradio_ui*", "prometheus*"]
 namespaces = false

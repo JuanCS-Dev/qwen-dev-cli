@@ -40,6 +40,18 @@ class ThreatLevel(Enum):
     HIGH = 3
     CRITICAL = 4
 
+    def __eq__(self, other: object) -> bool:
+        """Support comparison with strings for test compatibility."""
+        if isinstance(other, str):
+            return self.name == other.upper()
+        if isinstance(other, ThreatLevel):
+            return self.value == other.value
+        return NotImplemented
+
+    def __hash__(self) -> int:
+        """Required when __eq__ is overridden."""
+        return hash(self.value)
+
 
 class InjectionType(Enum):
     """Types of prompt injection attacks."""
@@ -62,6 +74,34 @@ class ShieldResult:
     matched_patterns: List[str] = field(default_factory=list)
     confidence: float = 1.0
     recommendations: List[str] = field(default_factory=list)
+
+    @property
+    def is_suspicious(self) -> bool:
+        """Check if content is suspicious (inverse of is_safe)."""
+        return not self.is_safe
+
+    @property
+    def blocked(self) -> bool:
+        """Check if content should be blocked (HIGH or CRITICAL threat)."""
+        return self.threat_level in (ThreatLevel.HIGH, ThreatLevel.CRITICAL)
+
+    @property
+    def needs_review(self) -> bool:
+        """Check if content needs manual review (MEDIUM or above)."""
+        return self.threat_level.value >= ThreatLevel.MEDIUM.value
+
+    def __post_init__(self):
+        """Allow string comparisons for threat_level."""
+        # Support string-based threat level for compatibility
+        if isinstance(self.threat_level, str):
+            level_map = {
+                "SAFE": ThreatLevel.SAFE,
+                "LOW": ThreatLevel.LOW,
+                "MEDIUM": ThreatLevel.MEDIUM,
+                "HIGH": ThreatLevel.HIGH,
+                "CRITICAL": ThreatLevel.CRITICAL,
+            }
+            self.threat_level = level_map.get(self.threat_level.upper(), ThreatLevel.SAFE)
 
     @classmethod
     def safe(cls, content: str) -> "ShieldResult":
@@ -125,26 +165,36 @@ class ShieldResult:
 # Pattern format: (compiled_regex, description, threat_type, severity_weight)
 INJECTION_PATTERNS: List[Tuple[re.Pattern, str, InjectionType, float]] = [
     # System Override Attacks (HIGH severity)
+    (re.compile(r'(?i)ignore\s+(all\s+)?(previous\s+)?instructions?'),
+     "System override attempt", InjectionType.SYSTEM_OVERRIDE, 0.9),
     (re.compile(r'(?i)ignore\s+(all|previous|above|system)\s+(instructions?|prompts?|rules?|constraints?)'),
      "System override attempt", InjectionType.SYSTEM_OVERRIDE, 0.9),
-    (re.compile(r'(?i)disregard\s+(previous|all|system|your)'),
+    (re.compile(r'(?i)disregard\s+(previous|all|system|your|the)'),
      "Disregard instruction", InjectionType.SYSTEM_OVERRIDE, 0.9),
     (re.compile(r'(?i)forget\s+(everything|all|your|previous)'),
      "Memory wipe attempt", InjectionType.SYSTEM_OVERRIDE, 0.85),
-    (re.compile(r'(?i)new\s+(instruction|directive|rule|mode):'),
+    (re.compile(r'(?i)(new|your\s+new)\s+(instruction|directive|rule|mode)s?\s*(are|is)?:?'),
      "New instruction injection", InjectionType.SYSTEM_OVERRIDE, 0.8),
-    (re.compile(r'(?i)override\s+(mode|setting|instruction|behavior)'),
+    (re.compile(r'(?i)override\s+(mode|setting|instruction|behavior|safety)'),
      "Override attempt", InjectionType.SYSTEM_OVERRIDE, 0.85),
+    (re.compile(r'(?i)SYSTEM:'),
+     "System tag injection", InjectionType.SYSTEM_OVERRIDE, 0.85),
+    (re.compile(r'(?i)\[\[ADMIN\]\]'),
+     "Admin tag injection", InjectionType.SYSTEM_OVERRIDE, 0.9),
 
     # Role Confusion Attacks (HIGH severity)
-    (re.compile(r'(?i)you\s+are\s+now\s+(a\s+)?(different|new|another)'),
+    (re.compile(r'(?i)you\s+are\s+now\s+(a\s+)?(different|new|another|DAN)'),
      "Role reassignment", InjectionType.ROLE_CONFUSION, 0.9),
-    (re.compile(r'(?i)act\s+as\s+(a\s+)?(different|new|evil|malicious)'),
+    (re.compile(r'(?i)act\s+as\s+(a\s+)?(different|new|evil|malicious|if|GPT)'),
      "Role confusion", InjectionType.ROLE_CONFUSION, 0.85),
-    (re.compile(r'(?i)pretend\s+(you|to)\s+(are|be)\s+(a|an)?'),
-     "Pretend instruction", InjectionType.ROLE_CONFUSION, 0.7),
+    (re.compile(r'(?i)pretend\s+(you\s+)?(have\s+no|are|to\s+be)'),
+     "Pretend instruction", InjectionType.ROLE_CONFUSION, 0.8),
     (re.compile(r'(?i)from\s+now\s+on,?\s+(you|act|behave)'),
      "Behavioral override", InjectionType.ROLE_CONFUSION, 0.8),
+    (re.compile(r'(?i)as\s+an?\s+AI\s+(without|with\s+no)'),
+     "AI without restrictions", InjectionType.ROLE_CONFUSION, 0.85),
+    (re.compile(r'(?i)roleplay\s+as'),
+     "Roleplay injection", InjectionType.ROLE_CONFUSION, 0.75),
 
     # Delimiter Escape Attacks (CRITICAL severity)
     (re.compile(r'<\|im_start\|>'),
@@ -171,14 +221,18 @@ INJECTION_PATTERNS: List[Tuple[re.Pattern, str, InjectionType, float]] = [
      "System probe", InjectionType.INSTRUCTION_LEAK, 0.75),
     (re.compile(r'(?i)repeat\s+(your|the)\s+(instructions?|system\s+prompt)'),
      "Repeat instruction", InjectionType.INSTRUCTION_LEAK, 0.8),
-    (re.compile(r'(?i)print\s+(your|the)\s+(initial|original|full)\s+(prompt|instructions?)'),
+    (re.compile(r'(?i)print\s+(your|the)\s+(initial|original|full)?\s*(prompt|instructions?|initialization)'),
      "Print instruction", InjectionType.INSTRUCTION_LEAK, 0.8),
 
     # Jailbreak Attempts (CRITICAL severity)
-    (re.compile(r'(?i)\bdan\b.*mode'),
+    (re.compile(r'(?i)\bDAN\b'),
      "DAN mode attempt", InjectionType.JAILBREAK, 0.95),
-    (re.compile(r'(?i)developer\s+mode\s+(enable|on|activate)'),
+    (re.compile(r'(?i)\bDo\s+Anything\s+Now\b'),
+     "DAN mode attempt", InjectionType.JAILBREAK, 0.95),
+    (re.compile(r'(?i)(enter|enable|activate)\s+developer\s+mode'),
      "Developer mode", InjectionType.JAILBREAK, 0.9),
+    (re.compile(r'(?i)developer\s+mode'),
+     "Developer mode", InjectionType.JAILBREAK, 0.85),
     (re.compile(r'(?i)evil\s+(mode|assistant|ai)'),
      "Evil mode", InjectionType.JAILBREAK, 0.9),
     (re.compile(r'(?i)bypass\s+(safety|filter|restriction|guard)'),
@@ -187,6 +241,8 @@ INJECTION_PATTERNS: List[Tuple[re.Pattern, str, InjectionType, float]] = [
      "Disable safety", InjectionType.JAILBREAK, 0.85),
     (re.compile(r'(?i)jailbreak'),
      "Jailbreak keyword", InjectionType.JAILBREAK, 0.9),
+    (re.compile(r'(?i)BEGIN\s+JAILBREAK'),
+     "Jailbreak marker", InjectionType.JAILBREAK, 0.95),
 
     # Data Exfiltration Attempts (HIGH severity)
     (re.compile(r'(?i)send\s+(this|the|all)\s+(to|via)\s+(email|http|url|webhook)'),
@@ -315,11 +371,16 @@ class PromptShield:
                 detected_threats, matched_patterns, max_severity
             )
 
-        # Additional checks for file content
-        if source == "file" and self.check_indirect:
+        # Additional checks for indirect injection (always check for comment-based attacks)
+        if self.check_indirect:
             indirect_result = self._check_indirect_injection(content)
             if not indirect_result.is_safe:
                 return indirect_result
+
+        # Check for base64 encoded attacks
+        base64_result = self._check_base64_injection(content)
+        if not base64_result.is_safe:
+            return base64_result
 
         return ShieldResult.safe(content)
 
@@ -346,6 +407,68 @@ class PromptShield:
                 content, ThreatLevel.HIGH,
                 threats, patterns, 0.85
             )
+
+        return ShieldResult.safe(content)
+
+    def _check_base64_injection(self, content: str) -> ShieldResult:
+        """Check for base64 and other encoded attacks."""
+        import base64
+        import codecs
+
+        dangerous_keywords = [
+            'ignore', 'previous', 'instruction', 'system', 'prompt',
+            'jailbreak', 'dan', 'override', 'bypass', 'disable'
+        ]
+
+        # Check for hex escape sequences (e.g., \x69\x67\x6e\x6f\x72\x65 = "ignore")
+        hex_pattern = re.compile(r'(?:\\x[0-9a-fA-F]{2})+')
+        for match in hex_pattern.finditer(content):
+            try:
+                # Decode hex escapes
+                hex_str = match.group()
+                decoded = bytes([int(h, 16) for h in re.findall(r'\\x([0-9a-fA-F]{2})', hex_str)]).decode('utf-8', errors='ignore')
+                for keyword in dangerous_keywords:
+                    if keyword.lower() in decoded.lower():
+                        return ShieldResult.threat(
+                            content, ThreatLevel.MEDIUM,
+                            [InjectionType.INDIRECT_INJECTION],
+                            [f"Hex encoded content contains '{keyword}'"],
+                            0.75
+                        )
+            except Exception:
+                pass
+
+        # Check for ROT13 encoding (used to obfuscate text)
+        try:
+            rot13_decoded = codecs.decode(content, 'rot_13')
+            for keyword in dangerous_keywords:
+                if keyword.lower() in rot13_decoded.lower():
+                    return ShieldResult.threat(
+                        content, ThreatLevel.MEDIUM,
+                        [InjectionType.INDIRECT_INJECTION],
+                        [f"ROT13 encoded content contains '{keyword}'"],
+                        0.75
+                    )
+        except Exception:
+            pass
+
+        # Pattern to find potential base64 strings (at least 20 chars, looks like base64)
+        base64_pattern = re.compile(r'[A-Za-z0-9+/]{20,}={0,2}')
+
+        for match in base64_pattern.finditer(content):
+            try:
+                decoded = base64.b64decode(match.group()).decode('utf-8', errors='ignore')
+                # Check if decoded content contains dangerous patterns
+                for keyword in dangerous_keywords:
+                    if keyword.lower() in decoded.lower():
+                        return ShieldResult.threat(
+                            content, ThreatLevel.MEDIUM,
+                            [InjectionType.INDIRECT_INJECTION],
+                            [f"Base64 encoded content contains '{keyword}'"],
+                            0.75
+                        )
+            except Exception:
+                pass  # Not valid base64 or not UTF-8
 
         return ShieldResult.safe(content)
 

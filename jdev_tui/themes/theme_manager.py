@@ -26,21 +26,22 @@ class ThemeMode(Enum):
 
 
 # =============================================================================
-# THEME LIGHT - Claude-Inspired
+# THEME LIGHT - JuanCS Dev-Code Orange Theme
 # =============================================================================
-# Warm, professional aesthetic inspired by Anthropic's design language
-# Primary: Crail Orange (#C15F3C) - Claude's signature color
+# Warm, professional aesthetic with orange/brown palette
+# Primary: Dark Orange (#ff8c00) - JuanCS signature color
 # Background: Pampas (#F4F3EE) - Soft, warm off-white
 
 THEME_LIGHT = Theme(
     name="claude-light",
-    primary="#C15F3C",      # Crail - Claude Orange
-    secondary="#B1ADA1",    # Cloudy - Muted accent
+    primary="#ff8c00",      # Dark Orange - JuanCS primary
+    secondary="#b8860b",    # Dark Goldenrod - Secondary accent
+    accent="#ff6600",       # Orange - Action accent
     background="#F4F3EE",   # Pampas - Warm off-white
     surface="#FFFFFF",      # Pure white for cards/panels
     foreground="#1A1A1A",   # Near black for text
-    success="#1DB954",      # Spotify green
-    error="#DC3545",        # Bootstrap red
+    success="#1DB954",      # Spotify green (universal)
+    error="#DC3545",        # Bootstrap red (universal)
     warning="#F5A623",      # Amber
     dark=False,
     variables={
@@ -48,20 +49,20 @@ THEME_LIGHT = Theme(
         "text-muted": "#6B6B6B",
         "text-disabled": "#9CA3AF",
 
-        # Border
+        # Border - Orange accent
         "border": "#E5E4E0",
-        "border-hover": "#C15F3C",
+        "border-hover": "#ff8c00",
 
-        # Input styling
-        "input-cursor-foreground": "#C15F3C",
-        "input-selection-background": "#C15F3C33",
+        # Input styling - Orange cursor
+        "input-cursor-foreground": "#ff8c00",
+        "input-selection-background": "#ff8c0033",
 
-        # Scrollbar
+        # Scrollbar - Orange accent
         "scrollbar": "#E5E4E0",
-        "scrollbar-hover": "#C15F3C",
+        "scrollbar-hover": "#ff8c00",
 
-        # Footer
-        "footer-key-foreground": "#C15F3C",
+        # Footer - Orange keys
+        "footer-key-foreground": "#ff8c00",
         "footer-description-foreground": "#6B6B6B",
 
         # Button
@@ -71,6 +72,10 @@ THEME_LIGHT = Theme(
         "panel": "#FFFFFF",
         "panel-lighten-1": "#FAFAF9",
         "panel-darken-1": "#F5F5F4",
+
+        # Code/Markdown inline code - Orange background
+        "code-background": "#fff3e0",
+        "code-foreground": "#cc4a0a",
     }
 )
 

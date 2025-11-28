@@ -135,7 +135,7 @@ class GeminiClient:
         prompt: str,
         system_prompt: Optional[str] = None,
         include_history: bool = False,
-        retry_count: int = 3,
+        retry_count: int = 5,
     ) -> str:
         """
         Generate text completion.
@@ -162,6 +162,12 @@ class GeminiClient:
                 if response.status_code == 200:
                     data = response.json()
                     text = self._extract_text(data)
+
+                    # Handle empty response (sometimes API returns empty)
+                    if not text:
+                        last_error = "Empty response from API"
+                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                        continue
 
                     # Store in history
                     self.conversation_history.append(Message(role="user", content=prompt))

@@ -20,7 +20,7 @@ from typing import Any, Dict, List
 import gradio as gr
 import pandas as pd
 
-from .cli_bridge import CLIStreamBridge
+from .streaming_bridge import GradioStreamingBridge, ChatMessage
 from .components import (
     render_tailwind_header,
     render_gauge,
@@ -29,13 +29,22 @@ from .components import (
     render_terminal_logs,
     render_docker_progress,
     render_latency_chart,
+    render_docker_progress,
+    render_latency_chart,
     render_dual_status,
+    render_memory_status,
+    render_world_model_status,
+    render_evolution_status,
 )
 
 PROJECT_ROOT = Path.cwd()
 
-# Initialize CLI bridge
-_bridge = CLIStreamBridge()
+# Initialize streaming bridge (replaces old CLIStreamBridge)
+# Uses refactored GeminiClient with circuit breaker, deduplication
+_bridge = GradioStreamingBridge(
+    system_prompt="You are Juan-Dev-Code, an AI coding assistant. Be helpful, concise, and write clean code.",
+    enable_prometheus=True  # Enable PROMETHEUS integration
+)
 
 # System Monitor for live metrics
 class SystemMonitor:
@@ -50,8 +59,13 @@ class SystemMonitor:
         self.logs = [
             f"{time.strftime('%H:%M:%S')} - [INFO] System initialized via MCP protocol",
             f"{time.strftime('%H:%M:%S')} - [INFO] Loaded Constitutional AI constraints",
+            f"{time.strftime('%H:%M:%S')} - [INFO] Loaded Constitutional AI constraints",
             f"{time.strftime('%H:%M:%S')} - [SUCCESS] Connected to {_bridge.backend_label}",
         ]
+        # Prometheus Metrics
+        self.memory_data = {"active_types": ["core", "episodic"]}
+        self.wm_data = {"simulation_depth": 0, "confidence": 0.0}
+        self.evo_data = {"generation": 1, "mutation_rate": 0.05}
     
     def add_log(self, level: str, message: str):
         """Add a timestamped log entry."""
@@ -87,7 +101,12 @@ class SystemMonitor:
             "latency_current": f"{self.current_latency}ms",
             "progress": self.progress,
             "progress_label": self.progress_label,
-            "logs": self.logs[-8:]
+            "progress": self.progress,
+            "progress_label": self.progress_label,
+            "logs": self.logs[-8:],
+            "memory": self.memory_data,
+            "wm": self.wm_data,
+            "evo": self.evo_data
         }
 
 _monitor = SystemMonitor()
@@ -244,24 +263,24 @@ def handle_file_upload(files):
 
 # --- CORE LOGIC ---
 
-async def stream_conversation(
+def stream_conversation(
     message: str,
     history: List[Dict[str, Any]],
     session_id: str,
 ):
     """
-    Stream LLM output with live monitoring (async I/O handler).
-    
-    Following Gradio 6 + Uvicorn async best practices:
-    - Uses async/await for network I/O (LLM streaming)
-    - Yields frequently to keep event loop responsive
-    - No blocking operations in async context
-    
+    Stream LLM output with live monitoring using GradioStreamingBridge.
+
+    Refactored for Gradio 6 + GeminiClient integration:
+    - Uses sync generator (bridge handles async→sync conversion internally)
+    - Yields ChatMessage-compatible dicts for Gradio
+    - Integrates with refactored streaming with deduplication and circuit breaker
+
     Args:
         message: User input text
         history: Chat history as list of role/content dicts
         session_id: Persistent session identifier
-        
+
     Yields:
         Tuple of (history, logs_html, session_id, gauge1, chart, status, progress, latency)
     """
@@ -275,54 +294,50 @@ async def stream_conversation(
             render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
             render_dual_status(_bridge.backend_label, "Production"),
             render_docker_progress(metrics["progress"], metrics["progress_label"]),
-            render_latency_chart(metrics["latency_data"], metrics["latency_current"])
+            render_latency_chart(metrics["latency_data"], metrics["latency_current"]),
+            render_memory_status(metrics["memory"]),
+            render_world_model_status(metrics["wm"]),
+            render_evolution_status(metrics["evo"])
         )
         return
 
     # Initialize session
     session_value = session_id or f"session-{uuid.uuid4().hex[:8]}"
-    
-    # Update history with user message
+
+    # Ensure history is a list
     history = history or []
-    history.append({"role": "user", "content": message})
-    
-    # Add thinking state
-    history.append({"role": "assistant", "content": "⏳ Analyzing request..."})
+
+    # Log the start
     _monitor.add_log("INFO", f"Processing: {message[:40]}...")
     _monitor.set_progress(10, "Initializing")
 
-    metrics = _monitor.get_metrics()
-    yield (
-        history,
-        render_terminal_logs(metrics["logs"]),
-        session_value,
-        render_gauge(metrics["token_pct"], "TOKEN BUDGET", metrics["token_str"]),
-        render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
-        render_dual_status(_bridge.backend_label, "Production"),
-        render_docker_progress(metrics["progress"], metrics["progress_label"]),
-        render_latency_chart(metrics["latency_data"], metrics["latency_current"])
-    )
+    # Convert history to ChatMessage objects for bridge
+    chat_messages = [
+        ChatMessage(role=msg["role"], content=msg["content"])
+        for msg in history
+    ]
 
-    start = time.monotonic()
-    live_text = ""
     chunk_count = 0
-    
+
     try:
-        # Stream execution (async I/O bound - network call to LLM)
-        async for chunk in _bridge.stream_command(message, session_value):
-            chunk_text = chunk or ""
+        # Stream using new GradioStreamingBridge (sync generator)
+        for updated_messages in _bridge.stream_chat(message, chat_messages, session_value):
             chunk_count += 1
-            live_text += chunk_text
 
-            # Simulate token usage (in real impl, get from backend)
-            _monitor.increment_tokens(len(chunk_text.split()))
+            # Convert ChatMessage objects back to dicts for Gradio
+            history = [
+                {"role": msg.role, "content": msg.content}
+                for msg in updated_messages
+            ]
 
-            # Update progress based on streaming (simulated)
-            progress_pct = min(90, 20 + chunk_count * 5)
+            # Update token usage based on content length
+            if history:
+                last_content = history[-1].get("content", "")
+                _monitor.increment_tokens(max(1, len(last_content.split()) // 10))
+
+            # Update progress based on streaming
+            progress_pct = min(90, 20 + chunk_count * 3)
             _monitor.set_progress(progress_pct, "Streaming")
-
-            # Update chat with streaming cursor
-            history[-1]["content"] = live_text + " ▌"
 
             # Get updated metrics
             metrics = _monitor.get_metrics()
@@ -335,13 +350,12 @@ async def stream_conversation(
                 render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
                 render_dual_status(_bridge.backend_label, "Production"),
                 render_docker_progress(metrics["progress"], metrics["progress_label"]),
-                render_latency_chart(metrics["latency_data"], metrics["latency_current"])
+                render_latency_chart(metrics["latency_data"], metrics["latency_current"]),
+                render_memory_status(metrics["memory"]),
+                render_world_model_status(metrics["wm"]),
+                render_evolution_status(metrics["evo"])
             )
 
-            # CRITICAL: Yield to event loop (Gradio 6 async best practice)
-            # Prevents blocking Uvicorn when stream is very fast
-            await asyncio.sleep(0)
-            
     except Exception as e:
         # Error state with detailed logging
         import traceback
@@ -350,7 +364,7 @@ async def stream_conversation(
         print(error_details)
 
         error_msg = f"❌ **Error**: {str(e)}"
-        history[-1]["content"] = error_msg
+        history.append({"role": "assistant", "content": error_msg})
         _monitor.add_log("ERROR", str(e))
         _monitor.set_progress(0, "Error")
         metrics = _monitor.get_metrics()
@@ -362,14 +376,32 @@ async def stream_conversation(
             render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
             render_dual_status(_bridge.backend_label, "Production"),
             render_docker_progress(0, "Error"),
-            render_latency_chart(metrics["latency_data"], metrics["latency_current"])
+            render_latency_chart(metrics["latency_data"], metrics["latency_current"]),
+            render_memory_status(metrics["memory"]),
+            render_world_model_status(metrics["wm"]),
+            render_evolution_status(metrics["evo"])
         )
         return
 
-    # Complete state - remove cursor
-    history[-1]["content"] = live_text
+    # Complete state
     _monitor.add_log("SUCCESS", f"Task completed. {chunk_count} chunks processed.")
     _monitor.set_progress(100, "Complete")
+
+    # Get streaming metrics from bridge
+    bridge_metrics = _bridge.get_metrics()
+    if bridge_metrics:
+        _monitor.add_log("INFO", f"TTFT: {bridge_metrics.get('ttft_ms', '?')}ms, CPS: {bridge_metrics.get('cps', '?')}")
+    
+    # Update Prometheus metrics from bridge if available
+    bridge_status = _bridge.get_health_status()
+    if "prometheus" in bridge_status:
+        prom_status = bridge_status["prometheus"]
+        if "memory" in prom_status:
+            _monitor.memory_data = prom_status["memory"]
+        if "world_model" in prom_status:
+            _monitor.wm_data = prom_status["world_model"]
+        if "evolution" in prom_status:
+            _monitor.evo_data = prom_status["evolution"]
 
     # Final metrics
     metrics = _monitor.get_metrics()
@@ -381,7 +413,10 @@ async def stream_conversation(
         render_bar_chart(metrics["safety_data"], "SAFETY INDEX"),
         render_dual_status(_bridge.backend_label, "Production"),
         render_docker_progress(100, "Complete"),
-        render_latency_chart(metrics["latency_data"], metrics["latency_current"])
+        render_latency_chart(metrics["latency_data"], metrics["latency_current"]),
+        render_memory_status(metrics["memory"]),
+        render_world_model_status(metrics["wm"]),
+        render_evolution_status(metrics["evo"])
     )
 
 # --- LOAD CYBERPUNK CSS ---
@@ -543,6 +578,12 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
                     latency_html = gr.HTML(
                         value=render_latency_chart(initial_metrics["latency_data"], initial_metrics["latency_current"])
                     )
+
+                # PROMETHEUS DASHBOARD
+                with gr.Accordion("PROMETHEUS CORE", open=True, elem_classes="cyber-glass"):
+                    memory_html = gr.HTML(value=render_memory_status(initial_metrics["memory"]))
+                    wm_html = gr.HTML(value=render_world_model_status(initial_metrics["wm"]))
+                    evo_html = gr.HTML(value=render_evolution_status(initial_metrics["evo"]))
                 
                 # Refresh Button (replaces Timer to avoid queue/join errors)
                 refresh_btn = gr.Button("🔄 Refresh Metrics", size="sm", variant="secondary")
@@ -573,7 +614,7 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
         msg_input.submit(
             fn=stream_conversation,
             inputs=[msg_input, chatbot, session_state],
-            outputs=[chatbot, log_display, session_state, gauge_html, chart_html, status_html, progress_html, latency_html]
+            outputs=[chatbot, log_display, session_state, gauge_html, chart_html, status_html, progress_html, latency_html, memory_html, wm_html, evo_html]
         ).then(
             fn=lambda: "", outputs=[msg_input]
         )
@@ -587,13 +628,16 @@ def create_ui() -> tuple[gr.Blocks, str, str]:
                 render_dual_status(_bridge.backend_label, "Production"),
                 render_docker_progress(metrics["progress"], metrics["progress_label"]),
                 render_latency_chart(metrics["latency_data"], metrics["latency_current"]),
-                render_terminal_logs(metrics["logs"])
+                render_terminal_logs(metrics["logs"]),
+                render_memory_status(metrics["memory"]),
+                render_world_model_status(metrics["wm"]),
+                render_evolution_status(metrics["evo"])
             )
 
         # Wire refresh button (avoids ERR_CONNECTION_REFUSED from gr.Timer)
         refresh_btn.click(
             refresh_metrics,
-            outputs=[gauge_html, chart_html, status_html, progress_html, latency_html, log_display]
+            outputs=[gauge_html, chart_html, status_html, progress_html, latency_html, log_display, memory_html, wm_html, evo_html]
         )
 
     # Gradio 6: Return tuple (demo, theme, css) for launch()

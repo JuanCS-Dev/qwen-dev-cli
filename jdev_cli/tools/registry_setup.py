@@ -30,6 +30,7 @@ def setup_default_tools(
     include_bash: bool = True,
     include_search: bool = True,
     include_git: bool = True,
+    include_prometheus: bool = True,
     custom_tools: Optional[List] = None
 ) -> Tuple[ToolRegistry, MCPClient]:
     """Setup tool registry with default tools pre-registered.
@@ -50,6 +51,8 @@ def setup_default_tools(
                        Default: True
         include_git: Register git operation tools (status, diff)
                     Default: True
+        include_prometheus: Register PROMETHEUS tools (execute, memory, etc.)
+                           Default: True
         custom_tools: Additional custom tool instances to register
                      Default: None
 
@@ -177,6 +180,45 @@ def setup_default_tools(
         except ImportError as e:
             # Git tools são opcionais, só avisar
             logger.warning(f"Git tools not available: {e}")
+
+    # PROMETHEUS Tools
+    if include_prometheus:
+        try:
+            from jdev_cli.tools.prometheus_tools import (
+                PrometheusExecuteTool,
+                PrometheusMemoryQueryTool,
+                PrometheusSimulateTool,
+                PrometheusEvolveTool,
+                PrometheusReflectTool,
+                PrometheusCreateToolTool,
+                PrometheusGetStatusTool,
+                PrometheusBenchmarkTool
+            )
+            from jdev_cli.core.providers.prometheus_provider import PrometheusProvider
+
+            # Initialize provider lazily
+            provider = PrometheusProvider()
+            
+            tools = [
+                PrometheusExecuteTool(provider),
+                PrometheusMemoryQueryTool(provider),
+                PrometheusSimulateTool(provider),
+                PrometheusEvolveTool(provider),
+                PrometheusReflectTool(provider),
+                PrometheusCreateToolTool(provider),
+                PrometheusGetStatusTool(provider),
+                PrometheusBenchmarkTool(provider)
+            ]
+
+            for tool in tools:
+                registry.register(tool)
+                tools_registered += 1
+            
+            logger.debug(f"Registered {len(tools)} PROMETHEUS tools")
+
+        except ImportError as e:
+            logger.warning(f"PROMETHEUS tools not available: {e}")
+
 
     # Custom Tools
     if custom_tools:

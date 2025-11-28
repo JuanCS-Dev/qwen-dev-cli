@@ -32,6 +32,7 @@ class ExecutionResult:
         command: The command that was executed
         working_directory: Directory where command was run
         error_message: Human-readable error description
+        block_reason: Reason for blocking (if blocked)
     """
     success: bool
     exit_code: int
@@ -43,6 +44,17 @@ class ExecutionResult:
     command: List[str] = field(default_factory=list)
     working_directory: Optional[str] = None
     error_message: Optional[str] = None
+    block_reason: Optional[str] = None
+    output_truncated: bool = False
+
+    @property
+    def blocked(self) -> bool:
+        """Check if execution was blocked by security policy."""
+        return self.block_reason is not None or (
+            not self.success and
+            self.error_message is not None and
+            any(kw in self.error_message.lower() for kw in ["blocked", "validation failed", "not allowed", "permission"])
+        )
 
     @classmethod
     def failure(cls, error: str, command: Optional[List[str]] = None) -> "ExecutionResult":

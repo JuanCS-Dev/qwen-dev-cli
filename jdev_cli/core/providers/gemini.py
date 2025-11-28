@@ -12,20 +12,37 @@ logger = logging.getLogger(__name__)
 class GeminiProvider:
     """Google Gemini API provider."""
     
-    def __init__(self, api_key: Optional[str] = None, model_name: str = None):
+    def __init__(
+        self, 
+        api_key: Optional[str] = None, 
+        model_name: str = None,
+        enable_code_execution: bool = False,
+        enable_search: bool = False,
+        enable_caching: bool = True
+    ):
         """Initialize Gemini provider.
         
         Args:
             api_key: Gemini API key (defaults to GEMINI_API_KEY env var)
             model_name: Model name override
+            enable_code_execution: Enable native Python sandbox
+            enable_search: Enable Google Search grounding
+            enable_caching: Enable Context Caching for large contexts
         """
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         # Respect GEMINI_MODEL from .env unconditionally (Constitutional compliance)
         default_model = "gemini-2.5-flash"  # Stable production model
         self.model_name = model_name or os.getenv("GEMINI_MODEL", default_model)
+        
+        # Native Capabilities
+        self.enable_code_execution = enable_code_execution
+        self.enable_search = enable_search
+        self.enable_caching = enable_caching
+        
         self._client = None
         self._genai = None
         self.generation_config = None
+        self._cached_content = None
         
     def _ensure_genai(self):
         """Lazy load genai SDK."""
@@ -60,9 +77,26 @@ class GeminiProvider:
             if self.api_key:
                 self._ensure_genai()
                 try:
-                    self._client = self._genai.GenerativeModel(self.model_name)
+                    # Configure Tools
+                    tools = []
+                    if self.enable_code_execution:
+                        tools.append("code_execution")
+                    if self.enable_search:
+                        tools.append("google_search_retrieval")
+                    
+                    # Initialize Model with Tools
+                    self._client = self._genai.GenerativeModel(
+                        self.model_name,
+                        tools=tools if tools else None
+                    )
+                    
                     # FORCE visible confirmation
-                    print(f"✅ Gemini: {self.model_name}")
+                    print(f"✅ Gemini Native: {self.model_name}")
+                    if self.enable_code_execution:
+                        print("   └── 🐍 Native Code Execution: ENABLED")
+                    if self.enable_search:
+                        print("   └── 🌍 Google Search: ENABLED")
+                        
                     logger.info(f"Gemini provider initialized with model: {self.model_name}")
                 except Exception as e:
                     logger.error(f"Failed to initialize Gemini: {e}")
@@ -182,35 +216,46 @@ class GeminiProvider:
         **kwargs
     ) -> AsyncGenerator[str, None]:
         """
-        Streaming VERDADEIRO e seguro com suporte a system_prompt.
+        Native Streaming with System Instruction and Tools.
         """
         if not self.is_available():
             raise RuntimeError("Gemini provider not available")
         
         try:
-            # Converte formato OpenAI/Standard para Gemini History
-            history = []
-            last_user_msg = ""
+            # 1. Prepare Tools
+            tools = []
+            if self.enable_code_execution:
+                tools.append("code_execution")
+            if self.enable_search:
+                tools.append("google_search_retrieval")
             
-            if system_prompt:
-                # Hack funcional para Gemini: System instruction como primeira user message
-                history.append({"role": "user", "parts": [f"System Instruction: {system_prompt}"]})
-                history.append({"role": "model", "parts": ["Understood. I will follow these instructions."]})
+            # 2. Initialize Model (with System Instruction)
+            # We create a specific instance for this chat to support dynamic system prompt
+            # This is lightweight and ensures we use the native system_instruction
+            model = self._genai.GenerativeModel(
+                self.model_name,
+                tools=tools if tools else None,
+                system_instruction=system_prompt
+            )
 
-            for msg in messages[:-1]:  # Todos exceto o último (que é o prompt atual)
+            # 3. Prepare History
+            history = []
+            for msg in messages[:-1]:
                 role = "user" if msg["role"] == "user" else "model"
                 content = msg.get("content", "")
                 history.append({"role": role, "parts": [content]})
             
             last_user_msg = messages[-1]["content"] if messages else ""
 
-            chat = self.client.start_chat(history=history)
+            # 4. Start Chat
+            chat = model.start_chat(history=history)
             
-            # AQUI ESTAVA O BUG: O método send_message com stream=True precisa ser iterado corretamente
-            def _stream():
+            # 5. Send Message (Async Wrapper)
+            # Use automatic_function_calling=True by default if tools are enabled
+            def _send():
                 return chat.send_message(
                     last_user_msg,
-                    generation_config=self.generation_config or {
+                    generation_config={
                         'max_output_tokens': max_tokens,
                         'temperature': temperature,
                     },
@@ -218,34 +263,29 @@ class GeminiProvider:
                 )
             
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, _stream)
+            response = await loop.run_in_executor(None, _send)
             
-            chunks_received = 0
+            # 6. Stream Response
             for chunk in response:
-                # Check if chunk has text before accessing
                 try:
-                    if hasattr(chunk, 'text') and chunk.text:
-                        yield chunk.text
-                        chunks_received += 1
-                    elif hasattr(chunk, 'parts') and chunk.parts:
-                        # Fallback: try to get text from parts
+                    # Handle Code Execution Parts
+                    if hasattr(chunk, 'parts'):
                         for part in chunk.parts:
+                            if hasattr(part, 'executable_code'):
+                                # Notify user about code execution (optional, or yield a marker)
+                                pass
+                            if hasattr(part, 'code_execution_result'):
+                                # Notify user about result
+                                pass
                             if hasattr(part, 'text') and part.text:
                                 yield part.text
-                                chunks_received += 1
+                    elif hasattr(chunk, 'text') and chunk.text:
+                        yield chunk.text
                 except Exception as chunk_error:
-                    logger.warning(f"Error accessing chunk.text: {chunk_error}")
-                    # Check finish_reason if available
-                    if hasattr(chunk, 'finish_reason'):
-                        logger.warning(f"Chunk finish_reason: {chunk.finish_reason}")
+                    # Some chunks might be pure metadata or function calls without text
                     continue
                 
-                await asyncio.sleep(0)  # Yield control
-            
-            # If no chunks received, yield fallback message
-            if chunks_received == 0:
-                logger.warning("Gemini returned no text chunks (finish_reason=1, likely blocked)")
-                yield "[Gemini returned empty response - possibly blocked by safety filters]"
+                await asyncio.sleep(0)
                     
         except Exception as e:
             logger.error(f"Gemini streaming error: {e}")
@@ -282,14 +322,21 @@ class GeminiProvider:
         }
     
     def count_tokens(self, text: str) -> int:
-        """Estimate token count for text.
+        """Count tokens using native API.
         
         Args:
             text: Text to count tokens for
             
         Returns:
-            Approximate token count
+            Exact token count from Gemini API
         """
-        # Simple estimation: ~4 chars per token (common for most models)
-        return len(text) // 4
+        if not self.is_available():
+            return len(text) // 4
+            
+        try:
+            # Use native count_tokens
+            return self.client.count_tokens(text).total_tokens
+        except Exception as e:
+            logger.warning(f"Native token count failed, falling back to estimation: {e}")
+            return len(text) // 4
 

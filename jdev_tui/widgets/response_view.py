@@ -19,7 +19,7 @@ from rich.text import Text
 
 from jdev_tui.constants import BANNER
 from jdev_tui.widgets.selectable import SelectableStatic
-from jdev_tui.core.output_formatter import OutputFormatter
+from jdev_tui.core.output_formatter import OutputFormatter, Colors, Icons
 from jdev_tui.components.streaming_adapter import StreamingResponseWidget
 
 if TYPE_CHECKING:
@@ -105,7 +105,7 @@ class ResponseView(VerticalScroll):
     def add_user_message(self, message: str) -> None:
         """Add user message with prompt icon."""
         content = Text()
-        content.append("❯ ", style="bold cyan")
+        content.append("❯ ", style=f"bold {Colors.PRIMARY}")
         content.append(message)
 
         widget = SelectableStatic(content, classes="user-message")
@@ -119,10 +119,10 @@ class ResponseView(VerticalScroll):
         self.scroll_end(animate=True)
 
     def start_thinking(self) -> None:
-        """Show thinking indicator."""
+        """Show thinking indicator with orange accent."""
         self.is_thinking = True
         self._thinking_widget = Static(
-            "[dim italic]● Thinking...[/dim italic]",
+            f"[bold {Colors.ACTION}]{Icons.THINKING}[/] [italic {Colors.MUTED}]Thinking...[/]",
             id="thinking-indicator"
         )
         self.mount(self._thinking_widget)
@@ -143,7 +143,7 @@ class ResponseView(VerticalScroll):
                 formatted_panel = OutputFormatter.format_response(
                     self.current_response,
                     title="Response",
-                    border_style="cyan"
+                    border_style=Colors.PRIMARY
                 )
                 self._response_widget.update(formatted_panel)
 
@@ -181,8 +181,15 @@ class ResponseView(VerticalScroll):
             if self._use_streaming_markdown and isinstance(self._response_widget, StreamingResponseWidget):
                 self._response_widget.append_chunk(chunk)
 
-        # No animation for 60fps performance
-        self.scroll_end(animate=False)
+        # Throttled scroll (max 20fps = 50ms) to prevent layout thrashing
+        import time
+        current_time = time.time()
+        if not hasattr(self, '_last_scroll_time'):
+            self._last_scroll_time = 0
+            
+        if current_time - self._last_scroll_time >= 0.05:
+            self.scroll_end(animate=False)
+            self._last_scroll_time = current_time
 
     def add_code_block(
         self,
@@ -200,12 +207,12 @@ class ResponseView(VerticalScroll):
             background_color="#1e1e2e"
         )
 
-        panel_title = f"📄 {title}" if title else f"📄 {language.upper()}"
+        panel_title = f"{Icons.FILE} {title}" if title else f"{Icons.FILE} {language.upper()}"
         panel = Panel(
             syntax,
-            title=panel_title,
+            title=f"[{Colors.PRIMARY}]{panel_title}[/]",
             title_align="left",
-            border_style="bright_blue"
+            border_style=Colors.PRIMARY
         )
 
         widget = SelectableStatic(panel, classes="code-block")
@@ -213,20 +220,29 @@ class ResponseView(VerticalScroll):
         self.scroll_end(animate=True)
 
     def add_action(self, action: str) -> None:
-        """Add action indicator (Gemini-style ● prefix)."""
-        widget = SelectableStatic(f"[dim]● {action}[/dim]", classes="action")
+        """Add action indicator with orange accent."""
+        widget = SelectableStatic(
+            f"[bold {Colors.ACTION}]{Icons.EXECUTING}[/] [{Colors.MUTED}]{action}[/]",
+            classes="action"
+        )
         self.mount(widget)
         self.scroll_end(animate=True)
 
     def add_success(self, message: str) -> None:
-        """Add success message with ✓."""
-        widget = SelectableStatic(f"[green]✓ {message}[/green]", classes="success")
+        """Add success message with checkmark."""
+        widget = SelectableStatic(
+            f"[bold {Colors.SUCCESS}]{Icons.SUCCESS}[/] [{Colors.SUCCESS}]{message}[/]",
+            classes="success"
+        )
         self.mount(widget)
         self.scroll_end(animate=True)
 
     def add_error(self, message: str) -> None:
-        """Add error message with ✗."""
-        widget = SelectableStatic(f"[red]✗ {message}[/red]", classes="error")
+        """Add error message with X."""
+        widget = SelectableStatic(
+            f"[bold {Colors.ERROR}]{Icons.ERROR}[/] [{Colors.ERROR}]{message}[/]",
+            classes="error"
+        )
         self.mount(widget)
         self.scroll_end(animate=True)
 

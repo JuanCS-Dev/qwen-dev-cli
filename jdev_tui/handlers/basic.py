@@ -48,6 +48,7 @@ class BasicCommandHandler:
             "/history": self._handle_history,
             "/context": self._handle_context,
             "/context-clear": self._handle_context_clear,
+            "/prometheus": self._handle_prometheus,
         }
 
         handler = handlers.get(command)
@@ -171,3 +172,57 @@ class BasicCommandHandler:
         """Handle /context-clear command."""
         self.bridge.history.clear_context()
         view.add_success("Conversation context cleared.")
+
+    async def _handle_prometheus(self, args: str, view: "ResponseView") -> None:
+        """Handle /prometheus command."""
+        parts = args.split(maxsplit=1)
+        subcommand = parts[0] if parts else "status"
+
+        if subcommand == "status":
+            # Show PROMETHEUS status
+            if self.bridge._prometheus_client:
+                status = self.bridge._prometheus_client.get_health_status()
+                view.add_system_message(f"## 🔥 PROMETHEUS Status\n\n```json\n{status}\n```")
+            else:
+                view.add_system_message("## 🔥 PROMETHEUS Status\n\nNot initialized (will lazy load on first complex task).")
+
+        elif subcommand == "evolve":
+            # Run evolution cycle
+            iterations = int(parts[1]) if len(parts) > 1 else 5
+            view.add_system_message(f"🧬 Starting evolution cycle ({iterations} iterations)...")
+            
+            # Ensure client exists
+            if self.bridge._prometheus_client is None:
+                from jdev_tui.core.prometheus_client import PrometheusClient
+                self.bridge._prometheus_client = PrometheusClient()
+                
+            result = await self.bridge._prometheus_client.evolve(iterations)
+            view.add_system_message(f"✅ Evolution complete:\n```json\n{result}\n```")
+
+        elif subcommand == "memory":
+            # Show memory status
+            if self.bridge._prometheus_client and self.bridge._prometheus_client._provider:
+                memory_status = self.bridge._prometheus_client._provider.get_status()
+                view.add_system_message(f"## 🧠 Memory Status\n\n```json\n{memory_status.get('memory', {})}\n```")
+            else:
+                view.add_system_message("PROMETHEUS not initialized")
+
+        elif subcommand == "enable":
+            # Enable PROMETHEUS mode
+            self.bridge._provider_mode = "prometheus"
+            view.add_success("🔥 PROMETHEUS mode enabled. Self-evolution active.")
+
+        elif subcommand == "disable":
+            # Disable PROMETHEUS mode
+            self.bridge._provider_mode = "gemini"
+            view.add_success("❄️ PROMETHEUS mode disabled. Using standard Gemini.")
+
+        else:
+            view.add_system_message("""
+## 🔥 PROMETHEUS Commands
+- `/prometheus status`   - Show system status
+- `/prometheus evolve N` - Run N evolution iterations
+- `/prometheus memory`   - Show memory status
+- `/prometheus enable`   - Enable PROMETHEUS mode
+- `/prometheus disable`  - Disable PROMETHEUS mode
+""")

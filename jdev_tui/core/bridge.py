@@ -25,11 +25,36 @@ Usage in app.py:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import threading
+import time
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Dict, List, Optional, Set, Tuple
+
+# CHAOS ORCHESTRATOR - Thread-safe primitives
+from jdev_tui.core.resilience import ThreadSafeList, AsyncLock
+from jdev_tui.core.prometheus_client import PrometheusClient, PrometheusStreamConfig
+import re
+
+# Padrões para detectar tasks complexas que devem usar PROMETHEUS
+COMPLEX_TASK_PATTERNS = [
+    r'\b(create|build|implement|design|architect)\b.*\b(system|pipeline|framework|application)\b',
+    r'\b(analyze|debug|investigate|troubleshoot)\b.*\b(complex|multiple|entire)\b',
+    r'\b(refactor|optimize|improve)\b.*\b(codebase|architecture|performance)\b',
+    r'\b(multi.?step|step.?by.?step|sequentially|iteratively)\b',
+    r'\b(remember|recall|previous|earlier|context)\b',  # Memory-dependent
+    r'\b(simulate|predict|plan|strategy)\b',  # World model
+    r'\b(evolve|learn|adapt|improve over time)\b',  # Evolution
+]
+
+SIMPLE_TASK_PATTERNS = [
+    r'^(what|who|when|where|how|why)\s+\w+\??$',  # Simple questions
+    r'^\w+\s*\?$',  # Single word question
+    r'^(hi|hello|hey|thanks|ok|yes|no)\b',  # Greetings
+]
 
 # Load .env file if exists
 try:
@@ -83,8 +108,28 @@ from .ui_bridge import (
     AutocompleteBridge,
 )
 
+# Output formatting - Centralized colors and icons
+from .output_formatter import (
+    Colors,
+    Icons,
+    tool_executing_markup,
+    tool_success_markup,
+    tool_error_markup,
+    agent_routing_markup,
+)
+
 # History Manager - Command and session history
 from .history_manager import HistoryManager
+
+# Extracted Managers (SCALE & SUSTAIN Phase 1.1)
+from .managers import (
+    TodoManager,
+    StatusManager,
+    PullRequestManager,
+    MemoryManager,
+    ContextManager,
+    AuthenticationManager,
+)
 
 # Custom Commands - Slash command system (Claude Code parity)
 try:
@@ -103,6 +148,15 @@ try:
     from .plan_mode_manager import PlanModeManager
 except ImportError:
     PlanModeManager = None
+
+
+# Parallel Executor - extracted module (Nov 2025)
+from .parallel_executor import (
+    ToolCallWithDeps,
+    ParallelExecutionResult,
+    detect_tool_dependencies,
+    ParallelToolExecutor,
+)
 
 
 # =============================================================================
@@ -128,14 +182,21 @@ class Bridge:
     # Maximum iterations for agentic tool loop
     MAX_TOOL_ITERATIONS = 5
 
+    # Parallel execution configuration
+    MAX_PARALLEL_TOOLS = 5  # Max concurrent tool executions
+
     # Thread locks for thread-safe operations
     _router_lock = threading.Lock()
     _plan_mode_lock = threading.Lock()
 
     def __init__(self):
         """Initialize Bridge with all subsystems."""
-        # Load credentials BEFORE creating LLM
-        self._load_credentials()
+        # =====================================================================
+        # EXTRACTED MANAGERS (SCALE & SUSTAIN Phase 1.1)
+        # =====================================================================
+        # Initialize managers FIRST (they handle credentials, etc.)
+        self._auth_manager = AuthenticationManager()
+        self._auth_manager.load_credentials()  # Load before LLM init
 
         # Core systems
         self.llm = GeminiClient()
@@ -146,29 +207,87 @@ class Bridge:
         self.autocomplete = AutocompleteBridge(self.tools)
         self.history = HistoryManager()
 
-        # State
-        self._session_tokens = 0
+        # Extracted managers with dependency injection
+        self._todo_manager = TodoManager()
+        self._status_manager = StatusManager(
+            llm_checker=lambda: self.llm.is_available,
+            tool_counter=lambda: self.tools.get_tool_count(),
+            agent_counter=lambda: len(self.agents.available_agents)
+        )
+        self._pr_manager = PullRequestManager()
+        self._memory_manager = MemoryManager()
+        self._context_manager = ContextManager(
+            context_getter=lambda: self.history.context,
+            context_setter=lambda ctx: setattr(self.history, 'context', ctx)
+        )
+
+        # State (with thread-safe primitives)
         self._tools_configured = False
         self._auto_route_enabled = True
-        self._sandbox = False
-        self._todos: List[Dict[str, Any]] = []
+        self._state_lock = AsyncLock("bridge_state")
 
         # Optional managers (graceful degradation)
         self._custom_commands_manager = CustomCommandsManager() if CustomCommandsManager else None
         self._hooks_manager = HooksManager() if HooksManager else None
         self._plan_mode_manager = PlanModeManager() if PlanModeManager else None
 
-    def _load_credentials(self) -> None:
-        """Load API credentials from config file."""
-        creds_file = self._get_credentials_file()
-        if creds_file.exists():
-            try:
-                creds = json.loads(creds_file.read_text())
-                for key, value in creds.items():
-                    if key not in os.environ:
-                        os.environ[key] = value
-            except Exception:
-                pass
+        # Provider selection: auto, prometheus, or gemini
+        self._provider_mode = os.getenv("JDEV_PROVIDER", "auto")  # DEFAULT: auto
+        self._prometheus_client: Optional[PrometheusClient] = None
+        self._task_complexity_cache: Dict[str, str] = {}
+
+    def _detect_task_complexity(self, message: str) -> str:
+        """
+        Auto-detect task complexity to choose provider.
+
+        Returns: 'prometheus' for complex tasks, 'gemini' for simple ones.
+        """
+        message_lower = message.lower()
+
+        # Check for simple patterns first
+        for pattern in SIMPLE_TASK_PATTERNS:
+            if re.search(pattern, message_lower):
+                return "gemini"
+
+        # Check for complex patterns
+        complexity_score = 0
+        for pattern in COMPLEX_TASK_PATTERNS:
+            if re.search(pattern, message_lower):
+                complexity_score += 1
+
+        # Length heuristic: long prompts usually need more processing
+        if len(message) > 500:
+            complexity_score += 1
+        if len(message) > 1000:
+            complexity_score += 1
+
+        # Code blocks indicate technical tasks
+        if '```' in message or 'def ' in message or 'class ' in message:
+            complexity_score += 1
+
+        # Threshold: 2+ indicators = complex
+        return "prometheus" if complexity_score >= 2 else "gemini"
+
+    def _get_client(self, message: str = ""):
+        """Get appropriate LLM client based on provider mode and task complexity."""
+        if self._provider_mode == "prometheus":
+            # Force PROMETHEUS
+            if self._prometheus_client is None:
+                self._prometheus_client = PrometheusClient()
+            return self._prometheus_client, "prometheus"
+
+        elif self._provider_mode == "gemini":
+            # Force Gemini
+            return self.llm, "gemini"
+
+        else:  # auto mode (DEFAULT)
+            detected = self._detect_task_complexity(message)
+            if detected == "prometheus":
+                if self._prometheus_client is None:
+                    self._prometheus_client = PrometheusClient()
+                return self._prometheus_client, "prometheus"
+            else:
+                return self.llm, "gemini"
 
     def _configure_llm_tools(self) -> None:
         """Configure LLM with tool schemas for function calling."""
@@ -280,6 +399,14 @@ Current working directory: {os.getcwd()}
             message: User message
             auto_route: If True, automatically route to agents based on intent
         """
+        # Determine provider
+        client, provider_name = self._get_client(message)
+
+        # Log provider selection for debugging
+        if self._provider_mode == "auto":
+            # Yield provider indicator for UI
+            yield f"[Using {provider_name.upper()}]\n"
+
         # Configure LLM with tools on first chat
         self._configure_llm_tools()
 
@@ -301,8 +428,8 @@ Current working directory: {os.getcwd()}
                 agent_name, confidence = routing
                 agent_info = AGENT_REGISTRY.get(agent_name)
 
-                # Show routing decision
-                yield f"🎯 **Auto-routing to {agent_name.title()}Agent** (confidence: {int(confidence*100)}%)\n"
+                # Show routing decision (streaming-safe plain text)
+                yield f"{agent_routing_markup(agent_name, confidence)}\n"
                 if agent_info:
                     yield f"   *{agent_info.description}*\n\n"
 
@@ -326,10 +453,11 @@ Current working directory: {os.getcwd()}
         for iteration in range(self.MAX_TOOL_ITERATIONS):
             # Stream from LLM with context
             response_chunks = []
-            async for chunk in self.llm.stream(
+            async for chunk in client.stream(
                 current_message,
                 system_prompt=system_prompt,
-                context=self.history.get_context()
+                context=self.history.get_context(),
+                tools=self.tools.get_schemas_for_llm()
             ):
                 response_chunks.append(chunk)
                 # Don't yield tool call markers directly - process them
@@ -348,22 +476,27 @@ Current working directory: {os.getcwd()}
                 full_response_parts.append(clean_response)
                 break
 
-            # Execute tool calls
+            # Execute tool calls with PARALLEL EXECUTION (Claude Code Parity)
+            # Detect dependencies and execute in waves
             tool_results = []
-            for tool_name, args in tool_calls:
-                # Yield execution indicator
-                yield f"\n[dim]● Executing: {tool_name}[/dim]\n"
+            exec_result = await self._execute_tools_parallel(tool_calls)
 
-                # Execute tool
-                result = await self.tools.execute_tool(tool_name, **args)
+            # Yield results in order for consistent UI
+            for call_id in sorted(exec_result.results.keys(), key=lambda x: int(x.split('_')[1])):
+                result = exec_result.results[call_id]
+                tool_name = result.get("tool_name", "unknown")
 
                 if result.get("success"):
-                    yield f"[green]✓ {tool_name}: Success[/green]\n"
+                    yield f"{tool_success_markup(tool_name)}\n"
                     tool_results.append(f"Tool {tool_name} succeeded: {result.get('data', 'OK')}")
                 else:
                     error = result.get("error", "Unknown error")
-                    yield f"[red]✗ {tool_name}: {error}[/red]\n"
+                    yield f"{tool_error_markup(tool_name, error)}\n"
                     tool_results.append(f"Tool {tool_name} failed: {error}")
+
+            # Show parallel execution stats if multiple tools
+            if len(tool_calls) > 1 and exec_result.parallelism_factor > 1.0:
+                yield f"\n⚡ *Parallel execution: {exec_result.wave_count} waves, {exec_result.parallelism_factor:.1f}x speedup ({exec_result.execution_time_ms:.0f}ms)*\n"
 
             # Prepare next iteration message with tool results
             clean_text = ToolCallParser.remove(accumulated)
@@ -392,10 +525,10 @@ Current working directory: {os.getcwd()}
         # Add to history
         self.history.add_command(f"/{agent_name} {task}")
 
-        # Governance observation
+        # Governance observation (streaming-safe plain text)
         gov_report = self.governance.observe(f"agent:{agent_name}", task, agent_name)
-        yield f"{gov_report}\n"
-        yield f"{ELP['agent']} Routing to {agent_name.title()}Agent...\n\n"
+        yield f"*{gov_report}*\n"
+        yield f"🤖 Routing to **{agent_name.title()}Agent**...\n\n"
 
         # Invoke agent
         async for chunk in self.agents.invoke_agent(agent_name, task, context):
@@ -418,8 +551,8 @@ Current working directory: {os.getcwd()}
         self.history.add_command(f"/plan multi {task}")
 
         gov_report = self.governance.observe("agent:planner:multi", task, "planner")
-        yield f"{gov_report}\n"
-        yield f"{ELP['agent']} Multi-Plan Generation Mode (v6.1)...\n\n"
+        yield f"*{gov_report}*\n"
+        yield f"📋 **Multi-Plan Generation Mode** (v6.1)...\n\n"
 
         async for chunk in self.agents.invoke_planner_multi(task, context):
             yield chunk
@@ -437,8 +570,8 @@ Current working directory: {os.getcwd()}
         self.history.add_command(f"/plan clarify {task}")
 
         gov_report = self.governance.observe("agent:planner:clarify", task, "planner")
-        yield f"{gov_report}\n"
-        yield f"{ELP['agent']} Clarification Mode (v6.1)...\n\n"
+        yield f"*{gov_report}*\n"
+        yield f"❓ **Clarification Mode** (v6.1)...\n\n"
 
         async for chunk in self.agents.invoke_planner_clarify(task, context):
             yield chunk
@@ -456,8 +589,8 @@ Current working directory: {os.getcwd()}
         self.history.add_command(f"/plan explore {task}")
 
         gov_report = self.governance.observe("agent:planner:explore", task, "planner")
-        yield f"{gov_report}\n"
-        yield f"{ELP['agent']} Exploration Mode (Read-Only v6.1)...\n\n"
+        yield f"*{gov_report}*\n"
+        yield f"🔍 **Exploration Mode** (Read-Only v6.1)...\n\n"
 
         async for chunk in self.agents.invoke_planner_explore(task, context):
             yield chunk
@@ -472,6 +605,25 @@ Current working directory: {os.getcwd()}
         result["governance"] = gov_report
 
         return result
+
+    # =========================================================================
+    # PARALLEL TOOL EXECUTION (Claude Code Parity - Nov 2025)
+    # =========================================================================
+
+    async def _execute_tools_parallel(
+        self,
+        tool_calls: List[Tuple[str, Dict[str, Any]]]
+    ) -> ParallelExecutionResult:
+        """
+        Execute tool calls with intelligent parallelization.
+
+        Uses ParallelToolExecutor (extracted module) for wave-based execution.
+        """
+        executor = ParallelToolExecutor(
+            self.tools.execute_tool,
+            max_parallel=self.MAX_PARALLEL_TOOLS
+        )
+        return await executor.execute(tool_calls)
 
     # =========================================================================
     # AGENT COMMANDS
@@ -551,41 +703,37 @@ Current working directory: {os.getcwd()}
     # CLAUDE CODE PARITY - Context Management
     # =========================================================================
 
+    # =========================================================================
+    # CONTEXT MANAGEMENT (delegates to ContextManager)
+    # =========================================================================
+
     def compact_context(self, focus: Optional[str] = None) -> Dict[str, Any]:
         """Compact conversation context, optionally focusing on specific topic."""
-        before = len(self.history.context)
-        # Keep only last N messages, summarize if needed
-        if len(self.history.context) > 10:
-            # Keep first 2 (system context) and last 8
-            self.history.context = self.history.context[:2] + self.history.context[-8:]
-        after = len(self.history.context)
-        tokens_saved = (before - after) * 500  # Rough estimate
-        return {
-            "before": before,
-            "after": after,
-            "tokens_saved": tokens_saved,
-            "focus": focus
-        }
+        return self._context_manager.compact_context(focus)
 
     def get_token_stats(self) -> Dict[str, Any]:
         """Get token usage statistics."""
-        return {
-            "session_tokens": self._session_tokens,
-            "total_tokens": self._session_tokens,
-            "input_tokens": int(self._session_tokens * 0.6),
-            "output_tokens": int(self._session_tokens * 0.4),
-            "context_tokens": len(str(self.history.context)) // 4,
-            "max_tokens": 128000,
-            "cost": self._session_tokens * 0.000001  # Rough Gemini pricing
-        }
+        return self._context_manager.get_token_stats()
+
+    # =========================================================================
+    # TODO MANAGEMENT (delegates to TodoManager)
+    # =========================================================================
 
     def get_todos(self) -> List[Dict[str, Any]]:
-        """Get current todo list."""
-        return self._todos
+        """Get current todo list (thread-safe copy)."""
+        return self._todo_manager.get_todos()
 
     def add_todo(self, text: str) -> None:
-        """Add a todo item."""
-        self._todos.append({"text": text, "done": False})
+        """Add a todo item (thread-safe)."""
+        self._todo_manager.add_todo(text)
+
+    def update_todo(self, index: int, done: bool) -> bool:
+        """Update todo status (thread-safe). Returns True if updated."""
+        return self._todo_manager.update_todo(index, done)
+
+    def clear_todos(self) -> None:
+        """Clear all todos (thread-safe)."""
+        self._todo_manager.clear_todos()
 
     def set_model(self, model_name: str) -> None:
         """Change the LLM model."""
@@ -671,41 +819,21 @@ This file helps JuanCS Dev-Code understand your project context.
         Path(filepath).write_text("\n".join(lines))
         return filepath
 
+    # =========================================================================
+    # STATUS MANAGEMENT (delegates to StatusManager)
+    # =========================================================================
+
     def check_health(self) -> Dict[str, Dict[str, Any]]:
         """Check system health."""
-        health = {}
-        # Check LLM
-        health["LLM"] = {
-            "ok": self.is_connected,
-            "message": "Connected" if self.is_connected else "Not connected"
-        }
-        # Check tools
-        tool_count = self.tools.get_tool_count()
-        health["Tools"] = {
-            "ok": tool_count > 0,
-            "message": f"{tool_count} tools loaded"
-        }
-        # Check agents
-        agent_count = len(self.agents.available_agents)
-        health["Agents"] = {
-            "ok": agent_count > 0,
-            "message": f"{agent_count} agents available"
-        }
-        return health
+        return self._status_manager.check_health()
 
     def get_permissions(self) -> Dict[str, bool]:
         """Get current permissions."""
-        return {
-            "read_files": True,
-            "write_files": True,
-            "execute_commands": True,
-            "network_access": True,
-            "sandbox_mode": self._sandbox
-        }
+        return self._status_manager.get_permissions()
 
     def set_sandbox(self, enabled: bool) -> None:
         """Enable or disable sandbox mode."""
-        self._sandbox = enabled
+        self._status_manager.set_sandbox(enabled)
 
     # =========================================================================
     # HOOKS SYSTEM (delegates to HooksManager)
@@ -906,7 +1034,7 @@ This file helps JuanCS Dev-Code understand your project context.
         return True, None
 
     # =========================================================================
-    # PR CREATION (Claude Code Parity)
+    # PR CREATION (delegates to PullRequestManager)
     # =========================================================================
 
     async def create_pull_request(
@@ -917,460 +1045,43 @@ This file helps JuanCS Dev-Code understand your project context.
         draft: bool = False
     ) -> Dict[str, Any]:
         """Create a GitHub pull request using gh CLI."""
-        import subprocess
-        import shutil
-
-        # Check if gh is available
-        if not shutil.which("gh"):
-            return {
-                "success": False,
-                "error": "GitHub CLI (gh) not installed. Install with: brew install gh"
-            }
-
-        # Check if authenticated
-        try:
-            auth_check = subprocess.run(
-                ["gh", "auth", "status"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if auth_check.returncode != 0:
-                return {
-                    "success": False,
-                    "error": "Not authenticated with GitHub. Run: gh auth login"
-                }
-        except Exception as e:
-            return {"success": False, "error": f"Auth check failed: {e}"}
-
-        # Get current branch
-        try:
-            branch_result = subprocess.run(
-                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            current_branch = branch_result.stdout.strip()
-        except Exception:
-            current_branch = "unknown"
-
-        # Build PR body if not provided
-        if not body:
-            body = f"""## Summary
-{title}
-
-## Changes
-- See commit history for details
-
-## Test Plan
-- [ ] Tests pass
-- [ ] Manual testing done
-
----
-🤖 Generated with [JuanCS Dev-Code](https://github.com/juancs/dev-code)
-"""
-
-        # Create PR command
-        cmd = ["gh", "pr", "create", "--title", title, "--body", body, "--base", base]
-
-        if draft:
-            cmd.append("--draft")
-
-        try:
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-
-            if result.returncode == 0:
-                pr_url = result.stdout.strip()
-                return {
-                    "success": True,
-                    "url": pr_url,
-                    "branch": current_branch,
-                    "base": base,
-                    "draft": draft,
-                    "message": f"PR created: {pr_url}"
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": result.stderr.strip() or "PR creation failed",
-                    "stdout": result.stdout
-                }
-        except subprocess.TimeoutExpired:
-            return {"success": False, "error": "PR creation timed out"}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        return await self._pr_manager.create_pull_request(title, body, base, draft)
 
     def get_pr_template(self) -> str:
         """Get PR template if exists."""
-        templates = [
-            Path.cwd() / ".github" / "pull_request_template.md",
-            Path.cwd() / ".github" / "PULL_REQUEST_TEMPLATE.md",
-            Path.cwd() / "pull_request_template.md",
-        ]
-
-        for template in templates:
-            if template.exists():
-                try:
-                    return template.read_text()
-                except Exception:
-                    continue
-
-        return ""
+        return self._pr_manager.get_pr_template()
 
     # =========================================================================
-    # API KEY MANAGEMENT - /login, /logout (Claude Code Parity)
+    # API KEY MANAGEMENT (delegates to AuthenticationManager)
     # =========================================================================
-
-    def _get_credentials_file(self) -> Path:
-        """Get credentials file path."""
-        config_dir = Path.home() / ".config" / "juancs"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        return config_dir / "credentials.json"
-
-    def _get_env_file(self) -> Path:
-        """Get .env file path in current project."""
-        return Path.cwd() / ".env"
 
     def login(self, provider: str = "gemini", api_key: str = None, scope: str = "global") -> Dict[str, Any]:
         """Login/configure API key for a provider."""
-        import re
-
-        valid_providers = {
-            "gemini": "GEMINI_API_KEY",
-            "google": "GEMINI_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "nebius": "NEBIUS_API_KEY",
-            "groq": "GROQ_API_KEY",
-        }
-
-        provider_lower = provider.lower()
-        if provider_lower not in valid_providers:
-            return {
-                "success": False,
-                "error": f"Unknown provider: {provider}. Valid: {', '.join(valid_providers.keys())}"
-            }
-
-        env_var = valid_providers[provider_lower]
-
-        # If no key provided, check environment
-        if not api_key:
-            existing = os.environ.get(env_var)
-            if existing:
-                return {
-                    "success": True,
-                    "message": f"Already logged in to {provider} (key from environment)",
-                    "provider": provider,
-                    "source": "environment"
-                }
-            return {
-                "success": False,
-                "error": f"No API key provided. Use: /login {provider} YOUR_API_KEY"
-            }
-
-        # Validate key format (basic check)
-        if len(api_key) < 10:
-            return {
-                "success": False,
-                "error": "API key too short. Please provide a valid key."
-            }
-
-        # Sanitize API key - prevent injection attacks
-        sanitized_key = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', api_key)
-        if sanitized_key != api_key:
-            return {
-                "success": False,
-                "error": "API key contains invalid characters (newlines, control chars not allowed)"
-            }
-
-        # Limit key length to prevent DoS
-        if len(api_key) > 500:
-            return {
-                "success": False,
-                "error": "API key too long (max 500 characters)"
-            }
-
-        try:
-            if scope == "global":
-                # Save to global credentials
-                creds_file = self._get_credentials_file()
-                creds = {}
-                if creds_file.exists():
-                    try:
-                        creds = json.loads(creds_file.read_text())
-                    except json.JSONDecodeError:
-                        creds = {}
-
-                creds[env_var] = api_key
-                creds_file.write_text(json.dumps(creds, indent=2))
-                creds_file.chmod(0o600)  # Secure permissions
-
-                # Also set in environment for current session
-                os.environ[env_var] = api_key
-
-                return {
-                    "success": True,
-                    "message": f"Logged in to {provider} (global)",
-                    "provider": provider,
-                    "scope": "global",
-                    "file": str(creds_file)
-                }
-
-            elif scope == "project":
-                # Save to project .env
-                env_file = self._get_env_file()
-                lines = []
-                key_found = False
-
-                if env_file.exists():
-                    for line in env_file.read_text().splitlines():
-                        if line.startswith(f"{env_var}="):
-                            lines.append(f"{env_var}={api_key}")
-                            key_found = True
-                        else:
-                            lines.append(line)
-
-                if not key_found:
-                    lines.append(f"{env_var}={api_key}")
-
-                env_file.write_text("\n".join(lines) + "\n")
-
-                # Set in environment for current session
-                os.environ[env_var] = api_key
-
-                return {
-                    "success": True,
-                    "message": f"Logged in to {provider} (project)",
-                    "provider": provider,
-                    "scope": "project",
-                    "file": str(env_file)
-                }
-
-            else:
-                return {
-                    "success": False,
-                    "error": f"Invalid scope: {scope}. Use 'global' or 'project'"
-                }
-
-        except Exception as e:
-            return {"success": False, "error": f"Login failed: {e}"}
+        return self._auth_manager.login(provider, api_key, scope)
 
     def logout(self, provider: str = None, scope: str = "all") -> Dict[str, Any]:
         """Logout/remove API key for a provider."""
-        valid_providers = {
-            "gemini": "GEMINI_API_KEY",
-            "google": "GEMINI_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "nebius": "NEBIUS_API_KEY",
-            "groq": "GROQ_API_KEY",
-        }
-
-        removed = []
-
-        try:
-            # Determine which keys to remove
-            if provider:
-                provider_lower = provider.lower()
-                if provider_lower not in valid_providers:
-                    return {
-                        "success": False,
-                        "error": f"Unknown provider: {provider}"
-                    }
-                keys_to_remove = [valid_providers[provider_lower]]
-            else:
-                keys_to_remove = list(valid_providers.values())
-
-            # Remove from global credentials
-            if scope in ("global", "all"):
-                creds_file = self._get_credentials_file()
-                if creds_file.exists():
-                    try:
-                        creds = json.loads(creds_file.read_text())
-                        for key in keys_to_remove:
-                            if key in creds:
-                                del creds[key]
-                                removed.append(f"{key} (global)")
-                        creds_file.write_text(json.dumps(creds, indent=2))
-                    except Exception:
-                        pass
-
-            # Remove from project .env
-            if scope in ("project", "all"):
-                env_file = self._get_env_file()
-                if env_file.exists():
-                    try:
-                        lines = []
-                        original = env_file.read_text().splitlines()
-                        for line in original:
-                            should_keep = True
-                            for key in keys_to_remove:
-                                if line.startswith(f"{key}="):
-                                    removed.append(f"{key} (project)")
-                                    should_keep = False
-                                    break
-                            if should_keep:
-                                lines.append(line)
-                        if len(lines) != len(original):
-                            env_file.write_text("\n".join(lines) + "\n" if lines else "")
-                    except Exception:
-                        pass
-
-            # Remove from current environment
-            for key in keys_to_remove:
-                if key in os.environ:
-                    del os.environ[key]
-                    if f"{key} (env)" not in removed:
-                        removed.append(f"{key} (session)")
-
-            if removed:
-                return {
-                    "success": True,
-                    "message": f"Logged out: {', '.join(removed)}",
-                    "removed": removed
-                }
-            else:
-                return {
-                    "success": True,
-                    "message": "No credentials found to remove",
-                    "removed": []
-                }
-
-        except Exception as e:
-            return {"success": False, "error": f"Logout failed: {e}"}
+        return self._auth_manager.logout(provider, scope)
 
     def get_auth_status(self) -> Dict[str, Any]:
         """Get authentication status for all providers."""
-        providers = {
-            "gemini": "GEMINI_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "anthropic": "ANTHROPIC_API_KEY",
-            "nebius": "NEBIUS_API_KEY",
-            "groq": "GROQ_API_KEY",
-        }
-
-        status = {}
-
-        # Check global credentials
-        creds_file = self._get_credentials_file()
-        global_creds = {}
-        if creds_file.exists():
-            try:
-                global_creds = json.loads(creds_file.read_text())
-            except Exception:
-                pass
-
-        # Check project .env
-        env_file = self._get_env_file()
-        project_creds = {}
-        if env_file.exists():
-            try:
-                for line in env_file.read_text().splitlines():
-                    if "=" in line and not line.startswith("#"):
-                        key, value = line.split("=", 1)
-                        project_creds[key.strip()] = value.strip()
-            except Exception:
-                pass
-
-        for provider, env_var in providers.items():
-            sources = []
-            if env_var in os.environ:
-                sources.append("environment")
-            if env_var in global_creds:
-                sources.append("global")
-            if env_var in project_creds:
-                sources.append("project")
-
-            status[provider] = {
-                "logged_in": len(sources) > 0,
-                "sources": sources,
-                "env_var": env_var
-            }
-
-        return {
-            "providers": status,
-            "global_file": str(creds_file),
-            "project_file": str(env_file)
-        }
+        return self._auth_manager.get_auth_status()
 
     # =========================================================================
-    # MEMORY PERSISTENCE - MEMORY.md (Claude Code Parity with CLAUDE.md)
+    # MEMORY PERSISTENCE (delegates to MemoryManager)
     # =========================================================================
-
-    def _get_memory_file(self, scope: str = "project") -> Path:
-        """Get memory file path."""
-        if scope == "global":
-            config_dir = Path.home() / ".config" / "juancs"
-            config_dir.mkdir(parents=True, exist_ok=True)
-            return config_dir / "MEMORY.md"
-        else:
-            return Path.cwd() / "MEMORY.md"
 
     def read_memory(self, scope: str = "project") -> Dict[str, Any]:
         """Read memory/context from MEMORY.md file."""
-        memory_file = self._get_memory_file(scope)
-
-        if not memory_file.exists():
-            return {
-                "success": True,
-                "content": "",
-                "exists": False,
-                "file": str(memory_file),
-                "scope": scope
-            }
-
-        try:
-            content = memory_file.read_text()
-            return {
-                "success": True,
-                "content": content,
-                "exists": True,
-                "file": str(memory_file),
-                "scope": scope,
-                "size": len(content)
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "file": str(memory_file)
-            }
+        return self._memory_manager.read_memory(scope)
 
     def write_memory(self, content: str, scope: str = "project", append: bool = False) -> Dict[str, Any]:
         """Write to MEMORY.md file."""
-        memory_file = self._get_memory_file(scope)
-
-        try:
-            if append and memory_file.exists():
-                existing = memory_file.read_text()
-                content = existing + "\n" + content
-
-            memory_file.write_text(content)
-
-            return {
-                "success": True,
-                "message": f"Memory {'appended to' if append else 'written to'} {memory_file}",
-                "file": str(memory_file),
-                "scope": scope
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+        return self._memory_manager.write_memory(content, scope, append)
 
     def remember(self, note: str, scope: str = "project") -> Dict[str, Any]:
         """Add a note to memory (convenience method)."""
-        import datetime
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-        formatted = f"\n## Note ({timestamp})\n{note}\n"
-        return self.write_memory(formatted, scope=scope, append=True)
+        return self._memory_manager.remember(note, scope)
 
 
 # =============================================================================

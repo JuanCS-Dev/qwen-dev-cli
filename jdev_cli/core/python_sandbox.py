@@ -45,12 +45,37 @@ class SandboxLevel(Enum):
     STRICT = auto()       # AST + restricted + resource limits
     PARANOID = auto()     # All checks + process isolation
 
+    def __ge__(self, other: "SandboxLevel") -> bool:
+        """Enable comparison between security levels."""
+        if isinstance(other, SandboxLevel):
+            return self.value >= other.value
+        return NotImplemented
+
+    def __gt__(self, other: "SandboxLevel") -> bool:
+        """Enable comparison between security levels."""
+        if isinstance(other, SandboxLevel):
+            return self.value > other.value
+        return NotImplemented
+
+    def __le__(self, other: "SandboxLevel") -> bool:
+        """Enable comparison between security levels."""
+        if isinstance(other, SandboxLevel):
+            return self.value <= other.value
+        return NotImplemented
+
+    def __lt__(self, other: "SandboxLevel") -> bool:
+        """Enable comparison between security levels."""
+        if isinstance(other, SandboxLevel):
+            return self.value < other.value
+        return NotImplemented
+
 
 class SecurityViolation(Exception):
     """Raised when code violates security policy."""
 
     def __init__(self, message: str, violation_type: str, code_snippet: str = ""):
         super().__init__(message)
+        self.message = message
         self.violation_type = violation_type
         self.code_snippet = code_snippet
 
@@ -113,6 +138,16 @@ class SandboxResult:
     execution_time: float = 0.0
     memory_used: int = 0
     violations: List[str] = field(default_factory=list)
+
+    @property
+    def blocked(self) -> bool:
+        """Check if execution was blocked due to security violations."""
+        return len(self.violations) > 0
+
+    @property
+    def timed_out(self) -> bool:
+        """Check if execution timed out."""
+        return "TIMEOUT" in self.violations or (self.error and "timed out" in self.error.lower())
 
     @classmethod
     def failure(cls, error: str, violations: Optional[List[str]] = None) -> "SandboxResult":

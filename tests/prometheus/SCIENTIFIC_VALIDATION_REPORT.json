@@ -1,0 +1,246 @@
+{
+  "timestamp": "2025-11-27T19:32:46.140570",
+  "summary": {
+    "total_tests": 23,
+    "passed": 17,
+    "failed": 6,
+    "success_rate": 0.7391304347826086,
+    "total_duration_seconds": 347.83446764945984
+  },
+  "suites": [
+    {
+      "name": "Edge Cases",
+      "passed": 4,
+      "failed": 3,
+      "total": 7,
+      "success_rate": 0.5714285714285714,
+      "duration": 185.78663229942322,
+      "results": [
+        {
+          "name": "Empty Input Handling",
+          "category": "edge_case",
+          "passed": true,
+          "duration": 14.31732726097107,
+          "details": "Response: 1326 chars",
+          "error": ""
+        },
+        {
+          "name": "Long Input (2500+ chars)",
+          "category": "edge_case",
+          "passed": true,
+          "duration": 27.287373542785645,
+          "details": "Input: 2514 chars, Output: 2771 chars",
+          "error": ""
+        },
+        {
+          "name": "Special Characters",
+          "category": "edge_case",
+          "passed": true,
+          "duration": 10.440397024154663,
+          "details": "Response: 1619 chars",
+          "error": ""
+        },
+        {
+          "name": "Unicode/Emoji Input",
+          "category": "edge_case",
+          "passed": false,
+          "duration": 24.563639879226685,
+          "details": "",
+          "error": "Failed after 3 attempts: None"
+        },
+        {
+          "name": "Code Injection Safety",
+          "category": "edge_case",
+          "passed": true,
+          "duration": 36.13223695755005,
+          "details": "Response handled safely",
+          "error": ""
+        },
+        {
+          "name": "Concurrent Requests (3)",
+          "category": "edge_case",
+          "passed": false,
+          "duration": 42.50501370429993,
+          "details": "Some failed",
+          "error": ""
+        },
+        {
+          "name": "Rapid Sequential (3)",
+          "category": "edge_case",
+          "passed": false,
+          "duration": 30.54064393043518,
+          "details": "",
+          "error": "Failed after 3 attempts: None"
+        }
+      ]
+    },
+    {
+      "name": "Real-World Use Cases",
+      "passed": 6,
+      "failed": 1,
+      "total": 7,
+      "success_rate": 0.8571428571428571,
+      "duration": 118.56123924255371,
+      "results": [
+        {
+          "name": "Code Generation",
+          "category": "real_world",
+          "passed": false,
+          "duration": 18.451142072677612,
+          "details": "",
+          "error": "Failed after 3 attempts: None"
+        },
+        {
+          "name": "Code Explanation",
+          "category": "real_world",
+          "passed": true,
+          "duration": 23.046835899353027,
+          "details": "Length: 2743, Mentions recursion: True",
+          "error": ""
+        },
+        {
+          "name": "Bug Fixing",
+          "category": "real_world",
+          "passed": true,
+          "duration": 10.39913535118103,
+          "details": "Suggests fix: True",
+          "error": ""
+        },
+        {
+          "name": "Algorithm Design",
+          "category": "real_world",
+          "passed": true,
+          "duration": 26.09425187110901,
+          "details": "Length: 5686, Has complexity: True",
+          "error": ""
+        },
+        {
+          "name": "Data Analysis",
+          "category": "real_world",
+          "passed": true,
+          "duration": 15.812196493148804,
+          "details": "Mentions mean: True",
+          "error": ""
+        },
+        {
+          "name": "Documentation",
+          "category": "real_world",
+          "passed": true,
+          "duration": 15.047668218612671,
+          "details": "Has docstring format: True",
+          "error": ""
+        },
+        {
+          "name": "Refactoring",
+          "category": "real_world",
+          "passed": true,
+          "duration": 9.710009336471558,
+          "details": "Has list comprehension: True",
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "Error Handling",
+      "passed": 3,
+      "failed": 0,
+      "total": 3,
+      "success_rate": 1.0,
+      "duration": 0.050306081771850586,
+      "results": [
+        {
+          "name": "No API Key Detection",
+          "category": "error_handling",
+          "passed": true,
+          "duration": 0.00011992454528808594,
+          "details": "is_available()=False",
+          "error": ""
+        },
+        {
+          "name": "Tool Without Provider",
+          "category": "error_handling",
+          "passed": true,
+          "duration": 0.050164222717285156,
+          "details": "Handled gracefully: True",
+          "error": ""
+        },
+        {
+          "name": "Status Uninitialized",
+          "category": "error_handling",
+          "passed": true,
+          "duration": 2.193450927734375e-05,
+          "details": "Status: {'status': 'not_initialized'}",
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "Performance Benchmarks",
+      "passed": 2,
+      "failed": 1,
+      "total": 3,
+      "success_rate": 0.6666666666666666,
+      "duration": 14.823621988296509,
+      "results": [
+        {
+          "name": "Response Time",
+          "category": "performance",
+          "passed": false,
+          "duration": 14.823002576828003,
+          "details": "",
+          "error": "Failed after 3 attempts: None"
+        },
+        {
+          "name": "Initialization Time",
+          "category": "performance",
+          "passed": true,
+          "duration": 9.417533874511719e-05,
+          "details": "0.00s (threshold: 30s)",
+          "error": ""
+        },
+        {
+          "name": "Memory Retrieval",
+          "category": "performance",
+          "passed": true,
+          "duration": 0.0005252361297607422,
+          "details": "0.00s (threshold: 5s)",
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "Integration Tests",
+      "passed": 2,
+      "failed": 1,
+      "total": 3,
+      "success_rate": 0.6666666666666666,
+      "duration": 28.61266803741455,
+      "results": [
+        {
+          "name": "Provider \u2192 Orchestrator",
+          "category": "integration",
+          "passed": true,
+          "duration": 9.5367431640625e-07,
+          "details": "Orch: True, Mem: True, WM: True",
+          "error": ""
+        },
+        {
+          "name": "Client \u2192 Provider",
+          "category": "integration",
+          "passed": true,
+          "duration": 4.5299530029296875e-06,
+          "details": "Provider: True, Health: True",
+          "error": ""
+        },
+        {
+          "name": "Full Pipeline (E2E)",
+          "category": "integration",
+          "passed": false,
+          "duration": 28.61266255378723,
+          "details": "Response: 1242 chars, Correct: False",
+          "error": ""
+        }
+      ]
+    }
+  ]
+}

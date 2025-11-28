@@ -78,6 +78,15 @@ class ResolvedReference:
     confidence: float  # 0.0 to 1.0
     reason: str
     alternatives: List[str] = field(default_factory=list)
+    context_hint: Optional[str] = None
+    related_to_previous: bool = False
+
+    @property
+    def resolved_path(self) -> Optional[str]:
+        """Get resolved path if type is FILE or DIRECTORY."""
+        if self.type in (ContextType.FILE, ContextType.DIRECTORY):
+            return self.value
+        return None
 
 
 class ContextTracker:
@@ -534,6 +543,34 @@ class ContextTracker:
             self._recent.clear()
             self._named.clear()
 
+    # Vibe coder support methods
+    _intents: List[str] = []
+    _interactions: List[Tuple[str, str]] = []
+
+    def record_intent(self, intent: str) -> None:
+        """Record user's intent for tracking changes of mind."""
+        if not hasattr(self, '_intents'):
+            self._intents = []
+        self._intents.append(intent)
+
+    def get_current_intent(self) -> str:
+        """Get the current (most recent) intent."""
+        if hasattr(self, '_intents') and self._intents:
+            return self._intents[-1]
+        return ""
+
+    def record_interaction(self, question: str, answer: str) -> None:
+        """Record a Q&A interaction for context building."""
+        if not hasattr(self, '_interactions'):
+            self._interactions = []
+        self._interactions.append((question, answer))
+
+    def get_previous_topic(self) -> Optional[str]:
+        """Get the topic from the previous interaction."""
+        if hasattr(self, '_interactions') and self._interactions:
+            return self._interactions[-1][1]
+        return None
+
 
 # Global instance
 _default_tracker: Optional[ContextTracker] = None
@@ -557,6 +594,10 @@ def record_file(path: str, operation: str = "access") -> ContextItem:
 def resolve_reference(text: str) -> Optional[ResolvedReference]:
     """Resolve a natural language reference."""
     return get_context_tracker().resolve(text)
+
+
+# Add resolve_reference as method to ContextTracker for test compatibility
+ContextTracker.resolve_reference = lambda self, text, expected_type=None: self.resolve(text, expected_type)
 
 
 def get_recent_files(limit: int = 5) -> List[str]:

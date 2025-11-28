@@ -363,3 +363,92 @@ def render_dual_status(model: str, env: str) -> str:
         </div>
     </div>
     """
+
+
+def render_memory_status(memory_data: dict) -> str:
+    """
+    Render MIRIX Memory System status.
+    
+    Visualizes 6 memory types with active/inactive indicators.
+    """
+    types = ["episodic", "semantic", "procedural", "core", "resource", "vault"]
+    active_types = memory_data.get("active_types", [])
+    
+    grid_html = ""
+    for mtype in types:
+        is_active = mtype in active_types
+        color = "#00D9FF" if is_active else "#4B5563"
+        glow = f"box-shadow: 0 0 8px {color};" if is_active else ""
+        
+        grid_html += f"""
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="width: 12px; height: 12px; border-radius: 50%; background-color: {color}; {glow}"></div>
+            <span style="font-size: 9px; color: var(--cyber-muted); font-family: 'Courier New', monospace;">{mtype.upper()}</span>
+        </div>
+        """
+        
+    return f"""
+    <div style="padding: 8px;">
+        <h3 style="font-size: 11px; font-family: 'Courier New', monospace; color: var(--cyber-text); margin-bottom: 8px;">MIRIX MEMORY</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+            {grid_html}
+        </div>
+    </div>
+    """
+
+
+def render_world_model_status(wm_data: dict) -> str:
+    """
+    Render SimuRA World Model status.
+    
+    Shows simulation depth and confidence.
+    """
+    depth = wm_data.get("simulation_depth", 0)
+    confidence = wm_data.get("confidence", 0.0)
+    
+    return f"""
+    <div style="padding: 8px;">
+        <h3 style="font-size: 11px; font-family: 'Courier New', monospace; color: var(--cyber-text); margin-bottom: 8px;">WORLD MODEL</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; color: var(--cyber-muted);">DEPTH</span>
+            <span style="font-size: 10px; color: var(--cyber-accent);">{depth} steps</span>
+        </div>
+        <div style="width: 100%; height: 4px; background: #1F2937; border-radius: 2px;">
+            <div style="width: {min(100, depth*20)}%; height: 100%; background: var(--cyber-accent); border-radius: 2px;"></div>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; margin-bottom: 4px;">
+            <span style="font-size: 10px; color: var(--cyber-muted);">CONFIDENCE</span>
+            <span style="font-size: 10px; color: #10B981;">{int(confidence*100)}%</span>
+        </div>
+        <div style="width: 100%; height: 4px; background: #1F2937; border-radius: 2px;">
+            <div style="width: {confidence*100}%; height: 100%; background: #10B981; border-radius: 2px;"></div>
+        </div>
+    </div>
+    """
+
+
+def render_evolution_status(evo_data: dict) -> str:
+    """
+    Render Agent0 Evolution status.
+    
+    Shows current generation and mutation rate.
+    """
+    generation = evo_data.get("generation", 1)
+    mutation_rate = evo_data.get("mutation_rate", 0.0)
+    
+    return f"""
+    <div style="padding: 8px;">
+        <h3 style="font-size: 11px; font-family: 'Courier New', monospace; color: var(--cyber-text); margin-bottom: 8px;">EVOLUTION</h3>
+        <div style="display: flex; justify-content: space-between;">
+            <div style="text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: #F59E0B;">v{generation}.0</div>
+                <div style="font-size: 9px; color: var(--cyber-muted);">GEN</div>
+            </div>
+            <div style="text-align: center;">
+                <div style="font-size: 16px; font-weight: bold; color: #8B5CF6;">{mutation_rate:.2f}</div>
+                <div style="font-size: 9px; color: var(--cyber-muted);">MUTATION</div>
+            </div>
+        </div>
+    </div>
+    """

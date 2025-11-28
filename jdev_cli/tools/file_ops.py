@@ -82,7 +82,7 @@ class ReadFileTool(ValidatedTool):
             
             return ToolResult(
                 success=True,
-                data=content,
+                data={"content": content, "lines": len(lines), "path": str(file_path)},
                 metadata={
                     "path": str(file_path),
                     "lines": len(lines),

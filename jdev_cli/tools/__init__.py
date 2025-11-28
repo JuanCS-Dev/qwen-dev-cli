@@ -123,6 +123,72 @@ from .terminal import (
 # Validated tool base
 from .validated import ValidatedTool
 
+def get_all_tools():
+    """Get all available tools for agents."""
+    return [
+        # File operations
+        ReadFileTool(),
+        WriteFileTool(),
+        EditFileTool(),
+        ListDirectoryTool(),
+        DeleteFileTool(),
+        MoveFileTool(),
+        CopyFileTool(),
+        CreateDirectoryTool(),
+        ReadMultipleFilesTool(),
+        InsertLinesTool(),
+        # Search
+        SearchFilesTool(),
+        GetDirectoryTreeTool(),
+        GlobTool(),
+        # Execution
+        BashCommandTool(),
+        BackgroundTaskTool(),
+        # Git
+        GitStatusTool(),
+        GitDiffTool(),
+        GitStatusEnhancedTool(),
+        GitCommitTool(),
+        GitLogTool(),
+        GitDiffEnhancedTool(),
+        GitPRCreateTool(),
+        # Context
+        GetContextTool(),
+        SaveSessionTool(),
+        RestoreBackupTool(),
+        # Claude parity
+        LSTool(),
+        MultiEditTool(),
+        WebFetchTool(),
+        WebSearchTool(),
+        TodoReadTool(),
+        TodoWriteTool(),
+        NotebookReadTool(),
+        NotebookEditTool(),
+        TaskTool(),
+        AskUserQuestionTool(),
+        # Plan mode
+        EnterPlanModeTool(),
+        ExitPlanModeTool(),
+        AddPlanNoteTool(),
+        GetPlanStatusTool(),
+        # Media
+        ImageReadTool(),
+        PDFReadTool(),
+        ScreenshotReadTool(),
+        # Terminal
+        CdTool(),
+        TerminalLsTool(),
+        PwdTool(),
+        MkdirTool(),
+        RmTool(),
+        CpTool(),
+        MvTool(),
+        TouchTool(),
+        CatTool(),
+    ]
+
+
 __all__ = [
     # Base
     "Tool",
@@ -199,4 +265,6 @@ __all__ = [
     "MvTool",
     "TouchTool",
     "CatTool",
+    # Utility
+    "get_all_tools",
 ]

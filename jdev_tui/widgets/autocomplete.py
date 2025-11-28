@@ -49,19 +49,19 @@ class AutocompleteDropdown(VerticalScroll):
     }
 
     AutocompleteDropdown .item-command {
-        color: $success;
+        color: #b84700;
     }
 
     AutocompleteDropdown .item-tool {
-        color: $primary;
+        color: #b84700;
     }
 
     AutocompleteDropdown .item-file {
-        color: $primary;
+        color: #8b4513;
     }
 
     AutocompleteDropdown .item-desc {
-        color: $secondary;
+        color: #6b5200;
     }
     """
 

@@ -55,6 +55,12 @@ class ValidationResult:
     warnings: List[str] = field(default_factory=list)
     blocked_attacks: List[InjectionType] = field(default_factory=list)
     layer_results: Dict[ValidationLayer, bool] = field(default_factory=dict)
+    threat_level: str = "NONE"  # NONE, LOW, MEDIUM, HIGH, CRITICAL
+
+    @property
+    def error(self) -> str:
+        """Get first error message or empty string."""
+        return self.errors[0] if self.errors else ""
 
     @classmethod
     def success(cls, value: Any, warnings: Optional[List[str]] = None) -> "ValidationResult":
@@ -67,14 +73,20 @@ class ValidationResult:
         )
 
     @classmethod
-    def failure(cls, errors: List[str], original_value: Any = None,
-                blocked_attacks: Optional[List[InjectionType]] = None) -> "ValidationResult":
+    def failure(
+        cls,
+        errors: List[str],
+        original_value: Any = None,
+        blocked_attacks: Optional[List[InjectionType]] = None,
+        threat_level: str = "HIGH"
+    ) -> "ValidationResult":
         """Create failed validation result."""
         return cls(
             is_valid=False,
             sanitized_value=original_value,
             errors=errors,
-            blocked_attacks=blocked_attacks or []
+            blocked_attacks=blocked_attacks or [],
+            threat_level=threat_level
         )
 
 
@@ -138,14 +150,34 @@ class InputValidator:
         (r'\b(rm\s+-rf|chmod\s+777|mkfs|dd\s+if=)', "Dangerous command pattern"),
     ]
 
-    # Path traversal patterns
+    # Path traversal patterns (comprehensive encoding coverage)
     PATH_TRAVERSAL_PATTERNS = [
+        # Basic traversal
         (r'\.\./', "Directory traversal ../"),
         (r'\.\.\\', "Directory traversal ..\\"),
-        (r'%2e%2e', "URL encoded traversal"),
-        (r'%252e', "Double encoded traversal"),
-        (r'\.\.%2f', "Mixed encoding traversal"),
-        (r'\.\.%5c', "Mixed encoding traversal (backslash)"),
+        (r'\.\.\.\./', "Quadruple dot traversal"),
+        (r'\.\./\.\./', "Chained traversal"),
+        # URL encoded (single)
+        (r'%2e%2e%2f', "URL encoded ../"),
+        (r'%2e%2e/', "URL encoded .."),
+        (r'\.\.%2f', "Mixed encoding ../"),
+        (r'%2e%2e%5c', "URL encoded ..\\"),
+        (r'\.\.%5c', "Mixed encoding ..\\"),
+        # URL encoded (double - bypass WAF)
+        (r'%252e%252e%252f', "Double URL encoded ../"),
+        (r'%252e%252e/', "Double encoded .."),
+        (r'\.\.%252f', "Double mixed encoding"),
+        (r'%252e%252e%255c', "Double URL encoded ..\\"),
+        # URL encoded (triple - extreme bypass)
+        (r'%25252e', "Triple URL encoded ."),
+        # Unicode/UTF-8 encoded
+        (r'%c0%ae', "UTF-8 overlong encoding ."),
+        (r'%c0%af', "UTF-8 overlong encoding /"),
+        (r'%c1%9c', "UTF-8 overlong encoding \\"),
+        (r'\.%00\./', "Null byte in traversal"),
+        # Case variations
+        (r'%2E%2E%2F', "Uppercase URL encoded ../"),
+        (r'%2E%2E/', "Uppercase URL encoded .."),
         # Absolute paths to sensitive locations
         (r'^/etc/', "Absolute path to /etc"),
         (r'^/var/log/', "Absolute path to /var/log"),
@@ -190,6 +222,13 @@ class InputValidator:
         # Homoglyphs (common substitutions)
         ('\u0430', "Cyrillic 'а' (looks like 'a')"),  # Cyrillic а
         ('\u0435', "Cyrillic 'е' (looks like 'e')"),  # Cyrillic е
+        # Fullwidth characters (used to bypass shell metacharacter detection)
+        ('\uff5c', "Fullwidth pipe '｜'"),  # Fullwidth pipe
+        ('\uff1b', "Fullwidth semicolon '；'"),  # Fullwidth semicolon
+        ('\uff06', "Fullwidth ampersand '＆'"),  # Fullwidth ampersand
+        ('\uff1e', "Fullwidth greater-than '＞'"),  # Fullwidth >
+        ('\uff1c', "Fullwidth less-than '＜'"),  # Fullwidth <
+        ('\uff40', "Fullwidth backtick '｀'"),  # Fullwidth backtick
     ]
 
     def __init__(
@@ -209,6 +248,24 @@ class InputValidator:
         self.strict_mode = strict_mode
         self.allow_unicode = allow_unicode
         self.custom_patterns = custom_patterns or {}
+        self._audit_logger = None  # Optional audit logger for security logging
+
+    def _log_security_violation(
+        self,
+        action: str,
+        resource: str,
+        details: Optional[Dict[str, Any]] = None
+    ) -> None:
+        """Log security violation to audit logger if available."""
+        if self._audit_logger is not None:
+            from .audit_logger import AuditEventType
+            self._audit_logger.log(
+                event_type=AuditEventType.SECURITY_VIOLATION,
+                action=action,
+                resource=resource,
+                outcome="blocked",
+                details=details or {}
+            )
 
     def validate(
         self,
@@ -274,13 +331,29 @@ class InputValidator:
         # Sanitize value
         sanitized = self._sanitize(str_value, input_type) if is_valid else str_value
 
+        # Determine threat level based on blocked attacks and errors
+        threat_level = "NONE"
+        if blocked_attacks:
+            critical_attacks = {InjectionType.COMMAND_INJECTION, InjectionType.PATH_TRAVERSAL}
+            if any(atk in critical_attacks for atk in blocked_attacks):
+                threat_level = "CRITICAL"
+            elif InjectionType.SQL_INJECTION in blocked_attacks:
+                threat_level = "HIGH"
+            else:
+                threat_level = "MEDIUM"
+        elif errors:
+            threat_level = "HIGH"
+        elif warnings:
+            threat_level = "LOW"
+
         return ValidationResult(
             is_valid=is_valid,
             sanitized_value=sanitized,
             errors=errors,
             warnings=warnings,
             blocked_attacks=blocked_attacks,
-            layer_results=layer_results
+            layer_results=layer_results,
+            threat_level=threat_level
         )
 
     def validate_command(self, command: str, allow_shell: bool = False) -> ValidationResult:
@@ -296,11 +369,25 @@ class InputValidator:
             # Extra check for shell metacharacters
             for pattern, description in self.COMMAND_INJECTION_PATTERNS:
                 if re.search(pattern, command, re.IGNORECASE):
+                    # Log security violation
+                    self._log_security_violation(
+                        action="validate_command",
+                        resource=command,
+                        details={"attack_type": "command_injection", "pattern": description}
+                    )
                     return ValidationResult.failure(
                         errors=[f"Command injection blocked: {description}"],
                         original_value=command,
                         blocked_attacks=[InjectionType.COMMAND_INJECTION]
                     )
+
+        # Log if any attacks were blocked in base validation
+        if result.blocked_attacks:
+            self._log_security_violation(
+                action="validate_command",
+                resource=command,
+                details={"attack_types": [a.value for a in result.blocked_attacks]}
+            )
 
         return result
 
@@ -386,10 +473,160 @@ class InputValidator:
             return ValidationResult.failure(
                 errors=[f"Prompt injection detected: {w}" for w in warnings],
                 original_value=prompt,
-                blocked_attacks=blocked_attacks
+                blocked_attacks=blocked_attacks,
+                threat_level="HIGH"
             )
 
         return result
+
+    def validate_input(self, value: str) -> ValidationResult:
+        """
+        Generic input validation - detects type and validates accordingly.
+
+        This is the main entry point for E2E tests.
+        """
+        # Detect input type
+        if self._looks_like_path(value):
+            result = self.validate_path(value)
+        elif self._looks_like_command(value):
+            result = self.validate_command(value)
+        else:
+            result = self.validate(value, "default")
+
+        # Log if any attacks were blocked
+        if result.blocked_attacks:
+            self._log_security_violation(
+                action="validate_input",
+                resource=value,
+                details={"attack_types": [a.value for a in result.blocked_attacks]}
+            )
+
+        return result
+
+    def validate_path(
+        self,
+        path: str,
+        resolve_symlinks: bool = False
+    ) -> ValidationResult:
+        """
+        Validate file/directory path with comprehensive traversal detection.
+
+        Alias for validate_file_path for test compatibility.
+        """
+        # URL decode the path first to catch encoded attacks
+        decoded_path = self._url_decode_recursive(path)
+
+        # Check for path traversal patterns on both original and decoded
+        for pattern, description in self.PATH_TRAVERSAL_PATTERNS:
+            if re.search(pattern, path, re.IGNORECASE) or \
+               re.search(pattern, decoded_path, re.IGNORECASE):
+                return ValidationResult.failure(
+                    errors=[f"Path traversal blocked: {description}"],
+                    original_value=path,
+                    blocked_attacks=[InjectionType.PATH_TRAVERSAL],
+                    threat_level="CRITICAL" if "etc" in path.lower() or "passwd" in path.lower() else "HIGH"
+                )
+
+        # Check for null bytes
+        if '\x00' in path or '%00' in path:
+            return ValidationResult.failure(
+                errors=["Null byte injection in path"],
+                original_value=path,
+                blocked_attacks=[InjectionType.NULL_BYTE],
+                threat_level="CRITICAL"
+            )
+
+        # Check symlinks if requested
+        if resolve_symlinks:
+            try:
+                real_path = os.path.realpath(path)
+                # Block symlinks that point to sensitive locations
+                sensitive_dirs = ['/etc', '/root', '/var/log', '/home', '/proc', '/sys']
+                for sensitive in sensitive_dirs:
+                    if real_path.startswith(sensitive) and not path.startswith(sensitive):
+                        return ValidationResult.failure(
+                            errors=[f"Symlink escape blocked: points to {sensitive}"],
+                            original_value=path,
+                            blocked_attacks=[InjectionType.PATH_TRAVERSAL],
+                            threat_level="CRITICAL"
+                        )
+            except OSError:
+                pass  # Path doesn't exist, no symlink to resolve
+
+        # Validate as file path
+        return self.validate_file_path(path, must_exist=False)
+
+    def validate_code(self, code: str) -> ValidationResult:
+        """
+        Validate code content for suspicious patterns.
+
+        Returns warnings for potentially dangerous code without blocking.
+        """
+        warnings: List[str] = []
+
+        # Patterns that are suspicious in code
+        suspicious_patterns = [
+            (r'__import__\s*\(', "Dynamic import"),
+            (r'eval\s*\(', "eval() usage"),
+            (r'exec\s*\(', "exec() usage"),
+            (r'os\.system\s*\(', "os.system() call"),
+            (r'subprocess\.(call|run|Popen)', "subprocess usage"),
+            (r'open\s*\([^)]*["\'][aw]["\']', "File write operation"),
+            (r'socket\.(socket|connect)', "Network socket usage"),
+            (r'requests\.(get|post|put|delete)', "HTTP request"),
+            (r'pickle\.(load|loads)', "Pickle deserialization"),
+        ]
+
+        for pattern, description in suspicious_patterns:
+            if re.search(pattern, code, re.IGNORECASE):
+                warnings.append(f"Suspicious pattern: {description}")
+
+        return ValidationResult(
+            is_valid=True,
+            sanitized_value=code,
+            warnings=warnings,
+            threat_level="MEDIUM" if warnings else "NONE"
+        )
+
+    def _url_decode_recursive(self, value: str, max_depth: int = 3) -> str:
+        """Recursively URL decode to catch multi-encoded attacks."""
+        import urllib.parse
+
+        decoded = value
+        for _ in range(max_depth):
+            try:
+                new_decoded = urllib.parse.unquote(decoded)
+                if new_decoded == decoded:
+                    break
+                decoded = new_decoded
+            except Exception:
+                break
+        return decoded
+
+    def _looks_like_path(self, value: str) -> bool:
+        """Check if value looks like a file path."""
+        path_indicators = [
+            '/' in value,
+            '\\' in value,
+            value.startswith('.'),
+            value.startswith('~'),
+            re.search(r'\.\w{1,5}$', value),  # Has extension
+            '%2f' in value.lower(),
+            '%5c' in value.lower(),
+        ]
+        return any(path_indicators)
+
+    def _looks_like_command(self, value: str) -> bool:
+        """Check if value looks like a shell command."""
+        command_indicators = [
+            value.startswith('$'),
+            '|' in value,
+            ';' in value,
+            '&&' in value,
+            '`' in value,
+            re.match(r'^[a-z]+\s', value),  # Starts with word
+        ]
+        return any(command_indicators)
 
     def _validate_type(self, value: Any, input_type: str) -> ValidationResult:
         """Layer 1: Type validation."""
@@ -450,11 +687,19 @@ class InputValidator:
         errors: List[str] = []
         blocked_attacks: List[InjectionType] = []
 
+        # Check for command injection patterns
+        for pattern, description in self.COMMAND_INJECTION_PATTERNS:
+            if re.search(pattern, value, re.IGNORECASE):
+                errors.append(f"Command injection blocked: {description}")
+                if InjectionType.COMMAND_INJECTION not in blocked_attacks:
+                    blocked_attacks.append(InjectionType.COMMAND_INJECTION)
+
         # Check for path traversal
         for pattern, description in self.PATH_TRAVERSAL_PATTERNS:
             if re.search(pattern, value, re.IGNORECASE):
                 errors.append(f"Path traversal blocked: {description}")
-                blocked_attacks.append(InjectionType.PATH_TRAVERSAL)
+                if InjectionType.PATH_TRAVERSAL not in blocked_attacks:
+                    blocked_attacks.append(InjectionType.PATH_TRAVERSAL)
 
         # Check for null bytes
         if '\x00' in value:
@@ -471,13 +716,40 @@ class InputValidator:
         for char, description in self.UNICODE_ATTACK_PATTERNS:
             if char in value:
                 errors.append(f"Unicode attack blocked: {description}")
-                blocked_attacks.append(InjectionType.UNICODE_ATTACK)
+                if InjectionType.UNICODE_ATTACK not in blocked_attacks:
+                    blocked_attacks.append(InjectionType.UNICODE_ATTACK)
+
+        # Check for SQL injection patterns
+        sql_patterns = [
+            (r"'\s*OR\s*'1'\s*=\s*'1", "SQL OR injection"),
+            (r"'\s*OR\s+1\s*=\s*1", "SQL OR injection"),
+            (r";\s*DROP\s+TABLE", "SQL DROP TABLE"),
+            (r";\s*DELETE\s+FROM", "SQL DELETE"),
+            (r"UNION\s+SELECT", "SQL UNION injection"),
+            (r"--\s*$", "SQL comment injection"),
+        ]
+        for pattern, description in sql_patterns:
+            if re.search(pattern, value, re.IGNORECASE):
+                errors.append(f"SQL injection blocked: {description}")
+                if InjectionType.SQL_INJECTION not in blocked_attacks:
+                    blocked_attacks.append(InjectionType.SQL_INJECTION)
+
+        # URL-decode and check again for encoded attacks
+        decoded = self._url_decode_recursive(value)
+        if decoded != value:
+            # Check decoded value for command injection
+            for pattern, description in self.COMMAND_INJECTION_PATTERNS:
+                if re.search(pattern, decoded, re.IGNORECASE):
+                    errors.append(f"URL-encoded command injection blocked: {description}")
+                    if InjectionType.COMMAND_INJECTION not in blocked_attacks:
+                        blocked_attacks.append(InjectionType.COMMAND_INJECTION)
 
         if errors:
             return ValidationResult.failure(
                 errors=errors,
                 original_value=value,
-                blocked_attacks=blocked_attacks
+                blocked_attacks=blocked_attacks,
+                threat_level="CRITICAL" if InjectionType.COMMAND_INJECTION in blocked_attacks else "HIGH"
             )
 
         return ValidationResult.success(value)

@@ -1,19 +1,430 @@
 {
-  "timestamp": "2025-11-26T14:15:50.868360",
+  "timestamp": "2025-11-27T08:27:07.125128",
   "summary": {
-    "total": 8,
-    "passed": 8,
+    "total": 32,
+    "passed": 32,
     "failed": 0,
     "errors": 0,
     "skipped": 0,
     "pass_rate": "100.0%",
-    "duration": "0.03s"
+    "duration": "0.10s"
   },
   "results": [
     {
+      "name": "create_fastapi_app",
+      "status": "passed",
+      "duration": 0.0193631649017334,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created main.py",
+        "\u2713 Created requirements.txt",
+        "\u2713 Created tests/test_api.py",
+        "\u2713 Created README.md",
+        "\u2713 Verified main.py content"
+      ],
+      "error": null,
+      "metadata": {
+        "project_type": "FastAPI",
+        "path": "/tmp/jdev_e2e_njpxgt8w",
+        "files_created": [
+          "main.py",
+          "tests/test_api.py",
+          "requirements.txt",
+          "README.md"
+        ],
+        "total_files": 4,
+        "success": true
+      }
+    },
+    {
+      "name": "create_cli_tool",
+      "status": "passed",
+      "duration": 0.0001850128173828125,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created cli.py"
+      ],
+      "error": null,
+      "metadata": {
+        "project_type": "CLI Tool",
+        "lines_of_code": 51
+      }
+    },
+    {
+      "name": "create_python_package",
+      "status": "passed",
+      "duration": 0.0018949508666992188,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created pyproject.toml",
+        "\u2713 Created 6 files"
+      ],
+      "error": null,
+      "metadata": {
+        "project_type": "Python Package",
+        "files_created": 6,
+        "package_structure": [
+          "mypackage/__init__.py",
+          "mypackage/core/engine.py",
+          "mypackage/core/__init__.py",
+          "mypackage/utils/helpers.py",
+          "mypackage/utils/__init__.py",
+          "pyproject.toml"
+        ]
+      }
+    },
+    {
+      "name": "create_microservice",
+      "status": "passed",
+      "duration": 0.0009443759918212891,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created app/__init__.py",
+        "\u2713 Created app/api/__init__.py",
+        "\u2713 Created app/models/__init__.py",
+        "\u2713 Created app/services/__init__.py",
+        "\u2713 Created app/config.py",
+        "\u2713 Created app/models/user.py",
+        "\u2713 Created app/services/user_service.py",
+        "\u2713 Created app/api/users.py",
+        "\u2713 Created Dockerfile",
+        "\u2713 Created docker-compose.yml"
+      ],
+      "error": null,
+      "metadata": {
+        "project_type": "Microservice",
+        "files_created": 10,
+        "has_docker": true,
+        "has_tests_dir": true
+      }
+    },
+    {
+      "name": "detect_hardcoded_secrets",
+      "status": "passed",
+      "duration": 0.011752605438232422,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Scanned for 5 secret patterns",
+        "\u2713 Found 2 potential secrets",
+        "  \u26a0\ufe0f API keys in config.py",
+        "  \u26a0\ufe0f Database credentials in config.py"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "secrets",
+        "patterns_checked": 5,
+        "findings": 2,
+        "severity_breakdown": {
+          "HIGH": 2
+        }
+      }
+    },
+    {
+      "name": "detect_security_vulnerabilities",
+      "status": "passed",
+      "duration": 0.016214847564697266,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Checked 8 vulnerability patterns",
+        "\u2713 Found 1 vulnerabilities",
+        "  \ud83d\udfe0 HIGH: 1"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "vulnerabilities",
+        "vulnerabilities_found": 1,
+        "by_severity": {
+          "HIGH": 1
+        }
+      }
+    },
+    {
+      "name": "detect_code_smells",
+      "status": "passed",
+      "duration": 0.004166126251220703,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Analyzed code for smells",
+        "\u2713 Found 1 types of code smells",
+        "  \u26a0\ufe0f Deep Nesting: Max indent: 32 spaces"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "code_quality",
+        "smells_found": 1,
+        "smell_types": [
+          "Deep Nesting"
+        ]
+      }
+    },
+    {
+      "name": "check_test_coverage",
+      "status": "passed",
+      "duration": 0.004975557327270508,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Found 3 source files",
+        "\u2713 Found 2 test files",
+        "\u2713 Source functions: 0",
+        "\u2713 Test functions: 0",
+        "\u2713 Test/Function ratio: 0.0%",
+        "  \u26a0\ufe0f Warning: Low test coverage!"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "coverage",
+        "source_files": 3,
+        "test_files": 2,
+        "source_functions": 0,
+        "test_functions": 0,
+        "coverage_ratio": "0.0%"
+      }
+    },
+    {
+      "name": "license_compliance",
+      "status": "passed",
+      "duration": 0.00025773048400878906,
+      "screenshots": [],
+      "logs": [
+        "\u2713 License file present: True",
+        "\u2713 Project license: MIT",
+        "\u2713 Dependencies analyzed:",
+        "  - MIT: 7 packages",
+        "  - BSD: 2 packages"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "license",
+        "has_license": true,
+        "project_license": "MIT",
+        "dependency_licenses": {
+          "MIT": 7,
+          "BSD": 2,
+          "Apache": 0,
+          "GPL": 0
+        }
+      }
+    },
+    {
+      "name": "documentation_audit",
+      "status": "passed",
+      "duration": 0.006308555603027344,
+      "screenshots": [],
+      "logs": [
+        "\u2713 README.md present: True",
+        "\u2713 Docstrings found: 0",
+        "\u2713 Functions with type hints: 0",
+        "\u2713 Documentation score: 30/100"
+      ],
+      "error": null,
+      "metadata": {
+        "audit_type": "documentation",
+        "has_readme": true,
+        "docstrings": 0,
+        "typed_functions": 0,
+        "doc_score": 30
+      }
+    },
+    {
+      "name": "search_read_edit_workflow",
+      "status": "passed",
+      "duration": 0.002688884735107422,
+      "screenshots": [],
+      "logs": [
+        "Step 1: Searching for BUG comments...",
+        "  \u2713 Found 4 files with BUG comments",
+        "Step 2: Reading main.py...",
+        "  \u2713 Read 859 characters",
+        "Step 3: Fixing BUG...",
+        "  \u2713 Fixed division by zero bug"
+      ],
+      "error": null,
+      "metadata": {
+        "workflow": "search_read_edit",
+        "tools_used": 3,
+        "bugs_found": 4,
+        "bugs_fixed": 1
+      }
+    },
+    {
+      "name": "create_test_run_workflow",
+      "status": "passed",
+      "duration": 0.00038909912109375,
+      "screenshots": [],
+      "logs": [
+        "Step 1: Creating calculator module...",
+        "  \u2713 Created calculator.py",
+        "Step 2: Creating tests...",
+        "  \u2713 Created test_calculator.py",
+        "Step 3: Verifying files...",
+        "  \u2713 All files verified"
+      ],
+      "error": null,
+      "metadata": {
+        "workflow": "create_test_verify",
+        "tools_used": 3,
+        "files_created": 2,
+        "test_count": 5
+      }
+    },
+    {
+      "name": "git_workflow",
+      "status": "passed",
+      "duration": 0.006388664245605469,
+      "screenshots": [],
+      "logs": [
+        "Step 1: Checking initial git status...",
+        "  \u2713 Branch: master",
+        "Step 2: Making a change...",
+        "  \u2713 Modified README.md",
+        "Step 3: Checking modified status...",
+        "  \u2713 Modified files: 0",
+        "Step 4: Getting diff...",
+        "  \u2713 Diff shows changes: True"
+      ],
+      "error": null,
+      "metadata": {
+        "workflow": "git_operations",
+        "tools_used": 4,
+        "files_modified": 0,
+        "has_diff": true
+      }
+    },
+    {
+      "name": "full_feature_implementation",
+      "status": "passed",
+      "duration": 0.0008761882781982422,
+      "screenshots": [],
+      "logs": [
+        "Phase 1: Creating data models...",
+        "  \u2713 Created auth models",
+        "Phase 2: Creating service layer...",
+        "  \u2713 Created auth service",
+        "Phase 3: Creating API endpoints...",
+        "  \u2713 Created API endpoints",
+        "Phase 4: Creating tests...",
+        "  \u2713 Created tests",
+        "\nTotal: Created 4 Python files"
+      ],
+      "error": null,
+      "metadata": {
+        "scenario": "feature_implementation",
+        "phases_completed": 4,
+        "files_created": 4,
+        "feature": "User Authentication"
+      }
+    },
+    {
+      "name": "codebase_analysis_and_fix",
+      "status": "passed",
+      "duration": 0.00675654411315918,
+      "screenshots": [],
+      "logs": [
+        "Phase 1: Scanning for issues...",
+        "  \u26a0\ufe0f Found 1 hardcoded secrets",
+        "  \u26a0\ufe0f Found 3 marked BUGs",
+        "\nPhase 2: Fixing critical issues...",
+        "  \u2713 Fixed hardcoded API key in config.py",
+        "\nSummary:",
+        "  Issues found: 2",
+        "  Issues fixed: 1"
+      ],
+      "error": null,
+      "metadata": {
+        "scenario": "analysis_and_fix",
+        "issues_found": [
+          {
+            "type": "hardcoded_secret",
+            "count": 1
+          },
+          {
+            "type": "marked_bugs",
+            "count": 3
+          }
+        ],
+        "issues_fixed": [
+          "hardcoded_secret"
+        ]
+      }
+    },
+    {
+      "name": "enter_exit_plan_mode",
+      "status": "passed",
+      "duration": 0.0003459453582763672,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Entered plan mode",
+        "\u2713 Created plan file: test_plan.md",
+        "\u2713 Wrote implementation plan",
+        "\u2713 Exited plan mode"
+      ],
+      "error": null,
+      "metadata": {
+        "test_type": "plan_mode_lifecycle",
+        "plan_file": "/tmp/jdev_e2e_2to01nzu/.jdev/plans/test_plan.md",
+        "plan_size": 1172
+      }
+    },
+    {
+      "name": "create_architecture_plan",
+      "status": "passed",
+      "duration": 0.00017952919006347656,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created architecture document"
+      ],
+      "error": null,
+      "metadata": {
+        "test_type": "architecture",
+        "sections": [
+          "Overview",
+          "System Components",
+          "Data Flow",
+          "Security",
+          "Scalability",
+          "Monitoring"
+        ],
+        "components": 5
+      }
+    },
+    {
+      "name": "create_implementation_checklist",
+      "status": "passed",
+      "duration": 0.00023317337036132812,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Created implementation checklist"
+      ],
+      "error": null,
+      "metadata": {
+        "test_type": "checklist",
+        "total_tasks": 35,
+        "completed_tasks": 12,
+        "phases": 7
+      }
+    },
+    {
+      "name": "architect_analyzes_requirements",
+      "status": "passed",
+      "duration": 0.00025081634521484375,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Read requirements document",
+        "\u2713 Generated requirements analysis",
+        "\u2713 Created tech stack recommendations",
+        "\u2713 Produced timeline estimate"
+      ],
+      "error": null,
+      "metadata": {
+        "agent": "architect",
+        "user_stories": 4,
+        "estimated_weeks": 8
+      }
+    },
+    {
       "name": "write_and_read_file",
       "status": "passed",
-      "duration": 0.015849590301513672,
+      "duration": 0.00020647048950195312,
       "screenshots": [],
       "logs": [
         "\u2713 File written successfully",
@@ -33,7 +444,7 @@
     {
       "name": "edit_file",
       "status": "passed",
-      "duration": 0.0003104209899902344,
+      "duration": 0.0002994537353515625,
       "screenshots": [],
       "logs": [
         "\u2713 Created initial file",
@@ -53,7 +464,7 @@
     {
       "name": "search_in_files",
       "status": "passed",
-      "duration": 0.0017976760864257812,
+      "duration": 0.0024039745330810547,
       "screenshots": [],
       "logs": [
         "\u2713 Found 8 function definitions",
@@ -70,7 +481,7 @@
     {
       "name": "search_for_bugs",
       "status": "passed",
-      "duration": 0.001397848129272461,
+      "duration": 0.002354860305786133,
       "screenshots": [],
       "logs": [
         "\u2713 Found 4 BUG markers",
@@ -89,7 +500,7 @@
     {
       "name": "create_python_module",
       "status": "passed",
-      "duration": 0.0006709098815917969,
+      "duration": 0.0006263256072998047,
       "screenshots": [],
       "logs": [
         "\u2713 Created mypackage/__init__.py",
@@ -109,26 +520,26 @@
     {
       "name": "git_status",
       "status": "passed",
-      "duration": 0.005337953567504883,
+      "duration": 0.0061452388763427734,
       "screenshots": [],
       "logs": [
         "\u2713 Git status retrieved",
         "\u2713 Data type: <class 'dict'>",
         "\u2713 Branch: main",
-        "\u2713 Modified files: 0"
+        "\u2713 Modified files: 32"
       ],
       "error": null,
       "metadata": {
         "tools": [
           "GitStatusTool"
         ],
-        "status_data": "{'branch': 'main', 'modified': [], 'untracked': [], 'staged': ['tests/e2e_textual/E2E_REPORT.json', 'tests/e2e_textual/E2E_REPORT.md', 'tests/e2e_textual/__init__.py', 'tests/e2e_textual/conftest.py',"
+        "status_data": "{'branch': 'main', 'modified': ['jdev_cli/core/context_tracker.py', 'jdev_cli/core/error_presenter.py', 'jdev_cli/core/execution.py', 'jdev_cli/core/input_enhancer.py', 'jdev_cli/core/input_validator."
       }
     },
     {
       "name": "plan_mode_cycle",
       "status": "passed",
-      "duration": 0.0004112720489501953,
+      "duration": 0.0003108978271484375,
       "screenshots": [],
       "logs": [
         "\u2713 Entered plan mode",
@@ -141,13 +552,13 @@
           "EnterPlanModeTool",
           "ExitPlanModeTool"
         ],
-        "plan_file": "/tmp/jdev_e2e_j_vvfpd2/.jdev/plans/e2e_plan.md"
+        "plan_file": "/tmp/jdev_e2e_niexhw4e/.jdev/plans/e2e_plan.md"
       }
     },
     {
       "name": "search_and_fix_workflow",
       "status": "passed",
-      "duration": 0.0025446414947509766,
+      "duration": 0.002468585968017578,
       "screenshots": [],
       "logs": [
         "Step 1: Searching for issues...",
@@ -163,6 +574,92 @@
         "tools": 3,
         "fixed": true,
         "issues_found": 3
+      }
+    },
+    {
+      "name": "add_type_hints",
+      "status": "passed",
+      "duration": 0.00028395652770996094,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Added type hints to functions",
+        "\u2713 Added type hints to class methods",
+        "\u2713 Added typing imports"
+      ],
+      "error": null,
+      "metadata": {
+        "refactor_type": "type_hints",
+        "type_hints_added": 8
+      }
+    },
+    {
+      "name": "extract_function",
+      "status": "passed",
+      "duration": 0.0002200603485107422,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Extracted validate_and_transform function",
+        "\u2713 Extracted process_items function",
+        "\u2713 Reduced code duplication"
+      ],
+      "error": null,
+      "metadata": {
+        "refactor_type": "extract_function",
+        "lines_before": 35,
+        "lines_after": 37,
+        "reduction_percent": 13.0
+      }
+    },
+    {
+      "name": "fix_security_issues",
+      "status": "passed",
+      "duration": 0.00030493736267089844,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Removed hardcoded API key",
+        "\u2713 Added environment variable lookup",
+        "\u2713 Added validation for required vars"
+      ],
+      "error": null,
+      "metadata": {
+        "refactor_type": "security_fix",
+        "issues_fixed": [
+          "hardcoded_secret",
+          "missing_validation"
+        ]
+      }
+    },
+    {
+      "name": "add_error_handling",
+      "status": "passed",
+      "duration": 0.000469207763671875,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Fixed divide function",
+        "\u2713 Fixed Calculator.calculate method",
+        "\u2713 Added ZeroDivisionError handling"
+      ],
+      "error": null,
+      "metadata": {
+        "refactor_type": "error_handling",
+        "bugs_fixed": 2
+      }
+    },
+    {
+      "name": "rename_across_files",
+      "status": "passed",
+      "duration": 0.0025653839111328125,
+      "screenshots": [],
+      "logs": [
+        "\u2713 Found 2 files with 'greet'",
+        "\u2713 Renamed function in main.py",
+        "\u2713 Updated imports in test_main.py",
+        "\u2713 Updated function calls"
+      ],
+      "error": null,
+      "metadata": {
+        "refactor_type": "rename",
+        "files_modified": 2
       }
     }
   ]

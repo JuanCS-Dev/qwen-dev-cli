@@ -76,6 +76,15 @@ class CodeBlock:
 
 
 @dataclass
+class CodeExtraction:
+    """Result of code extraction."""
+    clean_code: str
+    code_blocks: List[CodeBlock] = field(default_factory=list)
+    error_detected: bool = False
+    contains_error: bool = False
+
+
+@dataclass
 class EnhancedInput:
     """Result of input enhancement."""
     original: str
@@ -85,6 +94,98 @@ class EnhancedInput:
     corrections: List[Tuple[str, str]] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # Vibe coder support fields
+    suggestions: List[str] = field(default_factory=list)
+    clarification_questions: List[str] = field(default_factory=list)
+    extracted_tasks: List[str] = field(default_factory=list)
+
+    @property
+    def needs_clarification(self) -> bool:
+        """Check if the input needs clarification from the user."""
+        if self.corrections:
+            return True
+        if any("ambiguous" in w.lower() or "unclear" in w.lower() for w in self.warnings):
+            return True
+        if self.input_type == InputType.MIXED and len(self.code_blocks) == 0:
+            return True
+        if self.is_incomplete:
+            return True
+        return False
+
+    @property
+    def has_code(self) -> bool:
+        """Check if input contains code."""
+        return len(self.code_blocks) > 0
+
+    @property
+    def corrected_text(self) -> str:
+        """Get text with corrections applied."""
+        text = self.cleaned
+        for old, new in self.corrections:
+            text = text.replace(old, new)
+        return text
+
+    @property
+    def suggested_correction(self) -> Optional[str]:
+        """Get the first suggested correction."""
+        if self.corrections:
+            return self.corrections[0][1]
+        if self.suggestions:
+            return self.suggestions[0]
+        return None
+
+    @property
+    def normalized_text(self) -> str:
+        """Get normalized version of text (lowercase commands, preserved identifiers)."""
+        return self.cleaned.strip()
+
+    @property
+    def is_incomplete(self) -> bool:
+        """Check if input appears to be incomplete."""
+        incomplete_patterns = [
+            r"^(can you|i want to|please|could you)\s*$",
+            r"\s+(the|a|an|that|this)\s*$",
+            r"^[^.!?]*\s+(and|but|or)\s*$",
+        ]
+        text = self.original.strip().lower()
+        for pattern in incomplete_patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                return True
+        return len(text.split()) <= 2 and not self.has_code
+
+    @property
+    def detected_contradiction(self) -> bool:
+        """Check if input contains contradictory requests."""
+        text = self.original.lower()
+        contradictions = [
+            ("delete", "keep"), ("remove", "save"), ("delete", "save"),
+            ("stop", "start"), ("cancel", "continue"),
+        ]
+        for word1, word2 in contradictions:
+            if word1 in text and word2 in text:
+                return True
+        return False
+
+    @property
+    def multiple_intents(self) -> bool:
+        """Check if input contains multiple distinct requests."""
+        connectors = [" and ", " also ", " plus ", " then ", " after that "]
+        text = self.original.lower()
+        count = sum(1 for c in connectors if c in text)
+        return count >= 2 or len(self.extracted_tasks) > 1
+
+    @property
+    def is_question(self) -> bool:
+        """Check if input is a question."""
+        text = self.original.strip()
+        return text.endswith("?") or text.lower().startswith(("what ", "how ", "why ", "when ", "where ", "can ", "does ", "is "))
+
+    @property
+    def wants_explanation(self) -> bool:
+        """Check if user wants an explanation."""
+        keywords = ["what does", "how does", "explain", "why", "what is", "what's"]
+        text = self.original.lower()
+        return any(kw in text for kw in keywords)
 
 
 @dataclass
@@ -439,6 +540,48 @@ class InputEnhancer:
 
         return code_snippets
 
+    def extract_code(self, text: str) -> CodeExtraction:
+        """
+        Extract all code from input text.
+
+        Returns CodeExtraction with clean code and metadata.
+        """
+        code_snippets = self.extract_code_from_mixed(text)
+        clean_code = "\n".join(code_snippets) if code_snippets else ""
+
+        # Detect if there's an error in the pasted output
+        error_patterns = [
+            r"Traceback \(most recent call last\)",
+            r"Error:",
+            r"Exception:",
+            r"NameError:",
+            r"TypeError:",
+            r"SyntaxError:",
+            r"ImportError:",
+            r"ModuleNotFoundError:",
+            r"AttributeError:",
+            r"ValueError:",
+            r"KeyError:",
+            r"IndexError:",
+        ]
+        error_detected = any(re.search(p, text, re.IGNORECASE) for p in error_patterns)
+
+        # Get code blocks
+        code_blocks = []
+        for match in self.CODE_BLOCK_PATTERN.finditer(text):
+            code_blocks.append(CodeBlock(
+                language=match.group(1) or "text",
+                code=match.group(2).strip(),
+                original=match.group(0)
+            ))
+
+        return CodeExtraction(
+            clean_code=clean_code,
+            code_blocks=code_blocks,
+            error_detected=error_detected,
+            contains_error=error_detected
+        )
+
     def clean_stackoverflow_paste(self, text: str) -> str:
         """
         Clean pasted code from StackOverflow.
@@ -504,6 +647,7 @@ def suggest_correction(command: str, valid_commands: Set[str]) -> Optional[TypoC
 __all__ = [
     'InputType',
     'CodeBlock',
+    'CodeExtraction',
     'EnhancedInput',
     'TypoCorrection',
     'InputEnhancer',

@@ -43,6 +43,11 @@ class SearchFilesTool(ValidatedTool):
                 "type": "boolean",
                 "description": "Use semantic search (code symbols) instead of text search",
                 "required": False
+            },
+            "ignore_case": {
+                "type": "boolean",
+                "description": "Case insensitive search",
+                "required": False
             }
         }
     def get_validators(self):
@@ -50,8 +55,9 @@ class SearchFilesTool(ValidatedTool):
         return {}
 
     
-    async def _execute_validated(self, pattern: str, path: str = ".", file_pattern: Optional[str] = None, 
-                                 max_results: int = 50, semantic: bool = False, indexer=None) -> ToolResult:
+    async def _execute_validated(self, pattern: str, path: str = ".", file_pattern: Optional[str] = None,
+                                 max_results: int = 50, semantic: bool = False, indexer=None,
+                                 ignore_case: bool = False) -> ToolResult:
         """
         Search for pattern in files.
         
@@ -66,10 +72,13 @@ class SearchFilesTool(ValidatedTool):
             # Original text-based search
             # Try ripgrep first
             cmd = ["rg", "--line-number", "--with-filename", "--no-heading"]
-            
+
+            if ignore_case:
+                cmd.append("-i")
+
             if file_pattern:
                 cmd.extend(["--glob", file_pattern])
-            
+
             cmd.extend([pattern, path])
             
             try:
@@ -96,7 +105,7 @@ class SearchFilesTool(ValidatedTool):
                     
                     return ToolResult(
                         success=True,
-                        data=results,
+                        data={"matches": results, "count": len(results)},
                         metadata={
                             "pattern": pattern,
                             "count": len(results),
@@ -108,7 +117,10 @@ class SearchFilesTool(ValidatedTool):
                 logger.debug("ripgrep not available, falling back to grep")
             
             # Fallback to grep
-            cmd = ["grep", "-rn", pattern, path]
+            cmd = ["grep", "-rn"]
+            if ignore_case:
+                cmd.append("-i")
+            cmd.extend([pattern, path])
             if file_pattern:
                 cmd.extend(["--include", file_pattern])
             
@@ -134,7 +146,7 @@ class SearchFilesTool(ValidatedTool):
             
             return ToolResult(
                 success=True,
-                data=results,
+                data={"matches": results, "count": len(results)},
                 metadata={
                     "pattern": pattern,
                     "count": len(results),
@@ -167,7 +179,7 @@ class SearchFilesTool(ValidatedTool):
             if not symbols:
                 return ToolResult(
                     success=True,
-                    data=[],
+                    data={"matches": [], "count": 0},
                     metadata={
                         "pattern": query,
                         "count": 0,
@@ -189,7 +201,7 @@ class SearchFilesTool(ValidatedTool):
             
             return ToolResult(
                 success=True,
-                data=results,
+                data={"matches": results, "count": len(results)},
                 metadata={
                     "pattern": query,
                     "count": len(results),
