@@ -81,51 +81,66 @@ THEME_LIGHT = Theme(
 
 
 # =============================================================================
-# THEME DARK - Matrix Minimal
+# THEME DARK - Matrix Cinematic
 # =============================================================================
-# Cyberpunk aesthetic with soft cinematic green
-# Primary: Pigment Green (#1CA152) - Softer Matrix green
+# Cyberpunk aesthetic with layered green hierarchy
+#
+# GREEN PALETTE (brightest to darkest):
+#   - Neon Bright:  #39FF14  (highlights, important actions)
+#   - Matrix Glow:  #00FF41  (primary text, active elements)
+#   - Soft Green:   #1CA152  (standard text)
+#   - Forest:       #0D5C2E  (muted/secondary)
+#   - Dark Forest:  #0A3D1F  (disabled/background accents)
+#
 # Background: Pure Black (#000000) - Maximum contrast
 
 THEME_DARK = Theme(
     name="matrix-dark",
-    primary="#1CA152",      # Pigment Green - Soft Matrix
-    secondary="#0D5C2E",    # Dark Forest
+    primary="#00FF41",      # Matrix Glow - Bright primary
+    secondary="#1CA152",    # Soft Green - Secondary
+    accent="#39FF14",       # Neon Bright - Highlights
     background="#000000",   # Pure Black
-    surface="#0A0A0A",      # Near Black
-    foreground="#1CA152",   # Green text
-    success="#1CA152",      # Same green for consistency
-    error="#C62828",        # Dark Red (less aggressive)
-    warning="#B8860B",      # Dark Goldenrod
+    surface="#050505",      # Near Black
+    foreground="#1CA152",   # Soft Green - Main text (easier on eyes)
+    success="#39FF14",      # Neon Bright for success
+    error="#FF3131",        # Bright Red (visible on black)
+    warning="#FFD700",      # Gold (more visible)
     dark=True,
     variables={
-        # Text variations
-        "text-muted": "#0D5C2E",
-        "text-disabled": "#0A3D1F",
+        # Text hierarchy (4 levels of green)
+        "text": "#1CA152",              # Standard text
+        "text-muted": "#0D5C2E",         # Muted/secondary
+        "text-disabled": "#0A3D1F",      # Disabled
 
-        # Border
+        # Border - subtle but visible
         "border": "#0D5C2E",
-        "border-hover": "#1CA152",
+        "border-hover": "#00FF41",       # Bright on hover
 
-        # Input styling
-        "input-cursor-foreground": "#1CA152",
-        "input-selection-background": "#1CA15233",
+        # Input styling - bright cursor
+        "input-cursor-foreground": "#39FF14",
+        "input-cursor-background": "#39FF14",
+        "input-selection-background": "#00FF4133",
 
         # Scrollbar
-        "scrollbar": "#0D5C2E",
+        "scrollbar": "#0A3D1F",
         "scrollbar-hover": "#1CA152",
 
-        # Footer
-        "footer-key-foreground": "#1CA152",
+        # Footer - contrasting greens
+        "footer-key-foreground": "#00FF41",      # Bright keys
         "footer-description-foreground": "#0D5C2E",
 
         # Button
         "button-foreground": "#000000",
+        "button-background": "#00FF41",
 
-        # Panel/Surface
-        "panel": "#0A0A0A",
-        "panel-lighten-1": "#111111",
-        "panel-darken-1": "#050505",
+        # Panel/Surface - subtle depth
+        "panel": "#050505",
+        "panel-lighten-1": "#0A0A0A",
+        "panel-darken-1": "#000000",
+
+        # Links and highlights
+        "link": "#00FF41",
+        "link-hover": "#39FF14",
     }
 )
 
@@ -143,7 +158,7 @@ class ThemeManager:
 
     CONFIG_DIR = Path.home() / ".jdev_tui"
     CONFIG_FILE = CONFIG_DIR / "config.json"
-    DEFAULT_THEME = ThemeMode.LIGHT
+    DEFAULT_THEME = ThemeMode.DARK
 
     @classmethod
     def get_theme_preference(cls) -> str:

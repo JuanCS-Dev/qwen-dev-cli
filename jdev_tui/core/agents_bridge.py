@@ -204,6 +204,7 @@ class AgentRouter:
             (r"\b(pip\s+install|npm\s+(install|run)|make|cargo|go\s+(run|build))\b", 0.95),
             (r"\b(git\s+(status|diff|add|commit|push|pull|clone|log))\b", 0.9),
             (r"\b(pytest|unittest|jest|npm\s+test|testa[r]?\s+)\b", 0.85),
+            (r"\b(delet[ae]|remov[ae]|apag[ae]|clean|limp[ae])\b", 0.85),  # DELETE/CLEAN → Executor
         ],
         "architect": [
             (r"\b(arquitetur[a]?|architect(ure)?|design\s*(pattern)?)\b", 0.9),
@@ -227,7 +228,7 @@ class AgentRouter:
         ],
         "refactorer": [
             (r"\b(refactor|refatora|refactoring|melhora[re]?\s*(o\s*)?(c[oó]digo)?)\b", 0.9),
-            (r"\b(clean\s*(up)?|limp[ae]|simplif[iy])\b", 0.75),
+            (r"\b(simplif[iy])\b", 0.7),  # Simplify code structure only
             (r"\b(extract|extrai|mover?\s*para|move\s*to)\b", 0.7),
             (r"\b(rename|renomea|dry|don'?t\s*repeat)\b", 0.8),
         ],
@@ -283,11 +284,45 @@ class AgentRouter:
         ],
     }
 
-    # Keywords that indicate NOT to route (general chat)
+    # Keywords that indicate NOT to route (general chat or direct tool use)
     NO_ROUTE_PATTERNS = [
         r"^(oi|ol[aá]|hi|hello|hey|e\s*a[ií])\b",  # Greetings
         r"^(obrigad[oa]|thanks?|valeu|vlw)\b",      # Thanks
         r"^(ok|certo|entend[io]|got\s*it)\b",      # Acknowledgments
+        # File creation/save commands - should use tools directly, not route to agents
+        r"\b(salv[ae]|save|cri[ae]|create|escrev[ae]|write)\s*(o[s]?\s*)?(arquivo|file)",
+        r"\b(grav[ae]|persist|gravar)\s*(no\s*)?(disco|disk)",
+        r"\bde\s*acordo\s*com\s*o\s*plano\b",  # "de acordo com o plano"
+        r"\bseguindo\s*o\s*plano\b",  # "seguindo o plano"
+        r"\bexecut[ae]\s*o\s*plano\b",  # "executa o plano"
+        r"\bimplementa\s*(isso|o\s*plano)\b",  # "implementa isso/o plano"
+        r"\bmaterializ[ae]\s*(isso)?\b",  # "materializa isso"
+        r"^materializ",  # starts with materializa
+        r"^agora\s*(salv|cri|faz|execut)",  # "agora salva/cria/faz"
+        r"^(faz|fa[çc]a)\s*(isso|os?\s*arquivos?)",  # "faz isso", "faça os arquivos"
+        # Code modification commands - should use tools directly
+        r"^add\s+\w+.*\s+to\s+(the\s+)?(main|file|code)",  # "Add X to the main file"
+        r"^(adiciona|inclui|coloca)\s+.*\s+(no|na|em)\s+",  # "adiciona X no arquivo"
+        r"^(update|modify|change|alter)\s+(the\s+)?(file|code|main)",  # "update the file"
+        r"^(atualiza|modifica|altera)\s+(o\s+)?(arquivo|código)",  # "atualiza o arquivo"
+        r"\bmiddleware\b.*\b(to|no|na)\b",  # "middleware to..." - code addition
+        r"^insert\s+",  # "insert ..."
+        # Plan execution phrases - should use tools to create files, NOT executor agent
+        r"^make\s+it\s+real",  # "make it real"
+        r"^do\s+it\b",  # "do it"
+        r"^build\s+it\b",  # "build it"
+        r"^create\s+it\b",  # "create it"
+        r"^(go|let'?s\s+go|vamos|bora)\b",  # "go", "let's go", "vamos", "bora"
+        r"^(now|agora)\s+(create|build|make|do)",  # "now create/build/make"
+        r"^proceed\b",  # "proceed"
+        r"^(yes|sim|s[ií]|yep|yeah)\s*(,|\.|\!)?$",  # Simple confirmations
+        r"^execute\s+(the\s+)?(plan|plano)",  # "execute the plan"
+        r"^execute\s+\w+\s+plan",  # "execute neuro_api plan"
+        r"^run\s+(the\s+)?(plan|plano)",  # "run the plan"
+        r"^implement\s+(the\s+)?(plan|plano|it)",  # "implement the plan"
+        r"^create\s+(the\s+)?files?",  # "create the files"
+        r"^write\s+(the\s+)?files?",  # "write the files"
+        r"^generate\s+(the\s+)?(code|files?)",  # "generate the code"
     ]
 
     MIN_CONFIDENCE = 0.7
@@ -395,6 +430,7 @@ class AgentManager:
         self._agents: Dict[str, Any] = {}
         self._load_errors: Dict[str, str] = {}
         self.router = AgentRouter()
+        self._last_plan: Optional[str] = None  # Store last plan for execution
 
     @property
     def available_agents(self) -> List[str]:
@@ -613,6 +649,9 @@ class AgentManager:
         from jdev_core import AgentTask
         agent_task = AgentTask(request=task, context=context or {})
 
+        # Track plan output for later execution
+        plan_chunks = [] if name == "planner" else None
+
         # Try streaming interface first
         if hasattr(agent, 'execute_streaming'):
             try:
@@ -623,10 +662,23 @@ class AgentManager:
 
                 if param_count == 1:  # Apenas task (AgentTask)
                     async for chunk in agent.execute_streaming(agent_task):
-                        yield self._normalize_streaming_chunk(chunk)
+                        normalized = self._normalize_streaming_chunk(chunk)
+                        if plan_chunks is not None:
+                            plan_chunks.append(normalized)
+                        yield normalized
                 else:  # task + context (str, dict)
                     async for chunk in agent.execute_streaming(task, context or {}):
-                        yield self._normalize_streaming_chunk(chunk)
+                        normalized = self._normalize_streaming_chunk(chunk)
+                        if plan_chunks is not None:
+                            plan_chunks.append(normalized)
+                        yield normalized
+
+                # Save plan for later execution
+                if plan_chunks:
+                    plan_text = "".join(plan_chunks)
+                    self._last_plan = plan_text
+                    # Log that plan was saved
+                    yield f"\n💾 *Plan saved. Say 'create the files' or 'make it real' to execute.*\n"
                 return
             except Exception as e:
                 yield f"⚠️ Streaming failed: {e}\n"
@@ -635,8 +687,81 @@ class AgentManager:
         if hasattr(agent, 'execute'):
             try:
                 result = await agent.execute(agent_task)
-                if hasattr(result, 'data'):
-                    yield str(result.data)
+                # Format AgentResponse nicely instead of dumping raw dict
+                if hasattr(result, 'data') and hasattr(result, 'reasoning'):
+                    # This is an AgentResponse - format it properly
+                    data = result.data
+                    reasoning = result.reasoning
+
+                    # For ArchitectAgent decisions, format nicely
+                    if isinstance(data, dict) and 'decision' in data:
+                        decision = data.get('decision', 'UNKNOWN')
+                        emoji = "✅" if decision == "APPROVED" else "❌"
+                        yield f"{emoji} **{decision}**\n\n"
+                        yield f"*{reasoning}*\n"
+
+                        # Show architecture details if available
+                        arch = data.get('architecture', {})
+                        if arch.get('approach'):
+                            yield f"\n**Approach:** {arch['approach']}\n"
+                        if arch.get('risks'):
+                            yield f"\n**Risks:** {', '.join(arch['risks'])}\n"
+                        if arch.get('estimated_complexity'):
+                            yield f"\n**Complexity:** {arch['estimated_complexity']}\n"
+                        if data.get('recommendations'):
+                            yield f"\n**Recommendations:**\n"
+                            for rec in data['recommendations']:
+                                yield f"- {rec}\n"
+                    # ExplorerAgent results
+                    elif isinstance(data, dict) and 'relevant_files' in data:
+                        if data.get('context_summary'):
+                            yield f"{data['context_summary']}\n\n"
+                        relevant_files = data.get('relevant_files', [])
+                        if relevant_files:
+                            yield "**Relevant Files:**\n"
+                            for f in relevant_files:
+                                # Handle both dict format and string format
+                                if isinstance(f, dict):
+                                    path = f.get('path', 'unknown')
+                                    relevance = f.get('relevance', '')
+                                    reason = f.get('reason', '')
+                                    relevance_badge = f" [{relevance}]" if relevance else ""
+                                    reason_text = f" - {reason}" if reason else ""
+                                    yield f"- `{path}`{relevance_badge}{reason_text}\n"
+                                else:
+                                    yield f"- `{f}`\n"
+                        else:
+                            yield "⚠️ No relevant files found for this query.\n"
+                        if data.get('dependencies'):
+                            yield "\n**Dependencies:**\n"
+                            for d in data['dependencies']:
+                                if isinstance(d, dict):
+                                    from_file = d.get('from', '')
+                                    to_file = d.get('to', '')
+                                    dep_type = d.get('type', '')
+                                    yield f"- `{from_file}` → `{to_file}` ({dep_type})\n"
+                                else:
+                                    yield f"- {d}\n"
+                        if data.get('token_estimate'):
+                            yield f"\n📊 *Token estimate: ~{data['token_estimate']} tokens*\n"
+                    elif isinstance(data, dict) and 'formatted_markdown' in data:
+                        yield data['formatted_markdown']
+                    elif isinstance(data, dict) and 'markdown' in data:
+                        yield data['markdown']
+                    elif isinstance(data, str):
+                        yield data
+                    else:
+                        # Generic: show reasoning if available
+                        if reasoning and reasoning != "None":
+                            yield f"{reasoning}\n"
+                elif hasattr(result, 'data'):
+                    data = result.data
+                    if isinstance(data, str):
+                        yield data
+                    elif isinstance(data, dict) and 'formatted_markdown' in data:
+                        yield data['formatted_markdown']
+                    else:
+                        yield str(data)
                 elif hasattr(result, 'result'):
                     yield str(result.result)
                 else:

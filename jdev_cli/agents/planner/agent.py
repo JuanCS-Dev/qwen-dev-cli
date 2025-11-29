@@ -1512,25 +1512,25 @@ REQUEST: {task.request}
 CONTEXT:
 - Working Directory: {cwd}
 
-Generate a comprehensive plan with clear steps. Respond with a valid JSON object using this EXACT format:
+CRITICAL INSTRUCTIONS:
+1. Return ONLY a valid JSON object - no markdown, no code blocks, no explanations
+2. DO NOT include any tool calls, function calls, or command syntax
+3. DO NOT write [TOOL_CALL:...], mkdir, write_file, or any execution commands
+4. Each step should be a high-level DESCRIPTION of what to do, not HOW to do it
+5. The "action" field should be human-readable text, NOT code or commands
+
+Respond with this EXACT JSON format:
 
 {{
   "goal": "Brief description of the goal",
-  "strategy_overview": "High-level approach",
+  "strategy_overview": "High-level approach in plain text",
   "sops": [
     {{
       "id": "step-1",
-      "action": "Description of what to do",
+      "action": "Human-readable description of what to do",
       "role": "executor",
       "confidence_score": 0.8,
       "definition_of_done": "How to verify completion"
-    }},
-    {{
-      "id": "step-2",
-      "action": "Next action...",
-      "role": "executor",
-      "confidence_score": 0.7,
-      "definition_of_done": "Verification criteria"
     }}
   ],
   "risk_assessment": "LOW|MEDIUM|HIGH",
@@ -1538,7 +1538,7 @@ Generate a comprehensive plan with clear steps. Respond with a valid JSON object
   "estimated_duration": "Time estimate"
 }}
 
-Include 3-7 concrete, actionable steps in the sops array.
+Include 3-7 concrete steps. Each "action" must be plain text describing WHAT to do, not code.
 
 {f'IMPORTANT: {lang_instruction}' if lang_instruction else ''}"""
 

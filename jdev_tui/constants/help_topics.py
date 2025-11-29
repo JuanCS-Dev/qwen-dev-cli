@@ -5,15 +5,13 @@ Interactive help with navigable topics.
 """
 
 HELP_MAIN = """
-[bold cyan]╭─────────────────────────────────────────────────────────────╮[/bold cyan]
-[bold cyan]│[/bold cyan]              [bold white]JuanCS Dev-Code[/bold white] — [dim]Ajuda Interativa[/dim]           [bold cyan]│[/bold cyan]
-[bold cyan]╰─────────────────────────────────────────────────────────────╯[/bold cyan]
+[bold white]JuanCS Dev-Code[/bold white] — [dim]Ajuda Interativa[/dim]
 
 [bold yellow]Navegue pelos tópicos:[/bold yellow]
 
   [cyan]/help commands[/cyan]    Comandos do sistema
-  [cyan]/help agents[/cyan]      Agentes especializados (13)
-  [cyan]/help tools[/cyan]       Ferramentas disponíveis (33+)
+  [cyan]/help agents[/cyan]      Agentes especializados (14)
+  [cyan]/help tools[/cyan]       Ferramentas disponíveis (47)
   [cyan]/help keys[/cyan]        Atalhos de teclado
   [cyan]/help tips[/cyan]        Dicas de uso
 
@@ -52,6 +50,13 @@ HELP_COMMANDS = """
 [bold yellow]Contexto[/bold yellow]
   [cyan]/context[/cyan] [dim]..........[/dim] Mostra contexto da conversa
   [cyan]/context-clear[/cyan] [dim]....[/dim] Limpa o contexto
+ 
+ [bold yellow]PROMETHEUS[/bold yellow]
+   [cyan]/prometheus status[/cyan] [dim]..[/dim] Status do sistema de evolução
+   [cyan]/prometheus evolve[/cyan] [white]N[/white] [dim][/dim] Executa N ciclos de evolução
+   [cyan]/prometheus memory[/cyan] [dim]..[/dim] Status da memória MIRIX
+   [cyan]/prometheus enable[/cyan] [dim][/dim] Ativa modo PROMETHEUS
+   [cyan]/prometheus disable[/cyan] [dim][/dim] Desativa modo PROMETHEUS
 
 [dim]← /help[/dim]
 """
@@ -97,7 +102,7 @@ HELP_AGENTS = """
 
 HELP_TOOLS = """
 [bold cyan]╭─────────────────────────────────────────────────────────────╮[/bold cyan]
-[bold cyan]│[/bold cyan]                   [bold white]Ferramentas (33+)[/bold white]                       [bold cyan]│[/bold cyan]
+[bold cyan]│[/bold cyan]                   [bold white]Ferramentas (47)[/bold white]                        [bold cyan]│[/bold cyan]
 [bold cyan]╰─────────────────────────────────────────────────────────────╯[/bold cyan]
 
 [bold yellow]📁 Arquivos[/bold yellow]

@@ -788,12 +788,26 @@ def tool_executing_markup(tool_name: str) -> str:
 
 def tool_success_markup(tool_name: str) -> str:
     """Return plain text for tool success (streaming safe)."""
-    return f"✓ {tool_name}: Success"
+    # Map tool names to action verbs for cinematic output
+    action_map = {
+        "write_file": "CREATED",
+        "edit_file": "UPDATED",
+        "read_file": "READ",
+        "delete_file": "DELETED",
+        "bash_command": "EXECUTED",
+        "mkdir": "CREATED",
+        "create_directory": "CREATED",
+        "search_files": "SEARCHED",
+        "git_status": "CHECKED",
+        "git_diff": "DIFFED",
+    }
+    action = action_map.get(tool_name, "SUCCESS")
+    return f"[{action}] {tool_name}"
 
 
 def tool_error_markup(tool_name: str, error: str) -> str:
     """Return plain text for tool error (streaming safe)."""
-    return f"✗ {tool_name}: {error[:100]}"
+    return f"[FAILED] {tool_name}: {error[:80]}"
 
 
 def agent_routing_markup(agent_name: str, confidence: float) -> str:

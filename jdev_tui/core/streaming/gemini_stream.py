@@ -205,6 +205,62 @@ class GeminiSDKStreamer(BaseStreamer):
 
         return self._model
 
+    def _convert_protobuf_args(self, args: Any) -> Dict[str, Any]:
+        """
+        Convert protobuf MapComposite/RepeatedComposite to regular Python dict.
+
+        Handles nested structures and various protobuf types.
+        """
+        if args is None:
+            return {}
+
+        result = {}
+        try:
+            # Try to iterate as a map
+            items = None
+            if hasattr(args, 'items'):
+                items = args.items()
+            elif hasattr(args, '__iter__') and not isinstance(args, (str, bytes)):
+                try:
+                    items = list(args)
+                    if items and isinstance(items[0], tuple) and len(items[0]) == 2:
+                        pass  # Already key-value pairs
+                    else:
+                        items = None
+                except:
+                    items = None
+
+            if items:
+                for key, value in items:
+                    # Recursively convert nested structures
+                    if hasattr(value, 'items') or hasattr(value, '__iter__') and not isinstance(value, (str, bytes, int, float, bool)):
+                        try:
+                            result[key] = self._convert_protobuf_args(value)
+                        except:
+                            result[key] = str(value)
+                    else:
+                        # Convert to native Python type
+                        if hasattr(value, 'string_value'):
+                            result[key] = value.string_value
+                        elif hasattr(value, 'number_value'):
+                            result[key] = value.number_value
+                        elif hasattr(value, 'bool_value'):
+                            result[key] = value.bool_value
+                        else:
+                            result[key] = value
+            else:
+                # Fallback: try direct dict conversion
+                result = dict(args) if args else {}
+        except Exception as e:
+            logger.debug(f"Protobuf conversion fallback: {e}")
+            # Last resort: string representation
+            try:
+                result = {"_raw": str(args)}
+            except:
+                result = {}
+
+        return result
+
     async def stream(
         self,
         prompt: str,
@@ -230,6 +286,17 @@ class GeminiSDKStreamer(BaseStreamer):
             kwargs = {"stream": True}
             if tools:
                 kwargs["tools"] = tools
+                # CRITICAL: Add tool_config to encourage function calling
+                # Mode AUTO lets model decide, but we add config to enable it
+                try:
+                    from google.generativeai.types import content_types
+                    # Create tool_config that enables function calling
+                    kwargs["tool_config"] = content_types.to_tool_config({
+                        "function_calling_config": {"mode": "AUTO"}
+                    })
+                    logger.debug(f"Tool config set to AUTO mode with {len(tools)} tools")
+                except Exception as e:
+                    logger.warning(f"Could not set tool_config: {e}")
             return model.generate_content(
                 contents if len(contents) > 1 else prompt,
                 **kwargs
@@ -259,7 +326,10 @@ class GeminiSDKStreamer(BaseStreamer):
                     if text:
                         yield text
 
-                await asyncio.sleep(0)
+                # CRITICAL: Small sleep to force Gradio websocket flush
+                # sleep(0) is not enough - Gradio needs ~2ms to process yield
+                # This ensures chunks appear in realtime instead of buffering
+                await asyncio.sleep(0.002)
 
         except Exception as e:
             logger.error(f"SDK streaming error: {e}")
@@ -302,8 +372,13 @@ class GeminiSDKStreamer(BaseStreamer):
                     for part in candidate.content.parts:
                         if hasattr(part, 'function_call') and part.function_call:
                             fc = part.function_call
-                            args = dict(fc.args) if hasattr(fc.args, 'items') else {}
-                            yield f"[TOOL_CALL:{fc.name}:{json.dumps(args)}]"
+                            # Handle protobuf MapComposite/RepeatedComposite robustly
+                            args = self._convert_protobuf_args(fc.args)
+                            try:
+                                args_json = json.dumps(args)
+                            except (TypeError, ValueError):
+                                args_json = "{}"
+                            yield f"[TOOL_CALL:{fc.name}:{args_json}]"
                             yielded = True
                         elif hasattr(part, 'text') and part.text:
                             yield part.text

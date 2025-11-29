@@ -337,21 +337,41 @@ class Bridge:
         tool_names = self.tools.list_tools()[:25]
         tool_list = ", ".join(tool_names) if tool_names else "none loaded"
 
-        return f"""You are juancs-code, an AI coding assistant with direct tool access.
+        # Check for recent plan in context (from AgentManager)
+        plan_context = ""
+        last_plan = getattr(self.agents, '_last_plan', None)
+        if last_plan:
+            plan_context = f"""
+
+=== PREVIOUS PLAN TO EXECUTE ===
+{last_plan[:4000]}
+=== END OF PLAN ===
+
+CRITICAL: When user says "make it real", "do it", "build it", "create it", "go", "materializa", "faz", "cria os arquivos":
+1. IMMEDIATELY use write_file tool to create EACH file from the plan above
+2. First create directory: bash_command("mkdir -p neuro_api")
+3. Then write_file for EACH file with COMPLETE working code
+4. Do NOT just describe - actually CREATE the files using tools
+5. Do NOT try to run apt-get or install anything
+"""
+
+        return f"""You are PROMETHEUS, an AI coding assistant that EXECUTES code tasks.
 
 CRITICAL RULES:
-1. PREFER ACTIONS OVER EXPLANATIONS - When user asks to create/modify/delete files, USE TOOLS immediately
-2. CODE FIRST - Show code, then 1-2 sentence explanation max
-3. BE CONCISE - No verbose introductions or unnecessary elaboration
-4. EXECUTE, DON'T DESCRIBE - "Create HTML file" = USE write_file tool, NOT print code
+1. ACTIONS OVER EXPLANATIONS - USE TOOLS immediately, don't just talk
+2. When user confirms ("make it real", "do it", "yes", "go") = CREATE FILES using write_file
+3. NEVER joke or run silly commands like "apt-get install reality"
+4. EXECUTE the plan by writing actual files
 
 Available tools: {tool_list}
 
-IMPORTANT: When user asks to create a file, call write_file(path, content).
-When user asks to edit a file, call edit_file(path, ...).
-When user asks to run a command, call bash_command(command).
-
-Current working directory: {os.getcwd()}
+TOOL USAGE:
+- Create file: write_file(path="filename.py", content="code here")
+- Create directory: bash_command(command="mkdir -p dirname")
+- Edit file: edit_file(path="filename.py", ...)
+- Read file: read_file(path="filename.py")
+{plan_context}
+Working directory: {os.getcwd()}
 """
 
     # =========================================================================
@@ -377,6 +397,27 @@ Current working directory: {os.getcwd()}
     # CHAT - Main Entry Point
     # =========================================================================
 
+    def _is_plan_execution_request(self, message: str) -> bool:
+        """Check if user wants to execute the saved plan."""
+        import re
+        execute_patterns = [
+            r"^make\s+it\s+real",
+            r"^do\s+it\b",
+            r"^build\s+it\b",
+            r"^create\s+it\b",
+            r"^(go|let'?s\s+go|vamos|bora)\b",
+            r"^execute\s+(the\s+)?(plan|plano)",
+            r"^run\s+(the\s+)?(plan|plano)",
+            r"^implement",
+            r"^create\s+(the\s+)?files?",
+            r"^write\s+(the\s+)?files?",
+            r"^generate\s+(the\s+)?(code|files?)",
+            r"^materializ",
+            r"^(faz|cria)\s*(isso|os\s*arquivos)?",
+        ]
+        msg_lower = message.lower().strip()
+        return any(re.match(p, msg_lower, re.IGNORECASE) for p in execute_patterns)
+
     async def chat(self, message: str, auto_route: bool = True) -> AsyncIterator[str]:
         """
         Handle chat message with streaming response and agentic tool execution.
@@ -391,11 +432,26 @@ Current working directory: {os.getcwd()}
             message: User message
             auto_route: If True, automatically route to agents based on intent
         """
+        # Check if user wants to execute a saved plan - BEFORE routing!
+        last_plan = getattr(self.agents, '_last_plan', None)
+        executing_plan = False
+        if last_plan and self._is_plan_execution_request(message):
+            # Inject plan into message for LLM to execute
+            message = f"""Execute this plan by creating the files using write_file tool:
+
+{last_plan[:3000]}
+
+NOW CREATE ALL THE FILES using write_file tool. Start with mkdir for the directory, then write_file for each file."""
+            yield "🚀 *Executing saved plan...*\n\n"
+            executing_plan = True  # Skip routing - go straight to LLM with tools
+            # Clear the plan after execution attempt
+            self.agents._last_plan = None
+
         # Determine provider
         client, provider_name = self._get_client(message)
 
         # Log provider selection for debugging
-        if self._provider_mode == "auto":
+        if self._provider_mode == "auto" and not executing_plan:
             # Yield provider indicator for UI
             yield f"[Using {provider_name.upper()}]\n"
 
@@ -413,8 +469,9 @@ Current working directory: {os.getcwd()}
 
         # =====================================================================
         # AGENT ROUTER - Automatic Intent Detection (Claude Code Parity)
+        # Skip routing if we're executing a plan!
         # =====================================================================
-        if auto_route and self.is_auto_routing_enabled():
+        if auto_route and self.is_auto_routing_enabled() and not executing_plan:
             routing = self.agents.router.route(message)
             if routing:
                 agent_name, confidence = routing
@@ -523,19 +580,31 @@ Current working directory: {os.getcwd()}
         """
         Invoke a specific agent with streaming response.
 
-        Enhanced with history tracking.
+        Enhanced with history tracking and plan capture.
         """
         # Add to history
         self.history.add_command(f"/{agent_name} {task}")
+
+        # Capture plan output if this is the planner
+        plan_buffer = [] if agent_name == "planner" else None
 
         # Governance observation (streaming-safe plain text)
         gov_report = self.governance.observe(f"agent:{agent_name}", task, agent_name)
         yield f"*{gov_report}*\n"
         yield f"🤖 Routing to **{agent_name.title()}Agent**...\n\n"
 
-        # Invoke agent
+        # Invoke agent and capture output
         async for chunk in self.agents.invoke_agent(agent_name, task, context):
+            # Capture plan chunks for later execution
+            if plan_buffer is not None and chunk:
+                plan_buffer.append(chunk)
             yield chunk
+
+        # Save plan for later execution (e.g., "make it real", "create the files")
+        if plan_buffer:
+            plan_text = "".join(plan_buffer)
+            self.agents._last_plan = plan_text
+            yield f"\n\n💾 **Plan saved!** Say `create the files` or `make it real` to execute.\n"
 
     # =========================================================================
     # PLANNER v6.1 METHODS (Multi-Plan, Clarification, Exploration)

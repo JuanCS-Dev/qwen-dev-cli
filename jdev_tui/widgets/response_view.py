@@ -113,8 +113,14 @@ class ResponseView(VerticalScroll):
         self.scroll_end(animate=True)
 
     def add_system_message(self, message: str) -> None:
-        """Add system/help message (markdown)."""
-        widget = SelectableStatic(Markdown(message), classes="system-message")
+        """Add system/help message (Rich markup or markdown)."""
+        # Detect Rich markup tags - if present, use Text.from_markup()
+        if "[bold" in message or "[cyan]" in message or "[dim]" in message:
+            content = Text.from_markup(message)
+            widget = SelectableStatic(content, classes="system-message")
+        else:
+            # Standard markdown
+            widget = SelectableStatic(Markdown(message), classes="system-message")
         self.mount(widget)
         self.scroll_end(animate=True)
 

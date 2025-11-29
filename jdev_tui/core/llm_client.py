@@ -214,6 +214,7 @@ class GeminiClient:
         prompt: str,
         system_prompt: str = "",
         context: Optional[List[Dict[str, str]]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
         """
@@ -223,6 +224,7 @@ class GeminiClient:
             prompt: User's message
             system_prompt: System instructions
             context: Optional conversation history
+            tools: Optional tool schemas to use for this request
             **kwargs: Extra arguments (for compatibility)
 
         Yields:
@@ -243,11 +245,19 @@ class GeminiClient:
             return
 
         # Build tools for function calling
-        tools = self._build_gemini_tools() if self._tool_schemas else None
+        # Use passed tools if provided, otherwise use pre-configured
+        if tools:
+            # Update tool schemas and rebuild
+            self._tool_schemas = tools
+            self._gemini_tools = None  # Force rebuild
+        gemini_tools = self._build_gemini_tools() if self._tool_schemas else None
+
+        if gemini_tools:
+            logger.info(f"Function calling enabled with {len(self._tool_schemas)} tools")
 
         try:
             async for chunk in self._streamer.stream(
-                prompt, system_prompt, context, tools
+                prompt, system_prompt, context, gemini_tools
             ):
                 yield chunk
 
@@ -258,8 +268,15 @@ class GeminiClient:
             self._circuit_breaker.record_failure("Stream timeout")
             yield f"\n⚠️ Request timed out after {self.STREAM_TIMEOUT}s"
         except Exception as e:
-            self._circuit_breaker.record_failure(str(e))
-            yield f"\n❌ Error: {str(e)}"
+            error_str = str(e)
+            self._circuit_breaker.record_failure(error_str)
+            # Handle rate limiting gracefully
+            if "429" in error_str or "quota" in error_str.lower():
+                yield f"\n⚠️ Rate limit reached. Please wait a moment and try again."
+            elif "RepeatedComposite" in error_str or "serializable" in error_str.lower():
+                yield f"\n⚠️ Response parsing error. Retrying..."
+            else:
+                yield f"\n❌ Error: {error_str[:200]}"
 
     async def generate(self, prompt: str, system_prompt: str = "") -> str:
         """

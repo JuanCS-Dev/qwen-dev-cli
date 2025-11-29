@@ -567,9 +567,9 @@ class QwenApp(App):
 def main() -> None:
     """Run the QWEN CLI application."""
     app = QwenApp()
-    # mouse=True enables scroll wheel in ResponseView
-    # Use Shift+Click to select text for copy/paste in most terminals
-    app.run(mouse=True)
+    # mouse=False to allow paste with mouse (right-click/middle-click)
+    # Use PageUp/PageDown or Ctrl+Arrow for scrolling
+    app.run(mouse=False)
 
 
 if __name__ == "__main__":

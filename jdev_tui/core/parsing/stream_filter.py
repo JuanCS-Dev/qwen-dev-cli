@@ -3,7 +3,7 @@ Stream Filter - Output Sanitization
 ===================================
 
 Provides real-time filtering of streaming output to prevent raw JSON tool calls
-from leaking to the user interface.
+and internal markers from leaking to the user interface.
 
 Author: JuanCS Dev
 Date: 2025-11-28
@@ -13,8 +13,8 @@ import re
 
 class StreamFilter:
     """
-    Filters streaming text to remove raw JSON tool calls.
-    
+    Filters streaming text to remove raw JSON tool calls and internal markers.
+
     Implements a buffering state machine that detects potential JSON blocks
     and suppresses them until they are confirmed as tool calls or invalidated.
     """
@@ -22,6 +22,7 @@ class StreamFilter:
     def __init__(self):
         self._buffer = ""
         self._in_potential_json = False
+        self._in_tool_marker = False
         self._brace_count = 0
 
         # Regex to detect start of potential tool call JSON
@@ -32,23 +33,59 @@ class StreamFilter:
         # These are JSON objects that Gemini sometimes outputs when describing tool calls
         # Examples: {"query": "...", {"path": "...", {"command": "...
         self._tool_arg_patterns = re.compile(
-            r'\{\s*"(query|path|command|file|url|pattern|search|prompt|message|data)"'
+            r'\{\s*"(query|path|command|file|url|pattern|search|prompt|message|data|content)"'
         )
+
+        # NEW: Pattern for [TOOL_CALL:name:{...}] markers
+        self._tool_marker_pattern = re.compile(r'\[TOOL_CALL:\w+:\{.*?\}\]', re.DOTALL)
+        self._tool_marker_start = re.compile(r'\[TOOL_CALL:')
 
     def process_chunk(self, chunk: str) -> str:
         """
         Process a text chunk and return sanitized text.
-        
+
         Args:
             chunk: Incoming text chunk
-            
+
         Returns:
             Sanitized text to display (may be empty if buffering)
         """
         if not chunk:
             return ""
 
-        # If we are already buffering, append to buffer
+        # FIRST: Filter out complete [TOOL_CALL:...] markers
+        chunk = self._tool_marker_pattern.sub('', chunk)
+
+        # If we are buffering a partial tool marker
+        if self._in_tool_marker:
+            self._buffer += chunk
+            # Check if we have a complete marker now
+            if ']' in self._buffer:
+                # Remove the complete marker
+                cleaned = self._tool_marker_pattern.sub('', self._buffer)
+                # Check if there's still partial marker left
+                if self._tool_marker_start.search(cleaned):
+                    # Still have partial marker, keep buffering
+                    idx = cleaned.rfind('[TOOL_CALL:')
+                    result = cleaned[:idx]
+                    self._buffer = cleaned[idx:]
+                    return result
+                else:
+                    self._buffer = ""
+                    self._in_tool_marker = False
+                    return cleaned
+            return ""
+
+        # Check for partial [TOOL_CALL: at the end of chunk
+        if '[TOOL_CALL:' in chunk:
+            idx = chunk.find('[TOOL_CALL:')
+            if ']' not in chunk[idx:]:
+                # Partial marker - buffer it
+                self._in_tool_marker = True
+                self._buffer = chunk[idx:]
+                return chunk[:idx]
+
+        # If we are already buffering JSON, append to buffer
         if self._in_potential_json:
             self._buffer += chunk
             return self._check_buffer()
@@ -63,16 +100,11 @@ class StreamFilter:
             # We need enough context. If post_json is very short, we might need to buffer.
             potential_start = '{' + post_json
 
-            # Buffer if:
-            # 1. It matches the pattern ({"tool")
-            # 2. It matches tool arg patterns ({"query", {"path", etc.)
-            # 3. It's too short to tell (just { or { "...)
-            # 4. It looks like it might start a key ("...)
+            # Buffer ONLY if it explicitly matches tool call patterns
+            # Be conservative - only filter actual tool calls, not regular text with braces
             if (
                 self._json_start_pattern.match(potential_start) or
-                self._tool_arg_patterns.match(potential_start) or
-                len(post_json) < 10 or
-                post_json.strip().startswith('"')
+                self._tool_arg_patterns.match(potential_start)
             ):
                 # Start buffering
                 self._in_potential_json = True

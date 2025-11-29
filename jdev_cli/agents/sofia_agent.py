@@ -412,9 +412,31 @@ Always:
     # BASE AGENT IMPLEMENTATION (execute, execute_streaming)
     # ════════════════════════════════════════════════════════════════════════════
 
+    def _build_sofia_prompt(self, query: str, context: Dict[str, Any]) -> str:
+        """Build a prompt for Sofia that uses LLM intelligence."""
+        return f"""You are SOFIA (Σοφία - Sabedoria), a wise counselor and helpful assistant.
+
+Your role is to HELP the user with their request. You combine:
+- Practical wisdom and helpful responses
+- Thoughtful perspective when appropriate
+- Direct, useful answers to questions
+
+IMPORTANT GUIDELINES:
+1. If the user asks a TECHNICAL question (about code, tools, systems, etc.), provide a HELPFUL ANSWER with relevant information
+2. If the user asks for ADVICE on a dilemma, use Socratic questioning to help them think
+3. If the user just says "oi" or greets you, respond warmly and ask how you can help
+4. NEVER respond with generic template phrases like "O que você quer dizer quando diz X?"
+5. Be SUBSTANTIVE - provide real value in your responses
+
+Current context: {context}
+
+User query: {query}
+
+Respond helpfully in the same language the user used (Portuguese or English)."""
+
     async def execute(self, task: AgentTask) -> AgentResponse:
         """
-        Execute a counsel task.
+        Execute a counsel task using LLM for intelligent responses.
 
         This is the BaseAgent interface implementation.
 
@@ -424,44 +446,76 @@ Always:
         Returns:
             AgentResponse with counsel results
         """
-        # Extract query from task
         query = task.request
+        context = task.context or {}
 
-        # Provide counsel
-        counsel_response = await self.provide_counsel_async(
-            query=query,
-            session_id=task.session_id,
-            context=task.context,
-            agent_id=task.context.get("requesting_agent_id", "unknown"),
-        )
+        # Use LLM to generate intelligent response
+        try:
+            prompt = self._build_sofia_prompt(query, context)
 
-        # Convert to AgentResponse
-        response = AgentResponse(
-            success=True,
-            data={
-                "counsel": counsel_response.model_dump(),
-                "sofia_state": self.sofia_core.state.name,
-                "counsel_type": counsel_response.counsel_type,
-                "thinking_mode": counsel_response.thinking_mode,
-                "confidence": counsel_response.confidence,
-                "questions_asked": len(counsel_response.questions_asked),
-                "session_id": task.session_id,
-            },
-            reasoning=counsel_response.counsel,
-            error=None,
-            metrics={},  # Keep empty for now (Sofia doesn't produce numeric metrics)
-        )
+            # Call LLM for real response
+            llm_response = await self._call_llm(prompt)
 
-        return response
+            # Create response with LLM-generated counsel
+            response = AgentResponse(
+                success=True,
+                data={
+                    "counsel": {
+                        "counsel": llm_response,
+                        "original_query": query,
+                        "counsel_type": "INTELLIGENT",
+                        "thinking_mode": "LLM",
+                        "confidence": 0.8,
+                        "questions_asked": [],
+                        "virtues_expressed": [],
+                        "processing_time_ms": 0,
+                        "community_suggested": False,
+                        "requires_professional": False,
+                    },
+                    "sofia_state": "COUNSELING",
+                    "counsel_type": "INTELLIGENT",
+                    "thinking_mode": "LLM",
+                    "confidence": 0.8,
+                    "questions_asked": 0,
+                    "session_id": task.session_id,
+                },
+                reasoning=llm_response,
+                error=None,
+                metrics={},
+            )
+            return response
+
+        except Exception as e:
+            # Fallback to template-based response if LLM fails
+            logger.warning(f"LLM call failed, falling back to templates: {e}")
+            counsel_response = await self.provide_counsel_async(
+                query=query,
+                session_id=task.session_id,
+                context=context,
+                agent_id=context.get("requesting_agent_id", "unknown"),
+            )
+
+            return AgentResponse(
+                success=True,
+                data={
+                    "counsel": counsel_response.model_dump(),
+                    "sofia_state": self.sofia_core.state.name,
+                    "counsel_type": counsel_response.counsel_type,
+                    "thinking_mode": counsel_response.thinking_mode,
+                    "confidence": counsel_response.confidence,
+                    "questions_asked": len(counsel_response.questions_asked),
+                    "session_id": task.session_id,
+                },
+                reasoning=counsel_response.counsel,
+                error=None,
+                metrics={},
+            )
 
     async def execute_streaming(
         self, task: AgentTask
     ) -> AsyncIterator[tuple[str, Optional[AgentResponse]]]:
         """
-        Execute with streaming output (simulated for Sofia).
-
-        Since Sofia Core doesn't have native streaming, we simulate it
-        by yielding the counsel in chunks.
+        Execute with streaming output using LLM.
 
         Args:
             task: AgentTask with instructions
@@ -469,25 +523,51 @@ Always:
         Yields:
             Tuples of (chunk, response)
         """
-        # Get full counsel first
-        response = await self.execute(task)
-        counsel_text = response.data["counsel"]["counsel"]
+        query = task.request
+        context = task.context or {}
+        prompt = self._build_sofia_prompt(query, context)
 
-        # Simulate streaming by yielding sentence by sentence
-        sentences = counsel_text.split(". ")
-
-        for i, sentence in enumerate(sentences):
-            chunk = sentence + (". " if i < len(sentences) - 1 else "")
-
-            # Yield chunk with partial response
-            if i < len(sentences) - 1:
+        # Try streaming from LLM
+        try:
+            full_response = []
+            async for chunk in self.llm_client.stream(prompt, system_prompt=self.system_prompt):
+                full_response.append(chunk)
                 yield (chunk, None)
-            else:
-                # Final chunk - yield complete response
-                yield (chunk, response)
 
-            # Small delay to simulate thinking
-            await asyncio.sleep(0.1)
+            # Final response
+            final_text = "".join(full_response)
+            response = AgentResponse(
+                success=True,
+                data={
+                    "counsel": {
+                        "counsel": final_text,
+                        "original_query": query,
+                        "counsel_type": "INTELLIGENT",
+                        "thinking_mode": "LLM",
+                        "confidence": 0.8,
+                    },
+                    "sofia_state": "COUNSELING",
+                },
+                reasoning=final_text,
+                error=None,
+                metrics={},
+            )
+            yield ("", response)
+
+        except Exception as e:
+            # Fallback to non-streaming
+            logger.warning(f"Streaming failed, using non-streaming: {e}")
+            response = await self.execute(task)
+            counsel_text = response.data["counsel"]["counsel"]
+
+            sentences = counsel_text.split(". ")
+            for i, sentence in enumerate(sentences):
+                chunk = sentence + (". " if i < len(sentences) - 1 else "")
+                if i < len(sentences) - 1:
+                    yield (chunk, None)
+                else:
+                    yield (chunk, response)
+                await asyncio.sleep(0.05)
 
     # ════════════════════════════════════════════════════════════════════════════
     # INTERNAL HELPERS

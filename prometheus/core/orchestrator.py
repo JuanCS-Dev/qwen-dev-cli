@@ -132,142 +132,82 @@ class PrometheusOrchestrator:
         self,
         task: str,
         stream: bool = True,
+        fast_mode: bool = True,  # Default to FAST mode
     ) -> AsyncIterator[str]:
         """
-        Execute a task with full orchestration.
+        Execute a task with orchestration.
 
-        Yields progress updates as execution proceeds.
+        Args:
+            task: The task to execute
+            stream: Whether to stream output
+            fast_mode: Skip memory/reflection for speed (default: True)
         """
         self._is_executing = True
         start_time = datetime.now()
-        actions_taken = []
-        tools_used = []
 
         try:
-            yield "🔥 PROMETHEUS: Starting task execution...\n\n"
+            yield "🔥 **PROMETHEUS** executing...\n\n"
 
-            # 1. MEMORY: Retrieve context
-            yield "📚 Retrieving relevant context from memory...\n"
-            memory_context = self.memory.get_context_for_task(task)
+            # FAST MODE: Go directly to execution
+            if fast_mode:
+                execution_output = await self._execute_task_with_context(
+                    task,
+                    {},  # No memory context
+                    None,  # No plan
+                )
+                yield execution_output
 
-            experiences = memory_context.get("relevant_experiences", [])
-            if experiences:
-                yield f"  → Found {len(experiences)} relevant past experiences\n"
+                end_time = datetime.now()
+                execution_time = (end_time - start_time).total_seconds()
+                yield f"\n\n✅ Done in {execution_time:.1f}s\n"
+            else:
+                # FULL MODE: All the bells and whistles
+                yield "📚 Retrieving context...\n"
+                memory_context = self.memory.get_context_for_task(task)
 
-            procedures = memory_context.get("relevant_procedures", [])
-            if procedures:
-                yield f"  → Found {len(procedures)} applicable procedures\n"
+                yield "🌍 Planning approach...\n"
+                plans = await self.world_model.find_best_plan(
+                    goal=task,
+                    available_actions=[
+                        ActionType.THINK,
+                        ActionType.READ_FILE,
+                        ActionType.WRITE_FILE,
+                        ActionType.EXECUTE_CODE,
+                        ActionType.USE_TOOL,
+                    ],
+                    max_steps=5,
+                    num_candidates=2,
+                )
 
-            # 2. WORLD MODEL: Simulate plans
-            yield "\n🌍 Simulating potential approaches...\n"
+                yield "⚡ Executing...\n"
+                execution_output = await self._execute_task_with_context(
+                    task,
+                    memory_context,
+                    plans[0] if plans else None,
+                )
+                yield f"\n{execution_output}\n"
 
-            plans = await self.world_model.find_best_plan(
-                goal=task,
-                available_actions=[
-                    ActionType.THINK,
-                    ActionType.READ_FILE,
-                    ActionType.WRITE_FILE,
-                    ActionType.EXECUTE_CODE,
-                    ActionType.USE_TOOL,
-                ],
-                max_steps=8,
-                num_candidates=3,
-            )
+                yield "🪞 Reflecting...\n"
+                reflection_result = await self.reflection.critique_action(
+                    action=f"Task: {task[:100]}",
+                    result=execution_output[:500],
+                    context={},
+                )
 
-            if plans:
-                best_plan = plans[0]
-                yield f"  → Best approach: {best_plan.overall_success_probability:.0%} predicted success\n"
+                self.memory.remember_experience(
+                    experience=f"Task: {task[:200]}",
+                    outcome=f"Result: {execution_output[:200]}",
+                    context={"score": reflection_result.score},
+                    importance=reflection_result.score,
+                )
 
-                if best_plan.critical_risks:
-                    yield f"  ⚠️  Identified risks: {', '.join(best_plan.critical_risks[:2])}\n"
-
-                actions_taken.append("plan_generated")
-
-            # 3. TOOL CHECK: Identify needed tools
-            yield "\n🔧 Checking available tools...\n"
-            needed_tools = self._identify_needed_tools(task)
-            available = [t["name"] for t in self.tools.list_tools()]
-
-            for tool_name in needed_tools:
-                if tool_name not in available:
-                    yield f"  → Generating new tool: {tool_name}...\n"
-                    # Tool would be generated here if needed
-
-            # 4. EXECUTION: Main task execution
-            yield "\n⚡ Executing task...\n"
-
-            execution_output = await self._execute_task_with_context(
-                task,
-                memory_context,
-                plans[0] if plans else None,
-            )
-
-            yield f"\n📝 Output:\n{'-' * 40}\n{execution_output}\n{'-' * 40}\n"
-
-            actions_taken.append("task_executed")
-
-            # 5. REFLECTION: Analyze results
-            yield "\n🪞 Reflecting on execution...\n"
-
-            reflection_result = await self.reflection.critique_action(
-                action=f"Executed task: {task[:100]}",
-                result=execution_output[:500],
-                context={"memory_context": str(memory_context)[:200]},
-            )
-
-            yield f"  → Quality score: {reflection_result.score:.0%}\n"
-
-            if reflection_result.improvements:
-                yield f"  → Improvements identified: {len(reflection_result.improvements)}\n"
-
-            if reflection_result.lessons_learned:
-                yield f"  → Lessons learned: {len(reflection_result.lessons_learned)}\n"
-                for lesson in reflection_result.lessons_learned[:2]:
-                    yield f"     • {lesson}\n"
-
-            # 6. LEARNING: Update memory
-            yield "\n🧠 Updating knowledge base...\n"
-
-            self.memory.remember_experience(
-                experience=f"Task: {task[:200]}",
-                outcome=f"Result: {execution_output[:200]}",
-                context={
-                    "score": reflection_result.score,
-                    "tools_used": tools_used,
-                },
-                importance=reflection_result.score,
-            )
-
-            # Consolidate if needed
-            if len(self.memory.episodic.entries) % 10 == 0:
-                consolidated = self.memory.consolidate_to_vault()
-                if consolidated:
-                    yield f"  → Consolidated {consolidated} items to knowledge vault\n"
-
-            # Calculate final metrics
-            end_time = datetime.now()
-            execution_time = (end_time - start_time).total_seconds()
-
-            # Store result
-            result = ExecutionResult(
-                task=task,
-                output=execution_output,
-                success=reflection_result.score > 0.6,
-                score=reflection_result.score,
-                actions_taken=actions_taken,
-                tools_used=tools_used,
-                reflection_score=reflection_result.score,
-                execution_time=execution_time,
-                lessons_learned=reflection_result.lessons_learned,
-            )
-            self.execution_history.append(result)
-
-            yield f"\n✅ Task completed in {execution_time:.1f}s (score: {reflection_result.score:.0%})\n"
+                end_time = datetime.now()
+                execution_time = (end_time - start_time).total_seconds()
+                yield f"\n✅ Done in {execution_time:.1f}s (score: {reflection_result.score:.0%})\n"
 
         except Exception as e:
-            yield f"\n❌ Error during execution: {str(e)}\n"
+            yield f"\n❌ Error: {str(e)}\n"
             raise
-
         finally:
             self._is_executing = False
 
@@ -291,7 +231,17 @@ class PrometheusOrchestrator:
         plan: Optional[Any] = None,
     ) -> str:
         """Execute the main task with all context."""
-        # Build comprehensive prompt
+        import re
+
+        # Check if task contains a plan with code blocks - DIRECT EXTRACTION MODE
+        has_code_blocks = "```" in task
+        has_file_refs = any(x in task for x in [".py", "requirements", "Dockerfile", ".yaml", ".json", ".toml"])
+
+        if has_code_blocks and has_file_refs:
+            # OPTIMIZED: Direct extraction and file creation - no LLM call needed!
+            return await self._direct_plan_execution(task)
+
+        # Standard execution path for non-plan tasks
         context_section = self._format_context(context)
         plan_section = self._format_plan(plan) if plan else ""
 
@@ -301,25 +251,207 @@ class PrometheusOrchestrator:
             for t in tools_list[:15]
         )
 
-        prompt = f"""You are PROMETHEUS, a self-evolving AI agent. Execute this task thoroughly.
+        prompt = f"""You are PROMETHEUS. Execute this task using tools.
 
 TASK: {task}
 
-RELEVANT CONTEXT:
+CONTEXT:
 {context_section}
 
 {plan_section}
 
-AVAILABLE TOOLS:
-{tools_section}
+TOOLS: {tools_section}
 
-Execute the task step by step. If it's a coding task, provide working code.
-If it's an analysis task, provide thorough analysis.
-If it's a question, provide a comprehensive answer.
+Use [TOOL:name:args] format. Example: [TOOL:write_file:path=x.py,content=code]"""
 
-Be specific, accurate, and complete in your response."""
+        response = await self.llm.generate(prompt)
+        response = await self._execute_inline_tools(response)
+        return response
 
-        return await self.llm.generate(prompt)
+    async def _direct_plan_execution(self, task: str) -> str:
+        """
+        OPTIMIZED: Extract files directly from plan and create them.
+        No additional LLM call - parse the plan text directly.
+        """
+        import re
+
+        results = []
+
+        # Step 1: Find project directory (e.g., neuro_api, my_project)
+        dir_patterns = [
+            r'mkdir\s+(\w+)',
+            r'cd\s+(\w+)',
+            r'directory[:\s]+[`\'"]*(\w+)[`\'"]*',
+            r'project[:\s]+[`\'"]*(\w+)[`\'"]*',
+            r'called\s+[`\'"]*(\w+)[`\'"]*',
+        ]
+        project_dir = None
+        for pattern in dir_patterns:
+            match = re.search(pattern, task, re.IGNORECASE)
+            if match:
+                candidate = match.group(1)
+                if candidate not in ['python', 'pip', 'source', 'venv', 'app']:
+                    project_dir = candidate
+                    break
+
+        # Create project directory
+        if project_dir:
+            os.makedirs(project_dir, exist_ok=True)
+            results.append(f"📁 Created: {project_dir}/")
+
+        # Step 2: Extract ALL code blocks with file associations
+        # Pattern: filename followed by code block (various formats)
+        file_patterns = [
+            # `filename.py`: ```python
+            r'[`\'"]+([a-zA-Z_][\w/\-\.]*\.(?:py|txt|md|yaml|yml|json|toml|dockerfile|cfg|ini))[`\'"]*[:\s]*\n*```[\w]*\n(.*?)```',
+            # **filename.py** or filename.py:
+            r'\*?\*?([a-zA-Z_][\w/\-\.]*\.(?:py|txt|md|yaml|yml|json|toml|dockerfile|cfg|ini))\*?\*?[:\s]*\n*```[\w]*\n(.*?)```',
+            # Create filename.py or File: filename.py
+            r'(?:Create|File|create|file)[:\s]+[`\'"]*([a-zA-Z_][\w/\-\.]*\.(?:py|txt|md|yaml|yml|json|toml))[`\'"]*[:\s]*\n*```[\w]*\n(.*?)```',
+        ]
+
+        created_files = set()
+        for pattern in file_patterns:
+            for match in re.finditer(pattern, task, re.DOTALL | re.IGNORECASE):
+                filename = match.group(1).strip('`\'"* ')
+                content = match.group(2).strip()
+
+                if not content or len(content) < 5:
+                    continue
+                if filename in created_files:
+                    continue
+
+                # Determine full path
+                if project_dir and not filename.startswith(project_dir):
+                    # Check if it's a nested file like utils/ml_utils.py
+                    if '/' in filename:
+                        full_path = os.path.join(project_dir, filename)
+                    else:
+                        full_path = os.path.join(project_dir, filename)
+                else:
+                    full_path = filename
+
+                # Create parent directories
+                parent = os.path.dirname(full_path)
+                if parent:
+                    os.makedirs(parent, exist_ok=True)
+
+                # Write file
+                try:
+                    with open(full_path, 'w', encoding='utf-8') as f:
+                        f.write(content)
+                    results.append(f"✅ Created: {full_path} ({len(content)} bytes)")
+                    created_files.add(filename)
+                except Exception as e:
+                    results.append(f"❌ Failed: {full_path} - {e}")
+
+        # Step 3: Also check for requirements.txt or Dockerfile specifically
+        special_files = {
+            'requirements.txt': r'requirements\.txt[`\'":\s]*\n*```[^\n]*\n(.*?)```',
+            'Dockerfile': r'Dockerfile[`\'":\s]*\n*```[^\n]*\n(.*?)```',
+            '.env': r'\.env[`\'":\s]*\n*```[^\n]*\n(.*?)```',
+        }
+
+        for filename, pattern in special_files.items():
+            if filename in created_files:
+                continue
+            match = re.search(pattern, task, re.DOTALL | re.IGNORECASE)
+            if match:
+                content = match.group(1).strip()
+                if content and len(content) > 3:
+                    full_path = os.path.join(project_dir, filename) if project_dir else filename
+                    try:
+                        with open(full_path, 'w', encoding='utf-8') as f:
+                            f.write(content)
+                        results.append(f"✅ Created: {full_path}")
+                        created_files.add(filename)
+                    except Exception as e:
+                        results.append(f"❌ Failed: {full_path} - {e}")
+
+        if results:
+            return "**Direct Plan Execution Results:**\n" + "\n".join(results)
+        else:
+            return "No files extracted from plan. Check code block formatting."
+
+    async def _execute_inline_tools(self, response: str) -> str:
+        """Parse and execute inline tool calls from response."""
+        import re
+
+        executed_results = []
+
+        # Pattern 1: [TOOL:tool_name:args]
+        tool_pattern = r'\[TOOL:(\w+):([^\]]+)\]'
+        for match in re.finditer(tool_pattern, response):
+            tool_name = match.group(1)
+            args_str = match.group(2)
+            args = {}
+            for pair in args_str.split(','):
+                if '=' in pair:
+                    key, value = pair.split('=', 1)
+                    args[key.strip()] = value.strip()
+            result = await self._execute_tool(tool_name, args)
+            executed_results.append(f"✅ {tool_name}: {result[:100]}")
+
+        # Pattern 2: mkdir("path") or mkdir('path')
+        mkdir_pattern = r'mkdir\(["\']([^"\']+)["\']\)'
+        for match in re.finditer(mkdir_pattern, response):
+            path = match.group(1)
+            result = await self._execute_tool("mkdir", {"path": path})
+            executed_results.append(f"✅ mkdir: {result[:100]}")
+
+        # Pattern 3: write_file("path", "content") - basic version
+        write_pattern = r'write_file\(["\']([^"\']+)["\'],\s*["\']([^"\']*)["\']'
+        for match in re.finditer(write_pattern, response):
+            path = match.group(1)
+            content = match.group(2)
+            result = await self._execute_tool("write_file", {"path": path, "content": content})
+            executed_results.append(f"✅ write_file: {result[:100]}")
+
+        # Pattern 4: Extract code blocks and create files from plan context
+        # Look for file paths followed by code blocks
+        file_code_pattern = r'(?:Create|create|File:|file:)\s*[`\'"]*([a-zA-Z_][a-zA-Z0-9_/\.]*\.(?:py|txt|md|yaml|yml|json|toml))[`\'"]*\s*[:]*\s*```[\w]*\n(.*?)```'
+        for match in re.finditer(file_code_pattern, response, re.DOTALL):
+            path = match.group(1)
+            content = match.group(2).strip()
+            if content and len(content) > 10:  # Meaningful content
+                result = await self._execute_tool("write_file", {"path": path, "content": content})
+                executed_results.append(f"✅ write_file({path}): {result[:60]}")
+
+        if executed_results:
+            return response + "\n\n---\n**Tool Execution Results:**\n" + "\n".join(executed_results)
+
+        return response
+
+    async def _execute_tool(self, tool_name: str, args: Dict[str, Any]) -> str:
+        """Execute a single tool by name."""
+        try:
+            if tool_name == "write_file":
+                path = args.get("path", "")
+                content = args.get("content", "")
+                return await self._tool_write_file(path, content)
+
+            elif tool_name == "mkdir":
+                path = args.get("path", "")
+                os.makedirs(path, exist_ok=True)
+                return f"Created directory: {path}"
+
+            elif tool_name == "read_file":
+                path = args.get("path", "")
+                return await self._tool_read_file(path)
+
+            elif tool_name == "list_files":
+                directory = args.get("path", ".")
+                return await self._tool_list_files(directory)
+
+            elif tool_name == "execute_python":
+                code = args.get("code", "")
+                return await self._tool_execute_python(code)
+
+            else:
+                return f"Unknown tool: {tool_name}"
+
+        except Exception as e:
+            return f"Error executing {tool_name}: {str(e)}"
 
     def _format_context(self, context: Dict[str, Any]) -> str:
         """Format memory context for prompt."""
